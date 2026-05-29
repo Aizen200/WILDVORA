@@ -1,4 +1,4 @@
-const { Timestamp } = require("mongodb")
+
 const mongoose=require("mongoose")
 const user= new mongoose.Schema({
     name:{
@@ -34,7 +34,7 @@ const user= new mongoose.Schema({
     isActive:{
         type:Boolean,
         default:true
-    },
-Timestamp:true
-})
+    }
+
+}, {timestamps:true})
 module.exports= mongoose.model("User",user)
