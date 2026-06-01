@@ -2,7 +2,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
 // Auth screens
@@ -20,28 +21,54 @@ import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
 
-function TabIcon({ name, focused }) {
-  const icons = { Home: '🏠', Search: '🔍', Trips: '🗺️', Profile: '👤' };
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{icons[name]}</Text>;
-}
+const PRIMARY = '#11694b';
+
+// Map each tab to a MaterialCommunityIcons name (active / inactive pair)
+const TAB_ICONS = {
+  Home:    { active: 'compass',       inactive: 'compass-outline' },
+  Search:  { active: 'magnify',       inactive: 'magnify' },
+  Trips:   { active: 'hiking',        inactive: 'hiking' },
+  Profile: { active: 'account',       inactive: 'account-outline' },
+};
 
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
-        tabBarActiveTintColor: '#111',
-        tabBarInactiveTintColor: '#999',
-        tabBarStyle: { paddingBottom: 6, height: 56 },
+        tabBarIcon: ({ focused, size }) => {
+          const icons = TAB_ICONS[route.name];
+          return (
+            <MaterialCommunityIcons
+              name={focused ? icons.active : icons.inactive}
+              size={24}
+              color={focused ? PRIMARY : '#6f7a73'}
+            />
+          );
+        },
+        tabBarActiveTintColor:   PRIMARY,
+        tabBarInactiveTintColor: '#6f7a73',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginBottom: 2,
+        },
+        tabBarStyle: {
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 4,
+          backgroundColor: 'rgba(247,250,246,0.97)',
+          borderTopWidth: 1,
+          borderTopColor: '#bec9c1' + '50',
+        },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Search" component={FilterScreen} />
-      <Tab.Screen name="Trips" component={MyTripsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home"    component={HomeScreen}    options={{ tabBarLabel: 'Home'    }} />
+      <Tab.Screen name="Search"  component={FilterScreen}  options={{ tabBarLabel: 'Search'  }} />
+      <Tab.Screen name="Trips"   component={MyTripsScreen} options={{ tabBarLabel: 'Trips'   }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -49,10 +76,10 @@ function MainTabs() {
 function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={MainTabs} />
+      <Stack.Screen name="Main"             component={MainTabs} />
       <Stack.Screen name="ExperienceDetail" component={ExperienceDetailScreen} />
-      <Stack.Screen name="Booking" component={BookingScreen} />
-      <Stack.Screen name="Wishlist" component={WishlistScreen} />
+      <Stack.Screen name="Booking"          component={BookingScreen} />
+      <Stack.Screen name="Wishlist"         component={WishlistScreen} />
     </Stack.Navigator>
   );
 }
@@ -60,8 +87,8 @@ function AppNavigator() {
 function AuthNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Login"          component={LoginScreen} />
+      <Stack.Screen name="Register"       component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
@@ -72,8 +99,8 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#111" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7faf6' }}>
+        <ActivityIndicator size="large" color={PRIMARY} />
       </View>
     );
   }

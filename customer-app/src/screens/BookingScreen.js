@@ -249,7 +249,14 @@ export default function BookingScreen({ route, navigation }) {
               <Text style={styles.doneDetailText}>💰 Total paid: ${grandTotal}</Text>
             </View>
             
-            <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.navigate('Trips')}>
+            <TouchableOpacity
+            style={styles.doneBtn}
+            onPress={() =>
+                navigation.navigate('Main', {
+                screen: 'Trips',
+                })
+            }
+            >
               <Text style={styles.doneBtnText}>View My Trips</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.doneLinkBtn}>
