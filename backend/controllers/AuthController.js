@@ -1,13 +1,16 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+const generateToken = (id) => {
+  const secret = process.env.JWT_SECRET || process.env.secret_key || 'fallback_secret';
+  const expiresIn = process.env.JWT_EXPIRES_IN || '30d';
+  return jwt.sign({ id }, secret, { expiresIn });
+};
 
 // @route POST /api/auth/register
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Please provide name, email and password' });
@@ -22,6 +25,7 @@ const register = async (req, res) => {
       name,
       email,
       password,
+      role: role || 'customer',
       phone: phone || '',
       referralCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
     });
@@ -36,6 +40,7 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        role: user.role,
         isPro: user.isPro,
         avatar: user.avatar,
         referralCode: user.referralCode,
@@ -70,6 +75,7 @@ const login = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        role: user.role,
         isPro: user.isPro,
         avatar: user.avatar,
         referralCode: user.referralCode,
