@@ -1,27 +1,54 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  FlatList, ActivityIndicator, ScrollView,
+  FlatList, ActivityIndicator, ScrollView, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { experienceAPI } from '../services/api';
 
 const CATEGORIES = ['All', 'Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling', 'Climbing', 'Safari', 'Skiing'];
 const DIFFICULTIES = ['All', 'Easy', 'Moderate', 'Hard', 'Expert'];
 const DURATIONS = ['All', '1 day', '2-3 days', '1 week+'];
 
+const CATEGORY_IMAGES = {
+  Trekking: 'https://images.unsplash.com/photo-1551632811-561730d1e4a6?auto=format&fit=crop&w=300&q=80',
+  Camping: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=300&q=80',
+  'Water Sports': 'https://images.unsplash.com/photo-1530866495561-507c9faab2ed?auto=format&fit=crop&w=300&q=80',
+  Jungle: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=300&q=80',
+  Cycling: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=300&q=80',
+  Climbing: 'https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=300&q=80',
+  Safari: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=300&q=80',
+  Skiing: 'https://images.unsplash.com/photo-1482867996988-2faec3cbb4f9?auto=format&fit=crop&w=300&q=80',
+  Default: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80',
+};
+
 function ExperienceCard({ item, onPress }) {
+  const imageUri = CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES.Default;
+
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.85}>
-      <View style={styles.cardImg}>
-        <Text style={styles.cardImgText}>{item.category}</Text>
+    <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.9}>
+      <View style={styles.cardImgContainer}>
+        <Image source={{ uri: imageUri }} style={styles.cardImg} />
+        <View style={styles.categoryBadge}>
+          <Text style={styles.categoryBadgeText}>{item.category}</Text>
+        </View>
       </View>
       <View style={styles.cardBody}>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.cardMeta}>{item.location?.city}, {item.location?.country}</Text>
+        <View style={styles.cardMetaRow}>
+          <Ionicons name="location-outline" size={13} color="#6f7a73" />
+          <Text style={styles.cardMeta}>{item.location?.city}, {item.location?.country}</Text>
+        </View>
         <View style={styles.cardRow}>
-          <Text style={styles.cardPrice}>${item.price}/person</Text>
-          <Text style={styles.cardRating}>★ {item.rating}</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.cardPrice}>${item.price}</Text>
+            <Text style={styles.cardPriceSub}>/person</Text>
+          </View>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={13} color="#11694b" />
+            <Text style={styles.cardRating}>{item.rating || '4.9'}</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -84,97 +111,108 @@ export default function FilterScreen({ navigation, route }) {
     <SafeAreaView style={styles.safe}>
       {/* Search bar */}
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search experiences..."
-          value={search}
-          onChangeText={setSearch}
-          onSubmitEditing={fetchResults}
-          returnKeyType="search"
-        />
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={16} color="#6f7a73" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search experiences..."
+            placeholderTextColor="#888"
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={fetchResults}
+            returnKeyType="search"
+          />
+        </View>
         <TouchableOpacity style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
-          <Text style={styles.filterToggleText}>⚙️</Text>
+          <Ionicons name={showFilters ? "chevron-up" : "options-outline"} size={20} color="#11694b" />
         </TouchableOpacity>
       </View>
 
       {/* Category chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.chip, category === cat && styles.chipActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>{cat}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.chipsWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.chip, category === cat && styles.chipActive]}
+              onPress={() => setCategory(cat)}
+            >
+              <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>{cat}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Expandable filters */}
       {showFilters && (
-        <View style={styles.filtersBox}>
-          <Text style={styles.filterLabel}>Difficulty</Text>
-          <View style={styles.filterRow}>
-            {DIFFICULTIES.map((d) => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.filterChip, difficulty === d && styles.filterChipActive]}
-                onPress={() => setDifficulty(d)}
-              >
-                <Text style={[styles.filterChipText, difficulty === d && styles.filterChipTextActive]}>{d}</Text>
+        <ScrollView style={styles.filtersScrollView} contentContainerStyle={{ paddingBottom: 16 }}>
+          <View style={styles.filtersBox}>
+            <Text style={styles.filterLabel}>Difficulty</Text>
+            <View style={styles.filterRow}>
+              {DIFFICULTIES.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.filterChip, difficulty === d && styles.filterChipActive]}
+                  onPress={() => setDifficulty(d)}
+                >
+                  <Text style={[styles.filterChipText, difficulty === d && styles.filterChipTextActive]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.filterLabel}>Duration</Text>
+            <View style={styles.filterRow}>
+              {DURATIONS.map((d) => (
+                <TouchableOpacity
+                  key={d}
+                  style={[styles.filterChip, duration === d && styles.filterChipActive]}
+                  onPress={() => setDuration(d)}
+                >
+                  <Text style={[styles.filterChipText, duration === d && styles.filterChipTextActive]}>{d}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.filterLabel}>Price Range ($)</Text>
+            <View style={styles.priceRow}>
+              <TextInput style={styles.priceInput} placeholder="Min" placeholderTextColor="#AAA" value={minPrice} onChangeText={setMinPrice} keyboardType="numeric" />
+              <Text style={styles.priceDash}>—</Text>
+              <TextInput style={styles.priceInput} placeholder="Max" placeholderTextColor="#AAA" value={maxPrice} onChangeText={setMaxPrice} keyboardType="numeric" />
+            </View>
+
+            <View style={styles.filterActions}>
+              <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
+                <Text style={styles.resetBtnText}>Reset</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.filterLabel}>Duration</Text>
-          <View style={styles.filterRow}>
-            {DURATIONS.map((d) => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.filterChip, duration === d && styles.filterChipActive]}
-                onPress={() => setDuration(d)}
-              >
-                <Text style={[styles.filterChipText, duration === d && styles.filterChipTextActive]}>{d}</Text>
+              <TouchableOpacity style={styles.applyBtn} onPress={() => { setShowFilters(false); fetchResults(); }}>
+                <Text style={styles.applyBtnText}>Show {total} results</Text>
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
-
-          <Text style={styles.filterLabel}>Price Range ($)</Text>
-          <View style={styles.priceRow}>
-            <TextInput style={styles.priceInput} placeholder="Min" value={minPrice} onChangeText={setMinPrice} keyboardType="numeric" />
-            <Text style={styles.priceDash}>—</Text>
-            <TextInput style={styles.priceInput} placeholder="Max" value={maxPrice} onChangeText={setMaxPrice} keyboardType="numeric" />
-          </View>
-
-          <View style={styles.filterActions}>
-            <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
-              <Text style={styles.resetBtnText}>Reset</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.applyBtn} onPress={() => { setShowFilters(false); fetchResults(); }}>
-              <Text style={styles.applyBtnText}>Show {total} results</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </ScrollView>
       )}
 
-      {/* Results count */}
+      {/* Results header */}
       <View style={styles.resultsHeader}>
         <Text style={styles.resultsCount}>{total} experiences found</Text>
       </View>
 
       {/* List */}
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color="#111" /></View>
+        <View style={styles.center}><ActivityIndicator size="large" color="#11694b" /></View>
       ) : (
         <FlatList
           data={results}
           keyExtractor={(i) => i._id}
           renderItem={({ item }) => <ExperienceCard item={item} onPress={goToExperience} />}
-          contentContainerStyle={{ paddingBottom: 16 }}
+          contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <MaterialCommunityIcons name="mountain" size={40} color="#6f7a73" style={{ marginBottom: 12 }} />
               <Text style={styles.emptyText}>No experiences found.</Text>
-              <TouchableOpacity onPress={resetFilters}><Text style={styles.emptyLink}>Clear filters</Text></TouchableOpacity>
+              <TouchableOpacity onPress={resetFilters}>
+                <Text style={styles.emptyLink}>Clear all filters</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -184,44 +222,123 @@ export default function FilterScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
+  safe: { flex: 1, backgroundColor: '#f7faf6' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 40 },
-  searchRow: { flexDirection: 'row', padding: 12, gap: 8 },
-  searchInput: { flex: 1, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, backgroundColor: '#FAFAFA' },
-  filterToggle: { width: 44, height: 44, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
-  filterToggleText: { fontSize: 18 },
-  chips: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#DDD', backgroundColor: '#fff' },
-  chipActive: { backgroundColor: '#111', borderColor: '#111' },
-  chipText: { fontSize: 13, color: '#555' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  filtersBox: { marginHorizontal: 12, marginBottom: 8, backgroundColor: '#F8F8F8', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#EEE' },
-  filterLabel: { fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: '#DDD', backgroundColor: '#fff' },
-  filterChipActive: { backgroundColor: '#111', borderColor: '#111' },
-  filterChipText: { fontSize: 12, color: '#555' },
-  filterChipTextActive: { color: '#fff', fontWeight: '600' },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  priceInput: { flex: 1, borderWidth: 1, borderColor: '#DDD', borderRadius: 6, padding: 8, fontSize: 13, backgroundColor: '#fff' },
-  priceDash: { color: '#888', fontSize: 16 },
-  filterActions: { flexDirection: 'row', gap: 8 },
-  resetBtn: { flex: 1, padding: 10, borderWidth: 1, borderColor: '#888', borderRadius: 8, alignItems: 'center' },
-  resetBtnText: { fontSize: 13, color: '#333', fontWeight: '600' },
-  applyBtn: { flex: 2, padding: 10, backgroundColor: '#111', borderRadius: 8, alignItems: 'center' },
-  applyBtnText: { fontSize: 13, color: '#fff', fontWeight: '700' },
-  resultsHeader: { paddingHorizontal: 16, paddingVertical: 8 },
-  resultsCount: { fontSize: 13, color: '#888' },
-  card: { marginHorizontal: 12, marginBottom: 12, flexDirection: 'row', borderWidth: 1, borderColor: '#EEE', borderRadius: 10, overflow: 'hidden', backgroundColor: '#fff' },
-  cardImg: { width: 100, height: 90, backgroundColor: '#F0F0F0', justifyContent: 'center', alignItems: 'center' },
-  cardImgText: { fontSize: 11, color: '#888', fontWeight: '600', textAlign: 'center' },
-  cardBody: { flex: 1, padding: 10, justifyContent: 'center' },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 2 },
-  cardMeta: { fontSize: 12, color: '#888', marginBottom: 6 },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  cardPrice: { fontSize: 13, fontWeight: '600', color: '#111' },
-  cardRating: { fontSize: 13, color: '#555' },
-  empty: { alignItems: 'center', paddingTop: 48 },
-  emptyText: { fontSize: 15, color: '#888', marginBottom: 8 },
-  emptyLink: { fontSize: 14, color: '#111', textDecorationLine: 'underline' },
+  searchRow: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10, gap: 10, alignItems: 'center' },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(190, 201, 193, 0.4)',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    height: 48,
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4 },
+      android: { elevation: 1 }
+    })
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#181d1a', height: '100%', padding: 0 },
+  filterToggle: {
+    width: 48, height: 48,
+    borderWidth: 1, borderColor: 'rgba(190, 201, 193, 0.4)',
+    borderRadius: 24, justifyContent: 'center',
+    alignItems: 'center', backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4 },
+      android: { elevation: 1 },
+      web: { cursor: 'pointer' }
+    })
+  },
+  chipsWrapper: { borderBottomWidth: 1, borderBottomColor: 'rgba(190, 201, 193, 0.2)', paddingBottom: 12 },
+  chips: { paddingHorizontal: 16, gap: 8 },
+  chip: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: 'rgba(190, 201, 193, 0.5)',
+    backgroundColor: '#ffffff',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
+  chipActive: { backgroundColor: '#11694b', borderColor: '#11694b' },
+  chipText: { fontSize: 13, color: '#3f4943', fontWeight: '600', fontFamily: 'Quicksand' },
+  chipTextActive: { color: '#ffffff', fontWeight: '700' },
+  filtersScrollView: { maxHeight: 320, borderBottomWidth: 1, borderBottomColor: 'rgba(190, 201, 193, 0.2)' },
+  filtersBox: {
+    marginHorizontal: 16, marginTop: 8,
+    backgroundColor: '#f1f4f0', borderRadius: 16,
+    padding: 16, borderWidth: 1,
+    borderColor: 'rgba(190, 201, 193, 0.3)'
+  },
+  filterLabel: { fontSize: 11, fontWeight: '700', color: '#6f7a73', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  filterChip: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 8, borderWidth: 1,
+    borderColor: 'rgba(190, 201, 193, 0.5)',
+    backgroundColor: '#ffffff',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
+  filterChipActive: { backgroundColor: '#11694b', borderColor: '#11694b' },
+  filterChipText: { fontSize: 12, color: '#3f4943', fontWeight: '600' },
+  filterChipTextActive: { color: '#ffffff', fontWeight: '700' },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  priceInput: { flex: 1, borderWidth: 1, borderColor: 'rgba(190, 201, 193, 0.5)', borderRadius: 8, padding: 10, fontSize: 13, backgroundColor: '#ffffff', color: '#181d1a' },
+  priceDash: { color: '#6f7a73', fontSize: 16 },
+  filterActions: { flexDirection: 'row', gap: 10 },
+  resetBtn: {
+    flex: 1, paddingVertical: 12,
+    borderWidth: 1, borderColor: '#11694b',
+    borderRadius: 24, alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
+  resetBtnText: { fontSize: 13, color: '#11694b', fontWeight: '700' },
+  applyBtn: {
+    flex: 2, paddingVertical: 12,
+    backgroundColor: '#11694b', borderRadius: 24,
+    alignItems: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
+  applyBtnText: { fontSize: 13, color: '#ffffff', fontWeight: '700' },
+  resultsHeader: { paddingHorizontal: 16, paddingVertical: 12 },
+  resultsCount: { fontSize: 12, color: '#6f7a73', fontWeight: '600', letterSpacing: 0.2 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  card: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(190, 201, 193, 0.2)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 },
+      android: { elevation: 1 },
+      web: { cursor: 'pointer', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 6 }
+    })
+  },
+  cardImgContainer: { width: 110, height: 100, position: 'relative' },
+  cardImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  categoryBadge: {
+    position: 'absolute',
+    top: 8, left: 8,
+    backgroundColor: 'rgba(17, 105, 75, 0.85)',
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 12,
+  },
+  categoryBadgeText: { color: '#ffffff', fontSize: 9, fontWeight: '700', textTransform: 'uppercase' },
+  cardBody: { flex: 1, padding: 12, justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: '#181d1a', marginBottom: 4, fontFamily: 'Quicksand' },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  cardMeta: { fontSize: 12, color: '#6f7a73' },
+  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 1 },
+  cardPrice: { fontSize: 15, fontWeight: '700', color: '#11694b' },
+  cardPriceSub: { fontSize: 11, color: '#6f7a73' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  cardRating: { fontSize: 12, fontWeight: '700', color: '#181d1a' },
+  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },
+  emptyText: { fontSize: 14, color: '#6f7a73', marginBottom: 8, fontWeight: '600' },
+  emptyLink: { fontSize: 13, color: '#11694b', fontWeight: '700', textDecorationLine: 'underline' },
 });

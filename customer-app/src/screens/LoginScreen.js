@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, KeyboardAvoidingView,
+  StyleSheet, KeyboardAvoidingView,
   Platform, ActivityIndicator, Image
 } from 'react-native';
+import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -185,16 +186,23 @@ const styles = StyleSheet.create({
   },
   checkboxActive: { backgroundColor: '#1A5F45', borderColor: '#1A5F45' },
   checkboxLabel: { fontSize: 14, color: '#333', fontWeight: '500' },
-  forgotLink: { color: '#1A5F45', fontSize: 14, fontWeight: '500' },
+  forgotLink: {
+    color: '#1A5F45', fontSize: 14, fontWeight: '500',
+    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
+  },
   btnPrimary: {
     backgroundColor: '#1A5F45', borderRadius: 12, height: 56,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
   },
   btnContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 18 },
   footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingBottom: 16 },
   mutedText: { color: '#666', fontSize: 15 },
-  link: { color: '#1A5F45', fontSize: 15, fontWeight: '700' },
+  link: {
+    color: '#1A5F45', fontSize: 15, fontWeight: '700',
+    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
+  },
 });
