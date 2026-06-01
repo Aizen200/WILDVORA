@@ -4,8 +4,8 @@ import { Platform } from 'react-native';
 
 // iOS simulator → localhost, Android emulator → 10.0.2.2, physical device → your machine's LAN IP
 const getBaseUrl = () => {
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000/api';
-  return 'http://localhost:5000/api';
+  if (Platform.OS === 'android') return 'http://10.0.2.2:3000/api';
+  return 'http://localhost:3000/api';
 };
 
 export const BASE_URL = getBaseUrl();

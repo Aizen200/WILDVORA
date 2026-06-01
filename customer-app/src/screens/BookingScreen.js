@@ -69,7 +69,7 @@ export default function BookingScreen({ route, navigation }) {
         adults,
         children,
         paymentMethod,
-        totalPrice: totalPrice,
+        totalPrice: grandTotal,
       });
       setBooking(res.data.booking);
       setStep(3);
