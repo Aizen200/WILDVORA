@@ -70,6 +70,20 @@ const experienceSchema = new mongoose.Schema(
       default: true,
     },
     availableDates: [{ type: String }],
+    exclusions: [{ type: String }],
+    cancellationPolicy: {
+      type: String,
+      default: 'Flexible: Cancel up to 24 hours in advance for a full refund.',
+    },
+    status: {
+      type: String,
+      enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested'],
+      default: 'pending',
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
   },
   { timestamps: true }
 );

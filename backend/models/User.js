@@ -52,6 +52,26 @@ const userSchema = new mongoose.Schema(
       enum: ['customer', 'operator', 'admin'],
       default: 'customer',
     },
+    kyc: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    payoutStatus: {
+      type: String,
+      enum: ['pending', 'verified'],
+      default: 'pending',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    bankAccount: {
+      holderName: { type: String, default: '' },
+      accountNumber: { type: String, default: '' },
+      bankName: { type: String, default: '' },
+      ifscCode: { type: String, default: '' },
+    },
   },
   { timestamps: true }
 );
