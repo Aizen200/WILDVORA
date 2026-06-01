@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 10, fontWeight: '800', color: '#448E6E', letterSpacing: 1.5, marginTop: 4 },
 
   // Image Card
-  imageCard: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 32, shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 5 },
+  imageCard: { width: 220, height: 220, backgroundColor: '#fff', borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 32, elevation: 5 },
   imagePlaceholder: { width: 160, height: 160, backgroundColor: '#F0F6F2', borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
 
   // Typography
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   inputIcon: { paddingRight: 16, paddingLeft: 12 },
 
   // Buttons
-  btnPrimary: { width: '100%', backgroundColor: '#165B43', borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: '#165B43', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  btnPrimary: { width: '100%', backgroundColor: '#165B43', borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, elevation: 4 },
   btnPrimaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 
   // Back to login
