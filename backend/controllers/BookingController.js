@@ -9,8 +9,13 @@ const createBooking = async (req, res) => {
     const experience = await Experience.findById(experienceId);
     if (!experience) return res.status(404).json({ success: false, message: 'Experience not found' });
 
-    const totalGuests = (adults || 1) + (children || 0);
-    const totalPrice = experience.price * totalGuests;
+    const basePrice = (experience.price * (adults || 1)) + (experience.price * 0.5 * (children || 0));
+    const serviceFee = Math.round(basePrice * 0.05);
+    const tax = Math.round(basePrice * 0.03);
+    const calculatedTotal = basePrice + serviceFee + tax;
+
+    // Use provided totalPrice or fallback to calculated
+    const finalPrice = req.body.totalPrice || calculatedTotal;
 
     const booking = await Booking.create({
       user: req.user._id,
@@ -19,7 +24,7 @@ const createBooking = async (req, res) => {
       endDate,
       adults: adults || 1,
       children: children || 0,
-      totalPrice,
+      totalPrice: finalPrice,
       paymentMethod: paymentMethod || 'card',
       specialRequests: specialRequests || '',
     });

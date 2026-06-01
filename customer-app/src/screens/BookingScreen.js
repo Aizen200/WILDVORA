@@ -506,7 +506,11 @@ export default function BookingScreen({ route, navigation }) {
 
           <TouchableOpacity
             style={styles.viewTripsBtn}
-            onPress={() => navigation.navigate('Trips')}
+            onPress={() =>
+              navigation.navigate('Main', {
+                screen: 'Trips',
+              })
+            }
             activeOpacity={0.9}
           >
             <Text style={styles.viewTripsBtnText}>View My Trips</Text>

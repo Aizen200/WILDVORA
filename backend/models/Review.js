@@ -27,6 +27,10 @@ const reviewSchema = new mongoose.Schema(
       required: [true, 'Review comment is required'],
     },
     userName: { type: String },
+    hostReply: {
+      type: String,
+      default: '',
+    },
   },
   { timestamps: true }
 );

@@ -52,6 +52,23 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    refundStatus: {
+      type: String,
+      enum: ['none', 'requested', 'approved', 'rejected'],
+      default: 'none',
+    },
+    disputed: {
+      type: Boolean,
+      default: false,
+    },
+    disputeReason: {
+      type: String,
+      default: '',
+    },
+    settled: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

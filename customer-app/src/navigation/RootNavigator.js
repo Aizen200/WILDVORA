@@ -21,7 +21,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
+
 
 function MainTabs() {
   return (
@@ -103,10 +104,10 @@ function MainTabs() {
 function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={MainTabs} />
+      <Stack.Screen name="Main"             component={MainTabs} />
       <Stack.Screen name="ExperienceDetail" component={ExperienceDetailScreen} />
-      <Stack.Screen name="Booking" component={BookingScreen} />
-      <Stack.Screen name="Wishlist" component={WishlistScreen} />
+      <Stack.Screen name="Booking"          component={BookingScreen} />
+      <Stack.Screen name="Wishlist"         component={WishlistScreen} />
     </Stack.Navigator>
   );
 }
@@ -114,8 +115,8 @@ function AppNavigator() {
 function AuthNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Login"          component={LoginScreen} />
+      <Stack.Screen name="Register"       component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     </Stack.Navigator>
   );
@@ -126,7 +127,7 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7faf6' }}>
         <ActivityIndicator size="large" color="#11694b" />
       </View>
     );
