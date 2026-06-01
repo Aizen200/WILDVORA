@@ -49,10 +49,11 @@ export default function ForgotPasswordScreen({ navigation }) {
 
               {/* Image Card Placeholder */}
               <View style={styles.imageCard}>
-                <View style={styles.imagePlaceholder}>
-                  <Feather name="shield" size={60} color="#1A5F45" />
-                  <Feather name="key" size={24} color="#C4A482" style={{ position: 'absolute', top: 35 }} />
-                </View>
+                <Image 
+                  source={require('../../assets/forgot-password-hero.png')} 
+                  style={{ width: '100%', height: '100%', borderRadius: 24 }} 
+                  resizeMode="cover" 
+                />
               </View>
 
               {/* Text */}
