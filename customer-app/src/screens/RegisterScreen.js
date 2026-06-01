@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
+import Alert from '../utils/alert';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterScreen({ navigation }) {
@@ -93,10 +94,14 @@ const styles = StyleSheet.create({
   btnPrimary: {
     backgroundColor: '#111', borderRadius: 8, padding: 14,
     alignItems: 'center', marginBottom: 12, marginTop: 8,
+    ...Platform.select({ web: { cursor: 'pointer' } })
   },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: '#EEE', marginVertical: 16 },
   row: { flexDirection: 'row', justifyContent: 'center', marginBottom: 32 },
   mutedText: { color: '#888', fontSize: 13 },
-  link: { color: '#111', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
+  link: {
+    color: '#111', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
 });

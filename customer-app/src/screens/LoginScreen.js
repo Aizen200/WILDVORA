@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, KeyboardAvoidingView,
+  StyleSheet, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
+import Alert from '../utils/alert';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
@@ -83,14 +84,23 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#DDD', borderRadius: 8,
     padding: 12, fontSize: 14, marginBottom: 14, backgroundColor: '#FAFAFA',
   },
-  forgotLink: { color: '#555', fontSize: 13, textAlign: 'right', marginBottom: 20, textDecorationLine: 'underline' },
+  forgotLink: {
+    color: '#555', fontSize: 13, textAlign: 'right', marginBottom: 20, textDecorationLine: 'underline',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
   btnPrimary: {
     backgroundColor: '#111', borderRadius: 8, padding: 14,
     alignItems: 'center', marginBottom: 12,
+    ...Platform.select({
+      web: { cursor: 'pointer' }
+    })
   },
   btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: '#EEE', marginVertical: 16 },
   row: { flexDirection: 'row', justifyContent: 'center' },
   mutedText: { color: '#888', fontSize: 13 },
-  link: { color: '#111', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
+  link: {
+    color: '#111', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline',
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
 });

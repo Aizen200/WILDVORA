@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, TextInput, Alert, ActivityIndicator,
+  ScrollView, TextInput, ActivityIndicator,
 } from 'react-native';
+import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { bookingAPI } from '../services/api';
 

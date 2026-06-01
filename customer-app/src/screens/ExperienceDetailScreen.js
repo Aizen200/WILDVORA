@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, FlatList,
+  ActivityIndicator, FlatList,
 } from 'react-native';
+import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';

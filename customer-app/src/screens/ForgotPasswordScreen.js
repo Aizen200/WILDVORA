@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import Alert from '../utils/alert';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -40,13 +41,22 @@ export default function ForgotPasswordScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#fff', justifyContent: 'center' },
-  back: { position: 'absolute', top: 52, left: 24 },
+  back: {
+    position: 'absolute', top: 52, left: 24,
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
   backText: { fontSize: 15, color: '#555' },
   title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 8 },
   subtitle: { fontSize: 14, color: '#888', marginBottom: 28, lineHeight: 20 },
   label: { fontSize: 12, color: '#555', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 16 },
-  btn: { backgroundColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 16 },
+  btn: {
+    backgroundColor: '#111', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 16,
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  link: { color: '#555', textAlign: 'center', textDecorationLine: 'underline', fontSize: 13 },
+  link: {
+    color: '#555', textAlign: 'center', textDecorationLine: 'underline', fontSize: 13,
+    ...Platform.select({ web: { cursor: 'pointer' } })
+  },
 });

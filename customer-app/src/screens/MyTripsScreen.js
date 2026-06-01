@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { bookingAPI } from '../services/api';
 
