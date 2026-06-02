@@ -11,6 +11,7 @@ import Analytics     from './pages/Analytics';
 import Reviews       from './pages/Reviews';
 import Payouts       from './pages/Payouts';
 import Settings      from './pages/Settings';
+import Support       from './pages/Support';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -36,6 +37,7 @@ function AppRoutes() {
       <Route path="/reviews"        element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
       <Route path="/payouts"        element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
       <Route path="/settings"       element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/support"        element={<ProtectedRoute><Support /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
