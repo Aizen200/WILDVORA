@@ -5,9 +5,11 @@ import Register      from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard     from './pages/Dashboard';
 import Listings      from './pages/Listings';
+import ListingForm   from './pages/ListingForm';
 import Bookings      from './pages/Bookings';
 import Analytics     from './pages/Analytics';
 import Reviews       from './pages/Reviews';
+import Payouts       from './pages/Payouts';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -24,11 +26,14 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Protected portal routes */}
-      <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/listings"   element={<ProtectedRoute><Listings /></ProtectedRoute>} />
-      <Route path="/bookings"   element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-      <Route path="/analytics"  element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/reviews"    element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+      <Route path="/"               element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/listings"       element={<ProtectedRoute><Listings /></ProtectedRoute>} />
+      <Route path="/listings/new"   element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
+      <Route path="/listings/:id/edit" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
+      <Route path="/bookings"       element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+      <Route path="/analytics"      element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+      <Route path="/reviews"        element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+      <Route path="/payouts"        element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
