@@ -1,17 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 
 export const StatusBadge = ({ status }) => {
   const map = {
-    live:       { bg: '#16A34A22', text: '#22C55E', label: 'Live' },
-    draft:      { bg: '#6B728022', text: '#9CA3AF', label: 'Draft' },
-    paused:     { bg: '#F59E0B22', text: '#F59E0B', label: 'Paused' },
-    confirmed:  { bg: '#16A34A22', text: '#22C55E', label: 'Confirmed' },
-    pending:    { bg: '#F59E0B22', text: '#F59E0B', label: 'Pending' },
-    declined:   { bg: '#EF444422', text: '#EF4444', label: 'Declined' },
-    settled:    { bg: '#16A34A22', text: '#22C55E', label: 'Settled' },
-    processing: { bg: '#3B82F622', text: '#3B82F6', label: 'Processing' },
+    confirmed:  { bg: theme.primary + '18', text: theme.primary,   label: 'CONFIRMED' },
+    live:       { bg: theme.primary + '18', text: theme.primary,   label: 'LIVE' },
+    draft:      { bg: theme.surfaceContainerHigh, text: theme.textLight, label: 'DRAFT' },
+    paused:     { bg: '#6F7A7322', text: theme.textLight, label: 'PAUSED' },
+    pending:    { bg: theme.tertiaryFixed,  text: theme.tertiary,  label: 'PENDING' },
+    declined:   { bg: theme.dangerBg,      text: theme.danger,    label: 'DECLINED' },
+    settled:    { bg: theme.primary + '18', text: theme.primary,  label: 'SETTLED' },
+    processing: { bg: '#C2E8FF',            text: theme.secondary, label: 'PROCESSING' },
   };
   const s = map[status] || map.draft;
   return (
@@ -24,7 +25,12 @@ export const StatusBadge = ({ status }) => {
 export const StarRating = ({ rating }) => (
   <View style={{ flexDirection: 'row', gap: 2 }}>
     {[1, 2, 3, 4, 5].map(i => (
-      <Text key={i} style={{ color: i <= rating ? '#F59E0B' : '#374151', fontSize: 14 }}>★</Text>
+      <Ionicons
+        key={i}
+        name={i <= rating ? 'star' : 'star-outline'}
+        size={14}
+        color={i <= rating ? '#F59E0B' : theme.outlineVariant}
+      />
     ))}
   </View>
 );
@@ -51,51 +57,44 @@ export const GhostButton = ({ label, onPress, style }) => (
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignSelf: 'flex-start',
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
+  badgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
   card: {
     backgroundColor: theme.card,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: theme.cardBorder,
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
   },
   sectionHeader: {
-    color: theme.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
+    color: theme.textLight,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 10,
     marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: theme.accent,
-    borderRadius: 12,
+    backgroundColor: theme.primary,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  primaryBtnText: {
-    color: theme.bg,
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  primaryBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   ghostBtn: {
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.cardBorder,
+    borderColor: theme.outlineVariant,
   },
-  ghostBtnText: {
-    color: theme.textMuted,
-    fontWeight: '600',
-    fontSize: 15,
-  },
+  ghostBtnText: { color: theme.textLight, fontWeight: '600', fontSize: 15 },
 });

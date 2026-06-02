@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar } from 'react-native';
+import {
+  View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar,
+} from 'react-native';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { theme } from './src/theme';
 import { initialListings, initialBookings } from './src/data/mockData';
@@ -12,18 +15,24 @@ import Payouts           from './src/screens/Payouts';
 import ReviewsRatings    from './src/screens/ReviewsRatings';
 
 const TABS = [
-  { id: 'home',     label: 'Home',     icon: '⊞' },
-  { id: 'listings', label: 'Listings', icon: '📍' },
-  { id: 'bookings', label: 'Bookings', icon: '📋' },
-  { id: 'payouts',  label: 'Payouts',  icon: '💰' },
-  { id: 'reviews',  label: 'Reviews',  icon: '⭐' },
+  { id: 'home',     label: 'Home',     icon: 'home',           activeIcon: 'home',           lib: 'Ionicons' },
+  { id: 'listings', label: 'Listings', icon: 'list-outline',   activeIcon: 'list',           lib: 'Ionicons' },
+  { id: 'bookings', label: 'Bookings', icon: 'calendar-outline', activeIcon: 'calendar',     lib: 'Ionicons' },
+  { id: 'payouts',  label: 'Earnings', icon: 'card-outline',   activeIcon: 'card',           lib: 'Ionicons' },
+  { id: 'reviews',  label: 'More',     icon: 'menu-outline',   activeIcon: 'menu',           lib: 'Ionicons' },
 ];
 
+function TabIcon({ tab, isActive }) {
+  const iconName = isActive ? tab.activeIcon : tab.icon;
+  const color    = isActive ? theme.primary : theme.textLight;
+  return <Ionicons name={iconName} size={22} color={color} />;
+}
+
 export default function App() {
-  const [activeTab, setActiveTab]   = useState('home');
-  const [listings, setListings]     = useState(initialListings);
-  const [bookings, setBookings]     = useState(initialBookings);
-  const [editListing, setEditListing] = useState(null);
+  const [activeTab,    setActiveTab]    = useState('home');
+  const [listings,     setListings]     = useState(initialListings);
+  const [bookings,     setBookings]     = useState(initialBookings);
+  const [editListing,  setEditListing]  = useState(null);
 
   const renderScreen = () => {
     switch (activeTab) {
@@ -58,33 +67,39 @@ export default function App() {
   };
 
   const showTabs = activeTab !== 'create';
+  const isCreate = activeTab === 'create';
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={theme.bg} />
 
-      {/* Safe area top padding */}
-      <View style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44 }}>
-        {/* Screen Title Bar */}
-        <View style={styles.topBar}>
-          {activeTab === 'create' && (
-            <TouchableOpacity
-              onPress={() => setActiveTab('listings')}
-              style={styles.backBtn}
-            >
-              <Text style={{ color: theme.accent, fontSize: 16 }}>← Back</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={styles.appName}>Wildvora</Text>
-        </View>
+      {/* ── Top Bar ── */}
+      <View style={styles.topBar}>
+        {isCreate ? (
+          <TouchableOpacity style={styles.backBtn} onPress={() => setActiveTab('listings')}>
+            <Ionicons name="chevron-back" size={20} color={theme.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.brandRow}>
+            <View style={styles.avatarCircle}>
+              <Ionicons name="person" size={18} color={theme.primary} />
+            </View>
+            <Text style={styles.brandName}>Wildvora</Text>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.notifBtn}>
+          <Ionicons name="notifications-outline" size={22} color={theme.text} />
+        </TouchableOpacity>
       </View>
 
-      {/* Main Screen */}
+      {/* ── Screen ── */}
       <View style={{ flex: 1 }}>
         {renderScreen()}
       </View>
 
-      {/* Bottom Tab Bar */}
+      {/* ── Bottom Tab Bar ── */}
       {showTabs && (
         <View style={styles.tabBar}>
           {TABS.map(tab => {
@@ -94,13 +109,19 @@ export default function App() {
                 key={tab.id}
                 style={styles.tabItem}
                 onPress={() => setActiveTab(tab.id)}
+                activeOpacity={0.7}
               >
-                <Text style={[styles.tabIcon, isActive && styles.tabIconActive]}>
-                  {tab.icon}
-                </Text>
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                  {tab.label}
-                </Text>
+                {isActive ? (
+                  <View style={styles.tabActiveWrapper}>
+                    <TabIcon tab={tab} isActive />
+                    <Text style={styles.tabLabelActive}>{tab.label}</Text>
+                  </View>
+                ) : (
+                  <>
+                    <TabIcon tab={tab} isActive={false} />
+                    <Text style={styles.tabLabel}>{tab.label}</Text>
+                  </>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -111,54 +132,72 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.bg,
-  },
+  container: { flex: 1, backgroundColor: theme.bg },
+
   topBar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.cardBorder,
+    height: 56 + (Platform.OS === 'android' ? StatusBar.currentHeight ?? 0 : 44),
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
+    backgroundColor: theme.bg,
   },
-  backBtn: {
-    marginRight: 12,
+
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatarCircle: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: theme.primaryFixed,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: theme.primaryFixed,
+    overflow: 'hidden',
   },
-  appName: {
-    color: theme.accent,
-    fontSize: 18,
+  brandName: {
+    color: theme.primary,
+    fontSize: 20,
     fontWeight: '800',
-    letterSpacing: 0.5,
   },
+
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
+  backText: { color: theme.primary, fontSize: 16, fontWeight: '600' },
+  notifBtn: { padding: 8 },
+
+  /* Tab bar */
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: theme.card,
-    borderTopWidth: 1,
-    borderTopColor: theme.cardBorder,
+    backgroundColor: theme.navBg,
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-    paddingTop: 8,
+    paddingTop: 10,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 14,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  tabIcon: {
-    fontSize: 20,
-    opacity: 0.5,
-  },
-  tabIconActive: {
-    opacity: 1,
+  tabActiveWrapper: {
+    backgroundColor: theme.primaryContainer + '28',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 99,
+    alignItems: 'center',
+    gap: 2,
   },
   tabLabel: {
-    color: theme.textMuted,
+    color: theme.textLight,
     fontSize: 10,
-    marginTop: 2,
+    marginTop: 3,
     fontWeight: '500',
   },
   tabLabelActive: {
-    color: theme.accent,
+    color: theme.primary,
+    fontSize: 10,
     fontWeight: '700',
   },
 });
