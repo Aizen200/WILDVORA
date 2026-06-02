@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar, ActivityIndicator
+  View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar,
+  ActivityIndicator, Alert
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -97,6 +98,26 @@ function MainApp() {
   const showTabs = activeTab !== 'create';
   const isCreate = activeTab === 'create';
 
+  const handleLogout = () => {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+            },
+          },
+        ]
+      );
+    };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.bg} />
@@ -118,8 +139,12 @@ function MainApp() {
         )}
 
         <View style={styles.topActionsRow}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-            <Ionicons name="log-out-outline" size={20} color={theme.danger || '#EF4444'} />
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={theme.danger || '#EF4444'}
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.notifBtn}>
             <Ionicons name="notifications-outline" size={22} color={theme.text} />
