@@ -20,6 +20,10 @@ import MyTripsScreen from '../screens/MyTripsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 
+import SettingsScreen from '../screens/Settingsscreen';
+import ReviewHistoryScreen from '../screens/Reviewhistoryscreen';
+import HelpCenterScreen from '../screens/Helpcenterscreen';
+
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
@@ -80,6 +84,9 @@ function AppNavigator() {
       <Stack.Screen name="ExperienceDetail" component={ExperienceDetailScreen} />
       <Stack.Screen name="Booking"          component={BookingScreen} />
       <Stack.Screen name="Wishlist"         component={WishlistScreen} />
+      <Stack.Screen name="Settings"       component={SettingsScreen} />
+      <Stack.Screen name="ReviewHistory"  component={ReviewHistoryScreen} />
+      <Stack.Screen name="HelpCenter"     component={HelpCenterScreen} />
     </Stack.Navigator>
   );
 }
