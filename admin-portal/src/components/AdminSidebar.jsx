@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 
 const WildvoraLogo = ({ light = false }) => (
   <div className="flex items-center gap-2">
@@ -26,10 +26,10 @@ export default function AdminSidebar() {
       {/* Top Section */}
       <div className="flex flex-col px-6 pt-7">
         {/* Brand */}
-        <div className="flex flex-col mb-8">
+        <Link to="/overview" className="flex flex-col mb-8 group cursor-pointer no-underline hover:no-underline">
           <WildvoraLogo light />
-          <span className="text-[10px] text-[#5C806D] font-bold uppercase tracking-widest mt-1 pl-[36px]">Admin Console</span>
-        </div>
+          <span className="text-[10px] text-[#5C806D] font-bold uppercase tracking-widest mt-1 pl-[36px] group-hover:text-white transition-colors">Admin Console</span>
+        </Link>
 
         {/* Navigation */}
         <nav className="space-y-1">
