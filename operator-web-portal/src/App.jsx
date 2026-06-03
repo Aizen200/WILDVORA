@@ -10,12 +10,16 @@ import Bookings      from './pages/Bookings';
 import Analytics     from './pages/Analytics';
 import Reviews       from './pages/Reviews';
 import Payouts       from './pages/Payouts';
+<<<<<<< Updated upstream
 import Settings      from './pages/Settings';
 import Support       from './pages/Support';
+=======
+import Notifications from './pages/Notifications';
+>>>>>>> Stashed changes
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div id="app-loading" style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:'16px', color:'#666' }}>Loading...</div>;
+  if (loading) return <div id="app-loading" style={{ display:'flex', alignItems:'center', justifyjustify: 'center', height:'100vh', fontSize:'16px', color:'#666' }}>Loading...</div>;
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -36,8 +40,12 @@ function AppRoutes() {
       <Route path="/analytics"      element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
       <Route path="/reviews"        element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
       <Route path="/payouts"        element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
+<<<<<<< Updated upstream
       <Route path="/settings"       element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/support"        element={<ProtectedRoute><Support /></ProtectedRoute>} />
+=======
+      <Route path="/notifications"  element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+>>>>>>> Stashed changes
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
