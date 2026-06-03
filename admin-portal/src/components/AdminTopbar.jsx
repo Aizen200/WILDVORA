@@ -7,7 +7,14 @@ export default function AdminTopbar() {
     <header className="bg-white border-b border-gray-200 h-16 min-h-16 px-8 flex items-center justify-between sticky top-0 z-40 select-none font-sans">
       {/* Left: Branding & Search */}
       <div className="flex items-center gap-8 flex-1 max-w-xl">
-        <span className="text-xl font-bold tracking-wide text-gray-900 flex-shrink-0">WildVora Admin</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <svg width="28" height="28" viewBox="0 0 80 82" fill="none" className="flex-shrink-0">
+            <polygon points="40,12 80,82 0,82" fill="#397858" />
+            <polygon points="40,0 46,12 34,12" fill="#C4A482" />
+            <polygon points="40,47 60,82 20,82" fill="#67A8B6" />
+          </svg>
+          <span className="text-xl font-bold tracking-wide text-gray-900">WildVora Admin</span>
+        </div>
         
         {/* Search Input Container */}
         <div className="relative w-full">
