@@ -1,8 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { hostAPI } from '../api/hostAPI';
 import Layout from '../components/Layout';
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+// Group bookings into 4 weekly buckets based on startDate within last 30 days
+function getWeeklyBuckets(bookings) {
+  const now = Date.now();
+  const buckets = [0, 0, 0, 0];
+  bookings.forEach(b => {
+    const msAgo = now - new Date(b.startDate).getTime();
+    const daysAgo = msAgo / (1000 * 60 * 60 * 24);
+    if (daysAgo <= 7)        buckets[3]++;
+    else if (daysAgo <= 14) buckets[2]++;
+    else if (daysAgo <= 21) buckets[1]++;
+    else if (daysAgo <= 30) buckets[0]++;
+  });
+  return buckets;
+}
+
+// Get category distribution from listings
+function getCategoryDist(listings) {
+  const counts = {};
+  listings.forEach(l => { counts[l.category] = (counts[l.category] || 0) + 1; });
+  const total = listings.length || 1;
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([cat, count]) => ({ cat, pct: Math.round((count / total) * 100) }));
+}
+
+const CAT_COLORS = ['#105D3D','#2B7A9B','#C4A482','#9CA3AF'];
 
 export default function Analytics() {
   const [stats, setStats]       = useState(null);
@@ -22,6 +50,11 @@ export default function Analytics() {
       .catch(err => setError(err.response?.data?.message || 'Failed to load analytics'))
       .finally(() => setLoading(false));
   }, []);
+
+  const weeklyBuckets = useMemo(() => getWeeklyBuckets(bookings), [bookings]);
+  const maxBucket = Math.max(...weeklyBuckets, 1);
+  const catDist = useMemo(() => getCategoryDist(listings), [listings]);
+  const revenue = stats?.revenueThisMonth || 0;
 
   return (
     <Layout>
@@ -72,6 +105,42 @@ export default function Analytics() {
           <div className="p-8 text-center text-gray-500 font-semibold">Loading dashboard analytics...</div>
         ) : (
           <div className="space-y-6">
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-4 gap-4">
+              {[
+                {
+                  label: 'Total Revenue',
+                  value: `₹${(stats?.revenueThisMonth || 0).toLocaleString('en-IN')}`,
+                  sub: 'This month',
+                  color: 'border-l-[#105D3D]',
+                },
+                {
+                  label: 'Total Bookings',
+                  value: bookings.length,
+                  sub: `${bookings.filter(b => b.status === 'pending').length} pending`,
+                  color: 'border-l-blue-400',
+                },
+                {
+                  label: 'Active Listings',
+                  value: listings.filter(l => l.status === 'live' || l.status === 'active').length,
+                  sub: `${listings.length} total`,
+                  color: 'border-l-amber-400',
+                },
+                {
+                  label: 'Avg. Rating',
+                  value: stats?.averageRating?.toFixed(1) ?? '—',
+                  sub: 'Guest satisfaction',
+                  color: 'border-l-rose-400',
+                },
+              ].map(m => (
+                <div key={m.label} className={`bg-white rounded-2xl border-l-[3px] ${m.color} shadow-sm p-5`}>
+                  <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">{m.label}</span>
+                  <div className="text-2xl font-black text-gray-900 mt-1 mb-0.5">{m.value}</div>
+                  <span className="text-[11px] text-gray-400 font-semibold">{m.sub}</span>
+                </div>
+              ))}
+            </div>
+
             {/* Top Grid: Revenue Growth + Insights Sidebar */}
             <div className="grid grid-cols-3 gap-6">
               {/* Revenue Growth Card (Span 2) */}
@@ -82,36 +151,40 @@ export default function Analytics() {
                     <p className="text-xs text-gray-400 font-semibold mt-0.5">Earnings overview compared to previous period</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-black text-gray-900">$42,890</div>
+                    <div className="text-2xl font-black text-gray-900">
+                      ₹{revenue.toLocaleString('en-IN')}
+                    </div>
                     <span className="text-[10px] font-bold text-emerald-600 flex items-center justify-end gap-0.5 mt-0.5">
-                      <span className="text-xs">&uarr;</span> 12.5%
+                      <span className="text-xs">&uarr;</span> This Month
                     </span>
                   </div>
                 </div>
 
-                {/* Bars Chart container */}
+                {/* Bars Chart — weekly booking buckets */}
                 <div className="flex justify-between items-end h-44 px-4 pt-4 border-b border-gray-100">
-                  {[
-                    { label: 'Week 1', height: '40%' },
-                    { label: '', height: '60%' },
-                    { label: 'Week 2', height: '50%' },
-                    { label: '', height: '90%', active: true },
-                    { label: 'Current Week', height: '70%' },
-                    { label: '', height: '45%' },
-                    { label: 'Week 4', height: '80%' }
-                  ].map((bar, i) => (
-                    <div key={i} className="flex flex-col items-center flex-1">
-                      <div 
-                        style={{ height: bar.height }} 
-                        className={`w-10 rounded-t-lg transition-all duration-500 hover:opacity-90 ${
-                          bar.active ? 'bg-[#105D3D]' : 'bg-[#EBF1FA]'
-                        }`}
-                      />
-                      <span className="text-[9px] font-bold text-gray-400 mt-2 h-4 text-center leading-none">
-                        {bar.label}
-                      </span>
-                    </div>
-                  ))}
+                  {weeklyBuckets.map((count, i) => {
+                    const heightPct = Math.round((count / maxBucket) * 100);
+                    const isActive = i === weeklyBuckets.indexOf(Math.max(...weeklyBuckets));
+                    const labels = ['Week 1', 'Week 2', 'Week 3', 'Current Week'];
+                    return (
+                      <div key={i} className="flex flex-col items-center flex-1 group relative">
+                        {count > 0 && (
+                          <span className="absolute -top-5 text-[9px] font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition">
+                            {count}
+                          </span>
+                        )}
+                        <div
+                          style={{ height: `${Math.max(heightPct, 8)}%` }}
+                          className={`w-10 rounded-t-lg transition-all duration-500 hover:opacity-90 ${
+                            isActive ? 'bg-[#105D3D]' : 'bg-[#EBF1FA]'
+                          }`}
+                        />
+                        <span className="text-[9px] font-bold text-gray-400 mt-2 h-4 text-center leading-none">
+                          {labels[i]}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -214,32 +287,34 @@ export default function Analytics() {
                   <p className="text-xs text-gray-400 font-semibold mt-0.5">Top booking categories this month</p>
                 </div>
 
-                {/* Donut Chart representation */}
+                {/* Donut visual */}
                 <div className="flex justify-center my-4 relative">
                   <div className="w-32 h-32 rounded-full border-[10px] border-[#EEF2F6] flex items-center justify-center relative">
-                    {/* Circle slices indicator */}
                     <div className="absolute inset-0 rounded-full border-[10px] border-transparent border-t-[#105D3D] border-r-[#2B7A9B] rotate-[45deg]" />
                     <div className="text-center">
-                      <div className="text-2xl font-black text-gray-800">68%</div>
-                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Guided Hiking</div>
+                      <div className="text-2xl font-black text-gray-800">
+                        {catDist[0]?.pct ?? 68}%
+                      </div>
+                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-tight">
+                        {catDist[0]?.cat ?? 'Hiking'}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Donut Legend */}
+                {/* Legend — real data or fallback */}
                 <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-gray-500">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#105D3D]" /> Hiking (68%)
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#2B7A9B]" /> Kayaking (22%)
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#C4A482]" /> Photography (7%)
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-gray-400" /> Other (3%)
-                  </div>
+                  {(catDist.length > 0 ? catDist : [
+                    { cat: 'Hiking', pct: 68 },
+                    { cat: 'Kayaking', pct: 22 },
+                    { cat: 'Photography', pct: 7 },
+                    { cat: 'Other', pct: 3 },
+                  ]).map(({ cat, pct }, idx) => (
+                    <div key={cat} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: CAT_COLORS[idx] }} />
+                      {cat} ({pct}%)
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

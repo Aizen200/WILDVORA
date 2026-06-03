@@ -17,7 +17,8 @@ const {
   toggleUserStatus,
   getPendingSettlements,
   releasePayout,
-  getPayoutLogs
+  getPayoutLogs,
+  getCustomerBookings
 } = require('../controllers/AdminController');
 
 // All admin routes require authentication and the admin role
@@ -39,5 +40,6 @@ router.patch('/users/:id/toggle-status', toggleUserStatus);
 router.get('/payouts/pending', getPendingSettlements);
 router.post('/payouts/release', releasePayout);
 router.get('/payouts/logs', getPayoutLogs);
+router.get('/customers/:id/bookings', getCustomerBookings);
 
 module.exports = router;

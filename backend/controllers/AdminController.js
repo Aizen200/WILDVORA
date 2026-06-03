@@ -290,7 +290,7 @@ const getPendingSettlements = async (req, res) => {
 // Payouts Control: Release payout
 const releasePayout = async (req, res) => {
   try {
-    const { bookingId } = req.body;
+    const { bookingId, overrideAmount } = req.body;
     if (!bookingId) return res.status(400).json({ success: false, message: 'Booking ID is required' });
 
     const booking = await Booking.findById(bookingId).populate({
@@ -313,6 +313,8 @@ const releasePayout = async (req, res) => {
       });
     }
 
+    const payoutAmount = (overrideAmount !== undefined && overrideAmount !== null) ? Number(overrideAmount) : booking.totalPrice;
+
     // Set settled to true on booking
     booking.settled = true;
     await booking.save();
@@ -321,7 +323,7 @@ const releasePayout = async (req, res) => {
     const payout = await Payout.create({
       operator: host._id,
       booking: booking._id,
-      amount: booking.totalPrice,
+      amount: payoutAmount,
       status: 'processed',
       transactionId: 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase() + Date.now().toString().slice(-4),
       releasedAt: new Date()
@@ -352,6 +354,19 @@ const getPayoutLogs = async (req, res) => {
   }
 };
 
+// @route GET /api/admin/customers/:id/bookings
+// Customer Management: list booking history
+const getCustomerBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ user: req.params.id })
+      .populate('experience', 'title price hostName')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, count: bookings.length, bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getPlatformOverview,
   getPendingListings,
@@ -367,5 +382,6 @@ module.exports = {
   toggleUserStatus,
   getPendingSettlements,
   releasePayout,
-  getPayoutLogs
+  getPayoutLogs,
+  getCustomerBookings
 };

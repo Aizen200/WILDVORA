@@ -19,7 +19,7 @@ app.use('/api/bookings', require('./routes/booking.routes'));
 app.use('/api/reviews', require('./routes/review.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/operator', require('./routes/operator.routes'));
-// app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
