@@ -1,8 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-on-primary-container: #86af99;
+  --color-primary-fixed: #c1ecd4;
+  --color-secondary-fixed: #c7e7ff;
+  --color-primary-fixed-dim: #a5d0b9;
+  --color-on-secondary: #ffffff;
+  --color-primary-container: #1b4332;
+  --color-on-primary: #ffffff;
+  --color-background: #f9faf2;
+  --color-on-tertiary-fixed: #27190d;
+  --color-on-primary-fixed: #002114;
+  --color-tertiary: #322317;
+  --color-on-surface: #1a1c18;
+  --color-surface-tint: #3f6653;
+  --color-on-secondary-container: #255f80;
+  --color-on-error-container: #93000a;
+  --color-on-secondary-fixed-variant: #064c6b;
+  --color-surface-variant: #e2e3db;
+  --color-secondary-fixed-dim: #98cdf2;
+  --color-on-surface-variant: #414844;
+  --color-surface: #f9faf2;
+  --color-tertiary-fixed-dim: #dcc2b0;
+  --color-outline: #717973;
+  --color-surface-container-low: #f3f4ec;
+  --color-secondary: #2b6485;
+  --color-surface-container-highest: #e2e3db;
+  --color-on-background: #1a1c18;
+  --color-primary: #012d1d;
+  --color-inverse-on-surface: #f0f1e9;
+  --color-surface-dim: #d9dbd3;
+  --color-surface-container-high: #e8e9e1;
+  --color-on-primary-fixed-variant: #274e3d;
+  --color-error-container: #ffdad6;
+  --color-surface-bright: #f9faf2;
+  --color-secondary-container: #a3d8fe;
+  --color-on-tertiary-container: #baa190;
+  --color-inverse-surface: #2f312c;
+  --color-tertiary-container: #49382b;
+  --color-on-tertiary-fixed-variant: #554336;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-secondary-fixed: #001e2e;
+  --color-outline-variant: #c1c8c2;
+  --color-inverse-primary: #a5d0b9;
+  --color-surface-container: #edefe7;
+  --color-tertiary-fixed: #f9ddcb;
+  --color-on-tertiary: #ffffff;
+
+  --spacing-gutter: 24px;
+  --spacing-unit: 8px;
+  --spacing-margin-desktop: 40px;
+  --spacing-margin-mobile: 16px;
+  --spacing-stack-md: 16px;
+  --spacing-container-max: 1440px;
+  --spacing-stack-sm: 8px;
+  --spacing-stack-lg: 32px;
 }
 
 /* Custom Base Styles */
@@ -11,10 +68,113 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
-  background: #F5F0EB;
-  color: #1A1A1A;
+  background-color: #f9faf2;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 227, 219, 0.5);
+}
+
+/* Typography Classes */
+.font-headline-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
+.font-body-md {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+.font-label-sm {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.font-headline-md {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+.font-label-md {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+}
+.font-body-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+.font-display-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  line-height: 36px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+@media (min-width: 640px) {
+  .font-display-lg {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .font-display-lg {
+    font-size: 36px;
+    line-height: 44px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .font-display-lg {
+    font-size: 40px;
+    line-height: 48px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .font-display-lg {
+    font-size: 48px;
+    line-height: 56px;
+  }
+}
+
+.font-headline-lg-mobile {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c8c2;
+  border-radius: 10px;
 }
 
 a {

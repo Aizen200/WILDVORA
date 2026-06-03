@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import Customers from './pages/Customers';
+import Payouts from './pages/Payouts';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -73,6 +75,34 @@ function AdminDashboard() {
               <div className="text-2xl font-bold text-gray-900">Connected</div>
             </div>
           </div>
+
+          {/* Quick Actions */}
+          <div className="border-t border-gray-100 pt-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Management Modules</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              <Link 
+                to="/customers" 
+                className="flex items-center justify-between p-5 bg-[#F5F0EB]/40 border border-gray-100 hover:border-[#1A5F45]/30 hover:bg-[#1A5F45]/5 rounded-2xl transition duration-150 group"
+              >
+                <div>
+                  <div className="font-bold text-gray-900 group-hover:text-[#1A5F45] transition">Customer Directory</div>
+                  <div className="text-xs text-gray-500 mt-1">Manage and monitor customer records, flags, and safety status.</div>
+                </div>
+                <span className="text-gray-400 group-hover:text-[#1A5F45] font-bold transition">→</span>
+              </Link>
+
+              <Link 
+                to="/payouts" 
+                className="flex items-center justify-between p-5 bg-[#F5F0EB]/40 border border-gray-100 hover:border-[#1A5F45]/30 hover:bg-[#1A5F45]/5 rounded-2xl transition duration-150 group"
+              >
+                <div>
+                  <div className="font-bold text-gray-900 group-hover:text-[#1A5F45] transition">Payouts Control</div>
+                  <div className="text-xs text-gray-500 mt-1">Review and release settlements and payout logs for hosts.</div>
+                </div>
+                <span className="text-gray-400 group-hover:text-[#1A5F45] font-bold transition">→</span>
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -89,6 +119,8 @@ function AppRoutes() {
 
       {/* Protected routes */}
       <Route path="/"                element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/customers"       element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/payouts"         element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
