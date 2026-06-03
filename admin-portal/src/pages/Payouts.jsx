@@ -394,25 +394,25 @@ export default function Payouts() {
 
           {/* STATS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-gutter">
-            <div className="bg-surface-container-lowest p-stack-lg rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-secondary">
+            <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-secondary">
               <p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Pending Total</p>
-              <h3 className="font-display-lg text-display-lg text-secondary mt-1">${pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+              <h3 className="font-display-lg text-secondary mt-1">${pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
               <p className="text-xs text-on-surface-variant mt-2 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px] text-primary" data-icon="trending_up">trending_up</span>
                 12% increase from last week
               </p>
             </div>
-            <div className="bg-surface-container-lowest p-stack-lg rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-primary">
+            <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-primary">
               <p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Active Hosts</p>
-              <h3 className="font-display-lg text-display-lg text-primary mt-1">{activeHostsCount}</h3>
+              <h3 className="font-display-lg text-primary mt-1">{activeHostsCount}</h3>
               <p className="text-xs text-on-surface-variant mt-2">Awaiting disbursement</p>
             </div>
-            <div className="bg-surface-container-lowest p-stack-lg rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-tertiary">
+            <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-tertiary">
               <p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Avg. Hold Time</p>
-              <h3 className="font-display-lg text-display-lg text-tertiary mt-1">2.4d</h3>
+              <h3 className="font-display-lg text-tertiary mt-1">2.4d</h3>
               <p className="text-xs text-on-surface-variant mt-2">Target: Under 3.0 days</p>
             </div>
-            <div className="bg-primary-container p-stack-lg rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.2)] flex flex-col justify-between">
+            <div className="bg-primary-container p-5 rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.2)] flex flex-col justify-between">
               <div>
                 <p className="font-label-md text-label-md text-on-primary-container uppercase tracking-wider">Next Batch</p>
                 <h3 className="font-headline-md text-headline-md text-on-primary mt-1">Today, 4:00 PM</h3>
