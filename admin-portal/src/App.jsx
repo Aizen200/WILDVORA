@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import ListingsApprovalQueue from './pages/ListingsApprovalQueue';
 import BookingsDisputes from './pages/BookingsDisputes';
 import Notifications from './pages/Notifications';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/"                element={<ProtectedLayout><Navigate to="/hosts" replace /></ProtectedLayout>} />
       <Route path="/hosts"           element={<ProtectedLayout><Hosts /></ProtectedLayout>} />
       <Route path="/notifications"   element={<ProtectedLayout><Notifications /></ProtectedLayout>} />
+      <Route path="/profile"         element={<ProtectedLayout><Profile /></ProtectedLayout>} />
       <Route path="/overview"        element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
       <Route path="/listings"        element={<ProtectedLayout><ListingsApprovalQueue /></ProtectedLayout>} />
       <Route path="/bookings"        element={<ProtectedLayout><BookingsDisputes /></ProtectedLayout>} />

@@ -66,7 +66,7 @@ export default function AdminSidebar() {
         {/* Links */}
         <div className="space-y-1 pt-4 border-t border-[#073822]/60">
           <NavLink
-            to="/settings"
+            to="/profile"
             className={({ isActive }) =>
               `flex items-center gap-4 px-4 py-2.5 rounded-xl text-[14px] font-semibold transition duration-150 ${
                 isActive ? 'text-white bg-[#073622]' : 'text-[#9FB5A9] hover:text-white'
