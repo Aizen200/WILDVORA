@@ -33,13 +33,13 @@ const REVIEW_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCHotBAYe4H08jpUx7aFsFJYUjSHms7B7_RV03q93adEtAoh5oT8CujF95WxtdNsaz7jTQoPxrlzLz0QD9zV17_wqqxF6f2EVcemP9r8mwXcLPJyqbjsjwyeknWAk-2R-EU6TcFt8HlOxI2jxLMEp_sana2hYHAh3W6K33z5b-g1bo3c4e0EinRdfMam6FKpbBFxKk0UOJEPfV29e6BNy2R-cHuyQckNgvZdatIPe-GYZNOAuIPSBGqEslZvB2hnFEvsnmp1e1VLqg',
 ];
 
-// Menu items — icon names from MaterialCommunityIcons
+// ── Menu items — now with nav destinations ────────────────────────────────────
 const MENU_ITEMS = [
-  { icon: 'heart-outline',   label: 'My Wishlist',      key: 'wishlist',  special: false },
-  { icon: 'gift-outline',    label: 'Referral Program', key: 'referral',  special: true,  sub: 'Earn $50 per invite' },
-  { icon: 'history',         label: 'Review History',   key: 'reviews',   special: false },
-  { icon: 'help-circle-outline', label: 'Help Center',  key: 'help',      special: false },
-  { icon: 'cog-outline',     label: 'Settings',         key: 'settings',  special: false },
+  { icon: 'heart-outline',       label: 'My Wishlist',      key: 'wishlist',  special: false, screen: 'Wishlist' },
+  { icon: 'gift-outline',        label: 'Referral Program', key: 'referral',  special: true,  screen: null,             sub: 'Earn $50 per invite' },
+  { icon: 'history',             label: 'Review History',   key: 'reviews',   special: false, screen: 'ReviewHistory' },
+  { icon: 'help-circle-outline', label: 'Help Center',      key: 'help',      special: false, screen: 'HelpCenter' },
+  { icon: 'cog-outline',         label: 'Settings',         key: 'settings',  special: false, screen: 'Settings' },
 ];
 
 function StarRow({ count, total = 5 }) {
@@ -59,17 +59,17 @@ function StarRow({ count, total = 5 }) {
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, updateUser } = useAuth();
-  const [profile, setProfile]       = useState(null);
-  const [reviews, setReviews]       = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [editModal, setEditModal]   = useState(false);
-  const [editName, setEditName]     = useState('');
-  const [editPhone, setEditPhone]   = useState('');
-  const [editBio, setEditBio]       = useState('');
-  const [saving, setSaving]         = useState(false);
+  const [profile, setProfile]         = useState(null);
+  const [reviews, setReviews]         = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [editModal, setEditModal]     = useState(false);
+  const [editName, setEditName]       = useState('');
+  const [editPhone, setEditPhone]     = useState('');
+  const [editBio, setEditBio]         = useState('');
+  const [saving, setSaving]           = useState(false);
   const [logoutModal, setLogoutModal] = useState(false);
 
-  // ── Logic unchanged ──────────────────────────────────────────────────────
+  // ── Data fetching (unchanged) ─────────────────────────────────────────────
   useEffect(() => {
     const fetch = async () => {
       try {
@@ -105,24 +105,42 @@ export default function ProfileScreen({ navigation }) {
     setLogoutModal(false);
     await logout();
   };
+
+  // ── Menu press handler — navigates to the right screen ───────────────────
+  const handleMenuPress = (item) => {
+    if (item.screen) {
+      navigation.navigate(item.screen);
+    }
+  };
   // ─────────────────────────────────────────────────────────────────────────
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={C.primary} /></View>;
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator size="large" color={C.primary} />
+      </View>
+    );
+  }
 
   const displayUser = profile || user;
 
   const demoReviews = [
-    { title: 'Alpine Ridge Trail',   rating: 5, text: 'The ascent was challenging but the sunrise views from the ridge were absolutely world-class...', img: REVIEW_IMAGES[0] },
-    { title: 'Mistwood Sanctuary',   rating: 4, text: 'Perfect for a weekend escape. Very quiet and the trails are well-marked...', img: REVIEW_IMAGES[1] },
+    { title: 'Alpine Ridge Trail', rating: 5, text: 'The ascent was challenging but the sunrise views from the ridge were absolutely world-class...', img: REVIEW_IMAGES[0] },
+    { title: 'Mistwood Sanctuary', rating: 4, text: 'Perfect for a weekend escape. Very quiet and the trails are well-marked...', img: REVIEW_IMAGES[1] },
   ];
   const displayReviews = reviews.length > 0
-    ? reviews.slice(0, 2).map((r, i) => ({ title: r.experience?.title || 'Experience', rating: r.rating, text: r.comment, img: REVIEW_IMAGES[i % REVIEW_IMAGES.length] }))
+    ? reviews.slice(0, 2).map((r, i) => ({
+        title: r.experience?.title || 'Experience',
+        rating: r.rating,
+        text: r.comment,
+        img: REVIEW_IMAGES[i % REVIEW_IMAGES.length],
+      }))
     : demoReviews;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
 
-      {/* App bar */}
+      {/* ── App bar ── */}
       <View style={s.appBar}>
         <View style={s.appBarLeft}>
           <MaterialCommunityIcons name="menu" size={24} color={C.onSurfaceVariant} />
@@ -136,28 +154,34 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={s.content}>
 
-          {/* Hero card */}
+          {/* ── Hero card ── */}
           <View style={s.heroCard}>
             <View style={s.avatarWrap}>
               <View style={s.avatar}>
                 <Text style={s.avatarInitial}>{displayUser?.name?.[0]?.toUpperCase() || 'U'}</Text>
               </View>
               {displayUser?.isPro && (
-                <View style={s.proBadge}><Text style={s.proBadgeText}>PRO</Text></View>
+                <View style={s.proBadge}>
+                  <Text style={s.proBadgeText}>PRO</Text>
+                </View>
               )}
             </View>
             <Text style={s.heroName}>{displayUser?.name}</Text>
             <Text style={s.heroSub}>Adventurer &amp; Gear Enthusiast</Text>
             <View style={s.heroTags}>
-              <View style={s.heroTag}><Text style={s.heroTagText}>Joined 2023</Text></View>
-              <View style={[s.heroTag, s.heroTagSecondary]}><Text style={[s.heroTagText, s.heroTagTextSecondary]}>Peak Bagger</Text></View>
+              <View style={s.heroTag}>
+                <Text style={s.heroTagText}>Joined 2023</Text>
+              </View>
+              <View style={[s.heroTag, s.heroTagSecondary]}>
+                <Text style={[s.heroTagText, s.heroTagTextSecondary]}>Peak Bagger</Text>
+              </View>
             </View>
             <TouchableOpacity style={s.editBtn} onPress={() => setEditModal(true)} activeOpacity={0.85}>
               <Text style={s.editBtnText}>Edit Profile</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Stats */}
+          {/* ── Stats ── */}
           <View style={s.statsRow}>
             <View style={[s.statCard, { backgroundColor: C.primaryContainer }]}>
               <Text style={[s.statNum, { color: C.onPrimaryContainer }]}>
@@ -174,7 +198,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Account Settings */}
+          {/* ── Account Settings ── */}
           <Text style={s.sectionTitle}>Account Settings</Text>
 
           <View style={s.menuCard}>
@@ -186,7 +210,7 @@ export default function ProfileScreen({ navigation }) {
                   item.special && s.menuRowSpecial,
                   i === MENU_ITEMS.length - 1 && { borderBottomWidth: 0 },
                 ]}
-                onPress={() => item.key === 'wishlist' ? navigation.navigate('Wishlist') : null}
+                onPress={() => handleMenuPress(item)}
                 activeOpacity={0.75}
               >
                 <View style={[s.menuIconBox, item.special && s.menuIconBoxSpecial]}>
@@ -209,17 +233,19 @@ export default function ProfileScreen({ navigation }) {
             ))}
           </View>
 
-          {/* Logout */}
+          {/* ── Logout ── */}
           <TouchableOpacity style={s.logoutRow} onPress={() => setLogoutModal(true)} activeOpacity={0.75}>
             <MaterialCommunityIcons name="logout" size={22} color={C.error} />
             <Text style={s.logoutText}>Logout</Text>
           </TouchableOpacity>
 
-          {/* Reviews */}
+          {/* ── Reviews preview ── */}
           <View style={s.reviewsCard}>
             <View style={s.reviewsHdr}>
               <Text style={s.reviewsTitle}>Your Reviews</Text>
-              <TouchableOpacity><Text style={s.reviewsViewAll}>View All</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('ReviewHistory')}>
+                <Text style={s.reviewsViewAll}>View All</Text>
+              </TouchableOpacity>
             </View>
             {displayReviews.map((r, i) => (
               <View key={i} style={s.reviewItem}>
@@ -239,7 +265,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* Edit Modal */}
+      {/* ── Edit Profile Modal ── */}
       <Modal visible={editModal} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={{ flex: 1, backgroundColor: C.white }}>
           <View style={s.modalHeader}>
@@ -273,12 +299,14 @@ export default function ProfileScreen({ navigation }) {
         </SafeAreaView>
       </Modal>
 
-      {/* Logout Modal */}
+      {/* ── Logout Confirm Modal ── */}
       <Modal visible={logoutModal} transparent animationType="fade">
         <View style={s.logoutOverlay}>
           <View style={s.logoutBox}>
             <Text style={s.logoutTitle}>Log Out?</Text>
-            <Text style={s.logoutSubText}>Are you sure you want to log out of your Wildvora account?</Text>
+            <Text style={s.logoutSubText}>
+              Are you sure you want to log out of your Wildvora account?
+            </Text>
             <TouchableOpacity style={s.logoutConfirmBtn} onPress={handleLogout}>
               <Text style={s.logoutConfirmText}>LOG OUT</Text>
             </TouchableOpacity>
