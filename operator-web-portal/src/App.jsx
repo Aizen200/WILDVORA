@@ -1,25 +1,29 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Login         from './pages/Login';
-import Register      from './pages/Register';
+import Login          from './pages/Login';
+import Register       from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
-import Dashboard     from './pages/Dashboard';
-import Listings      from './pages/Listings';
-import ListingForm   from './pages/ListingForm';
-import Bookings      from './pages/Bookings';
-import Analytics     from './pages/Analytics';
-import Reviews       from './pages/Reviews';
-import Payouts       from './pages/Payouts';
-<<<<<<< Updated upstream
-import Settings      from './pages/Settings';
-import Support       from './pages/Support';
-=======
-import Notifications from './pages/Notifications';
->>>>>>> Stashed changes
+import Dashboard      from './pages/Dashboard';
+import Listings       from './pages/Listings';
+import ListingForm    from './pages/ListingForm';
+import Bookings       from './pages/Bookings';
+import Analytics      from './pages/Analytics';
+import Reviews        from './pages/Reviews';
+import Payouts        from './pages/Payouts';
+import Notifications  from './pages/Notifications';
+import Settings       from './pages/Settings';
+import Support        from './pages/Support';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div id="app-loading" style={{ display:'flex', alignItems:'center', justifyjustify: 'center', height:'100vh', fontSize:'16px', color:'#666' }}>Loading...</div>;
+  if (loading) return (
+    <div
+      id="app-loading"
+      style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:'16px', color:'#666' }}
+    >
+      Loading...
+    </div>
+  );
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -27,25 +31,22 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public auth routes */}
-      <Route path="/login"          element={<Login />} />
-      <Route path="/register"       element={<Register />} />
+      <Route path="/login"           element={<Login />} />
+      <Route path="/register"        element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Protected portal routes */}
-      <Route path="/"               element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/listings"       element={<ProtectedRoute><Listings /></ProtectedRoute>} />
-      <Route path="/listings/new"   element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
+      <Route path="/"                  element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/listings"          element={<ProtectedRoute><Listings /></ProtectedRoute>} />
+      <Route path="/listings/new"      element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
       <Route path="/listings/:id/edit" element={<ProtectedRoute><ListingForm /></ProtectedRoute>} />
-      <Route path="/bookings"       element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
-      <Route path="/analytics"      element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/reviews"        element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
-      <Route path="/payouts"        element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
-<<<<<<< Updated upstream
-      <Route path="/settings"       element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/support"        element={<ProtectedRoute><Support /></ProtectedRoute>} />
-=======
-      <Route path="/notifications"  element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
->>>>>>> Stashed changes
+      <Route path="/bookings"          element={<ProtectedRoute><Bookings /></ProtectedRoute>} />
+      <Route path="/analytics"         element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+      <Route path="/reviews"           element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+      <Route path="/payouts"           element={<ProtectedRoute><Payouts /></ProtectedRoute>} />
+      <Route path="/notifications"     element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/settings"          element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/support"           element={<ProtectedRoute><Support /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
