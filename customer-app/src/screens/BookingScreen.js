@@ -35,25 +35,63 @@ export default function BookingScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [viewDone, setViewDone] = useState(false);
 
-  // June 2026 calendar selection states
-  const [checkInDay, setCheckInDay] = useState(10);
-  const [checkOutDay, setCheckOutDay] = useState(14);
+  // Dynamic calendar selection states (defaults to Oct 3 - Oct 7, 2024)
+  const [checkInDate, setCheckInDate] = useState(new Date(2024, 9, 3));
+  const [checkOutDate, setCheckOutDate] = useState(new Date(2024, 9, 7));
+  const [currentMonth, setCurrentMonth] = useState(9); // October
+  const [currentYear, setCurrentYear] = useState(2024);
 
-  // Calculations
-  const basePrice = 1240.00; // static base price matching the exact screen mockup
-  const equipmentRental = 180.00; // matching mockup
-  const serviceFee = 45.00; // matching mockup
-  const taxes = 32.50; // matching mockup
-  const grandTotal = 1497.50; // matching mockup
+  const handlePrevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(currentYear - 1);
+    } else {
+      setCurrentMonth(currentMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(currentYear + 1);
+    } else {
+      setCurrentMonth(currentMonth + 1);
+    }
+  };
+
+  const getNightsCount = () => {
+    if (!checkInDate || !checkOutDate) return 4; // fallback to 4 nights for default display
+    const diffTime = Math.abs(checkOutDate.getTime() - checkInDate.getTime());
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const nights = getNightsCount() || 4;
+
+  // Dynamic calculations based on selection
+  const basePrice = (experience.price || 310) * nights;
+  const totalGuests = adults + children;
+  const equipmentRental = totalGuests * 90.00;
+  const serviceFee = 45.00;
+  const subtotal = basePrice + equipmentRental + serviceFee;
+  const taxes = Math.round(subtotal * 0.022184 * 100) / 100;
+  const grandTotal = basePrice + equipmentRental + serviceFee + taxes;
 
   const handleConfirm = async () => {
     setLoading(true);
+    const formatDateISO = (d) => {
+      if (!d) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     try {
       // Hit real API backend if valid ID
       await bookingAPI.create({
         experienceId: experience._id,
-        startDate: '2024-10-03',
-        endDate: '2024-10-07',
+        startDate: formatDateISO(checkInDate),
+        endDate: formatDateISO(checkOutDate),
         adults,
         children,
         paymentMethod,
@@ -68,59 +106,106 @@ export default function BookingScreen({ route, navigation }) {
     }
   };
 
+  // Format Date Range Helper
+  const formatDateRange = () => {
+    if (!checkInDate) return 'Select dates';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const inMonth = months[checkInDate.getMonth()];
+    const inDay = checkInDate.getDate();
+    const inYear = checkInDate.getFullYear();
+    if (!checkOutDate) {
+      return `${inMonth} ${inDay}, ${inYear}`;
+    }
+    const outMonth = months[checkOutDate.getMonth()];
+    const outDay = checkOutDate.getDate();
+    return `${inMonth} ${inDay} - ${outMonth} ${outDay}, ${inYear}`;
+  };
+
+  // Get Calendar Days Grid Helper
+  const getDaysGrid = () => {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+    const grid = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      grid.push(null);
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      grid.push(new Date(currentYear, currentMonth, day));
+    }
+    return grid;
+  };
+
+  const handleDayPress = (date) => {
+    if (!checkInDate || (checkInDate && checkOutDate)) {
+      setCheckInDate(date);
+      setCheckOutDate(null);
+    } else if (date > checkInDate) {
+      setCheckOutDate(date);
+    } else {
+      setCheckInDate(date);
+      setCheckOutDate(null);
+    }
+  };
+
   // Calendar Day Component
-  const renderCalendarDay = (day, type) => {
-    if (day === '') {
-      return <View style={styles.calendarDayEmpty} />;
+  const renderCalendarDay = (date) => {
+    if (!date) {
+      return <View style={styles.calendarDayEmpty} key={`empty-${Math.random()}`} />;
     }
 
-    const isCheckIn = day === checkInDay;
-    const isCheckOut = day === checkOutDay;
-    const isInRange = day > checkInDay && day < checkOutDay;
-    const isPast = type === 'past';
+    const isCheckIn = checkInDate && date.toDateString() === checkInDate.toDateString();
+    const isCheckOut = checkOutDate && date.toDateString() === checkOutDate.toDateString();
+    const isInRange = checkInDate && checkOutDate && date > checkInDate && date < checkOutDate;
+    const dayNum = date.getDate();
 
     if (isCheckIn) {
       return (
-        <View style={styles.calendarDayCheckIn}>
-          <Text style={styles.calendarDayTextActive}>{day}</Text>
-        </View>
+        <TouchableOpacity
+          key={date.toISOString()}
+          style={styles.calendarDayCheckIn}
+          onPress={() => handleDayPress(date)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.calendarDayTextActive}>{dayNum}</Text>
+        </TouchableOpacity>
       );
     }
 
     if (isCheckOut) {
       return (
-        <View style={styles.calendarDayCheckOut}>
-          <Text style={styles.calendarDayTextActive}>{day}</Text>
-        </View>
+        <TouchableOpacity
+          key={date.toISOString()}
+          style={styles.calendarDayCheckOut}
+          onPress={() => handleDayPress(date)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.calendarDayTextActive}>{dayNum}</Text>
+        </TouchableOpacity>
       );
     }
 
     if (isInRange) {
       return (
-        <View style={styles.calendarDayRange}>
-          <Text style={styles.calendarDayTextRange}>{day}</Text>
-        </View>
+        <TouchableOpacity
+          key={date.toISOString()}
+          style={styles.calendarDayRange}
+          onPress={() => handleDayPress(date)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.calendarDayTextRange}>{dayNum}</Text>
+        </TouchableOpacity>
       );
     }
 
     return (
       <TouchableOpacity
+        key={date.toISOString()}
         style={styles.calendarDayNormal}
-        onPress={() => {
-          if (!checkInDay || (checkInDay && checkOutDay)) {
-            setCheckInDay(day);
-            setCheckOutDay(null);
-          } else if (day > checkInDay) {
-            setCheckOutDay(day);
-          } else {
-            setCheckInDay(day);
-            setCheckOutDay(null);
-          }
-        }}
+        onPress={() => handleDayPress(date)}
         activeOpacity={0.7}
       >
-        <Text style={[styles.calendarDayTextNormal, isPast && styles.calendarDayTextPast]}>
-          {day}
+        <Text style={styles.calendarDayTextNormal}>
+          {dayNum}
         </Text>
       </TouchableOpacity>
     );
@@ -198,7 +283,17 @@ export default function BookingScreen({ route, navigation }) {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>Select Dates</Text>
-              <Text style={styles.dateMonthText}>June 2026</Text>
+              <View style={styles.monthNavRow}>
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavBtn}>
+                  <Ionicons name="chevron-back" size={20} color="#1A5F45" />
+                </TouchableOpacity>
+                <Text style={styles.dateMonthText}>
+                  {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth]} {currentYear}
+                </Text>
+                <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavBtn}>
+                  <Ionicons name="chevron-forward" size={20} color="#1A5F45" />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.calendarContainer}>
               {/* Weekdays */}
@@ -211,12 +306,7 @@ export default function BookingScreen({ route, navigation }) {
               </View>
               {/* Days Grid */}
               <View style={styles.daysGrid}>
-                {/* Empty cell for Sunday (June 1, 2026 is Monday) */}
-                {renderCalendarDay('')}
-                {/* Days 1 to 30 */}
-                {Array.from({ length: 30 }, (_, i) => i + 1).map((day) =>
-                  renderCalendarDay(day)
-                )}
+                {getDaysGrid().map((date) => renderCalendarDay(date))}
               </View>
             </View>
           </View>
@@ -395,11 +485,14 @@ export default function BookingScreen({ route, navigation }) {
               <View style={styles.summaryMetaRow}>
                 <View style={styles.summaryMetaCol}>
                   <Text style={styles.summaryMetaLabel}>DATE</Text>
-                  <Text style={styles.summaryMetaVal}>Oct 3 - Oct 7, 2024</Text>
+                  <Text style={styles.summaryMetaVal}>{formatDateRange()}</Text>
                 </View>
                 <View style={styles.summaryMetaColRight}>
                   <Text style={styles.summaryMetaLabel}>GUESTS</Text>
-                  <Text style={styles.summaryMetaVal}>2 Adults</Text>
+                  <Text style={styles.summaryMetaVal}>
+                    {adults} Adult{adults > 1 ? 's' : ''}
+                    {children > 0 ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}
+                  </Text>
                 </View>
               </View>
 
@@ -408,11 +501,11 @@ export default function BookingScreen({ route, navigation }) {
               {/* Price Breakdown */}
               <View style={styles.breakdownRows}>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Base Experience (4 nights)</Text>
+                  <Text style={styles.breakdownLabel}>Base Experience ({nights} night{nights > 1 ? 's' : ''})</Text>
                   <Text style={styles.breakdownVal}>${basePrice.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Equipment Rental (2x)</Text>
+                  <Text style={styles.breakdownLabel}>Equipment Rental ({totalGuests}x)</Text>
                   <Text style={styles.breakdownVal}>${equipmentRental.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
@@ -483,11 +576,14 @@ export default function BookingScreen({ route, navigation }) {
           <View style={styles.doneDetailCard}>
             <View style={styles.doneDetailRow}>
               <Ionicons name="calendar-outline" size={18} color="#1A5F45" />
-              <Text style={styles.doneDetailText}>Oct 3 - Oct 7, 2024</Text>
+              <Text style={styles.doneDetailText}>{formatDateRange()}</Text>
             </View>
             <View style={styles.doneDetailRow}>
               <Ionicons name="people-outline" size={18} color="#1A5F45" />
-              <Text style={styles.doneDetailText}>2 Adults</Text>
+              <Text style={styles.doneDetailText}>
+                {adults} Adult{adults > 1 ? 's' : ''}
+                {children > 0 ? `, ${children} Child${children > 1 ? 'ren' : ''}` : ''}
+              </Text>
             </View>
             <View style={styles.doneDetailRow}>
               <Ionicons name="cash-outline" size={18} color="#1A5F45" />
@@ -719,6 +815,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#1A5F45',
+    minWidth: 120,
+    textAlign: 'center',
+  },
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  monthNavBtn: {
+    padding: 4,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   calendarContainer: {
     width: '100%',
