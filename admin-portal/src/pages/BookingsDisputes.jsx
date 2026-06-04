@@ -190,9 +190,30 @@ export default function BookingsDisputes() {
                 <td className="px-5 py-4 text-gray-900 font-bold text-sm">{b.amount}</td>
                 <td className="px-5 py-4"><StatusBadge status={b.status} /></td>
                 <td className="px-5 py-4">
-                  <button className="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-100 hover:text-gray-800 font-medium transition-all">
-                    View
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => alert(`Initiated communication channel between customer (${b.customer}) and host (${b.host}) for booking ${b.id}.`)}
+                      className="text-xs text-gray-600 border border-gray-300 px-2.5 py-1 rounded-md hover:bg-gray-50 font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      Contact
+                    </button>
+                    {(b.status === 'Disputed' || b.status === 'Flagged') && (
+                      <button 
+                        onClick={() => alert(`Issued full refund for booking ${b.id} to customer ${b.customer}.`)}
+                        className="text-xs text-rose-600 border border-rose-200 px-2.5 py-1 rounded-md hover:bg-rose-50 font-semibold transition-all shadow-sm cursor-pointer"
+                      >
+                        Refund
+                      </button>
+                    )}
+                    {b.status === 'Confirmed' && (
+                      <button 
+                        onClick={() => alert(`Flagged booking ${b.id} as Disputed for administrative review.`)}
+                        className="text-xs text-amber-600 border border-amber-200 px-2.5 py-1 rounded-md hover:bg-amber-50 font-semibold transition-all shadow-sm cursor-pointer"
+                      >
+                        Flag Dispute
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
