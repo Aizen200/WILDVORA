@@ -35,11 +35,11 @@ export default function BookingScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [viewDone, setViewDone] = useState(false);
 
-  // Dynamic calendar selection states (defaults to Oct 3 - Oct 7, 2024)
-  const [checkInDate, setCheckInDate] = useState(new Date(2024, 9, 3));
-  const [checkOutDate, setCheckOutDate] = useState(new Date(2024, 9, 7));
-  const [currentMonth, setCurrentMonth] = useState(9); // October
-  const [currentYear, setCurrentYear] = useState(2024);
+  const _today = new Date();
+  const [checkInDate, setCheckInDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate()));
+  const [checkOutDate, setCheckOutDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate() + 4));
+  const [currentMonth, setCurrentMonth] = useState(_today.getMonth());
+  const [currentYear, setCurrentYear] = useState(_today.getFullYear());
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
