@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const WildvoraLogo = ({ light = false }) => (
   <div className="flex items-center gap-2">
@@ -14,6 +14,7 @@ const WildvoraLogo = ({ light = false }) => (
 
 export default function Register() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', password:'', confirmPassword:'' });
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,14 +27,13 @@ export default function Register() {
     if (!agreed) return setError('You must agree to the Terms & Conditions.');
     setError(''); setLoading(true);
     try {
-      await api.post('/auth/register', {
-        name: `${form.firstName} ${form.lastName}`.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.phone.trim(),
-        password: form.password,
-        role: 'operator',
-      });
-      navigate('/login?registered=true');
+      await register(
+        `${form.firstName} ${form.lastName}`.trim(),
+        form.email.trim().toLowerCase(),
+        form.phone.trim(),
+        form.password
+      );
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed.');
     } finally { setLoading(false); }

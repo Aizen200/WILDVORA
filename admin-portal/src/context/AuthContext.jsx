@@ -41,13 +41,23 @@ export function AuthProvider({ children }) {
     setUser(user);
   };
 
+  const register = async (name, email, phone, password, role) => {
+    const res = await authAPI.register({ name, email, phone, password, role });
+    const { token, user } = res.data;
+    if (user.role !== 'admin') {
+      throw new Error('Access denied. Admin account required.');
+    }
+    localStorage.setItem('adminToken', token);
+    setUser(user);
+  };
+
   const logout = () => {
     localStorage.removeItem('adminToken');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

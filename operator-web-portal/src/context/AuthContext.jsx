@@ -29,13 +29,23 @@ export function AuthProvider({ children }) {
     setUser(user);
   };
 
+  const register = async (name, email, phone, password) => {
+    const res = await authAPI.register({ name, email, phone, password, role: 'operator' });
+    const { token, user } = res.data;
+    if (!['operator', 'admin'].includes(user.role)) {
+      throw new Error('Access denied. Host account required.');
+    }
+    localStorage.setItem('hostToken', token);
+    setUser(user);
+  };
+
   const logout = () => {
     localStorage.removeItem('hostToken');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );
