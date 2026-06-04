@@ -138,6 +138,11 @@ export default function MyTripsScreen({ navigation }) {
 
   useEffect(() => { fetchBookings(); }, [activeTab]);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchBookings);
+    return unsubscribe;
+  }, [navigation, fetchBookings]);
+
   const handleCancel = (id) => {
     Alert.alert(
       'Cancel Booking',
