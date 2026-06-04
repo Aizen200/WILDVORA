@@ -34,7 +34,7 @@ export default function Layout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main id="main-content" className="flex-1 overflow-y-auto p-6">
+        <main id="main-content" className="flex-1 overflow-y-auto p-6 animate-fade-in-up">
           {children}
         </main>
       </div>

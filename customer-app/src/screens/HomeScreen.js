@@ -82,6 +82,25 @@ function FeaturedCard({ item, index, onPress, onWishlist }) {
   );
 }
 
+function NewCard({ item, index, onPress }) {
+  const imgUri = item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  return (
+    <TouchableOpacity style={s.newCard} onPress={() => onPress(item)} activeOpacity={0.9}>
+      <View style={{ position: 'relative' }}>
+        <Image source={{ uri: imgUri }} style={s.newImg} resizeMode="cover" />
+        <View style={s.newBadge}>
+          <Text style={s.newBadgeText}>NEW</Text>
+        </View>
+      </View>
+      <View style={s.newBody}>
+        <Text style={s.newTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={s.newLoc}>{item.location?.city || 'India'}</Text>
+        <Text style={s.newPrice}>${item.price}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function TrendingItem({ item, index, onPress }) {
   const imgUri = item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
   const isWater = item.category === 'Water Sports' || item.category === 'Cycling';
@@ -256,6 +275,28 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
+        {/* New on Wildvora */}
+        {featured.length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHdr}>
+              <View>
+                <Text style={s.sectionTitle}>New on Wildvora</Text>
+                <Text style={s.sectionSub}>Fresh off-concrete wilderness trails</Text>
+              </View>
+            </View>
+            <FlatList
+              horizontal
+              data={[...featured].reverse()}
+              keyExtractor={(i) => 'new-' + i._id}
+              renderItem={({ item, index }) => (
+                <NewCard item={item} index={index} onPress={goToExperience} />
+              )}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.newList}
+            />
+          </View>
+        )}
+
         {/* Trending + Pro */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Trending This Week</Text>
@@ -283,6 +324,29 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+
+        {/* Safety & Prep Guides */}
+        <View style={s.section}>
+          <View style={{ marginBottom: 10 }}>
+            <Text style={s.sectionTitle}>Safety & Prep Guides</Text>
+            <Text style={s.sectionSub}>Mandatory guidelines for outdoor experiences</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.safetyList}>
+            {[
+              { title: 'High-Altitude AMS', icon: 'mountain', color: '#1A5F45', desc: 'Acclimatization & AMS' },
+              { title: 'River Rafting Grades', icon: 'water', color: '#0a6687', desc: 'Understanding rapids' },
+              { title: 'Jungle Code of Conduct', icon: 'tree', color: '#8f4645', desc: 'Wildlife safety rules' }
+            ].map((guide, idx) => (
+              <TouchableOpacity key={idx} style={s.safetyCard} activeOpacity={0.8}>
+                <View style={[s.safetyIconBg, { backgroundColor: guide.color + '15' }]}>
+                  <MaterialCommunityIcons name={guide.icon} size={20} color={guide.color} />
+                </View>
+                <Text style={s.safetyTitle}>{guide.title}</Text>
+                <Text style={s.safetyDesc}>{guide.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         <View style={{ height: 28 }} />
@@ -368,4 +432,22 @@ const s = StyleSheet.create({
 
   emptyBox:  { padding: 24, backgroundColor: C.surfaceContainerLow, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   emptyText: { color: C.onSurfaceVariant, fontSize: 14 },
+
+  /* New on Wildvora */
+  newList:      { paddingLeft: 0, paddingRight: 12, paddingBottom: 4 },
+  newCard:      { width: 140, marginRight: 12, backgroundColor: C.white, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: C.outlineVariant + '40' },
+  newImg:       { width: '100%', height: 90 },
+  newBadge:     { position: 'absolute', top: 6, left: 6, backgroundColor: '#1A5F45', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  newBadgeText: { fontSize: 8, fontWeight: '800', color: C.white },
+  newBody:      { padding: 8 },
+  newTitle:     { fontSize: 12, fontWeight: '700', color: C.onSurface },
+  newLoc:       { fontSize: 10, color: C.onSurfaceVariant, marginTop: 2 },
+  newPrice:     { fontSize: 11, fontWeight: '700', color: C.primary, marginTop: 4 },
+
+  /* Safety & Prep Guides */
+  safetyList:   { gap: 12, paddingVertical: 10 },
+  safetyCard:   { width: 150, backgroundColor: C.white, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.outlineVariant + '40', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
+  safetyIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  safetyTitle:  { fontSize: 12, fontWeight: '700', color: C.onSurface, lineHeight: 16 },
+  safetyDesc:   { fontSize: 10, color: C.onSurfaceVariant, marginTop: 2 },
 });

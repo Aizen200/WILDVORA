@@ -35,9 +35,9 @@ export default function BookingScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
   const [viewDone, setViewDone] = useState(false);
 
-  // Oct 2024 calendar selection states
-  const [checkInDay, setCheckInDay] = useState(3);
-  const [checkOutDay, setCheckOutDay] = useState(7);
+  // June 2026 calendar selection states
+  const [checkInDay, setCheckInDay] = useState(10);
+  const [checkOutDay, setCheckOutDay] = useState(14);
 
   // Calculations
   const basePrice = 1240.00; // static base price matching the exact screen mockup
@@ -107,12 +107,14 @@ export default function BookingScreen({ route, navigation }) {
       <TouchableOpacity
         style={styles.calendarDayNormal}
         onPress={() => {
-          if (day > 7) {
+          if (!checkInDay || (checkInDay && checkOutDay)) {
             setCheckInDay(day);
-            setCheckOutDay(day + 4);
-          } else if (day < 3) {
+            setCheckOutDay(null);
+          } else if (day > checkInDay) {
+            setCheckOutDay(day);
+          } else {
             setCheckInDay(day);
-            setCheckOutDay(day + 4);
+            setCheckOutDay(null);
           }
         }}
         activeOpacity={0.7}
@@ -196,7 +198,7 @@ export default function BookingScreen({ route, navigation }) {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>Select Dates</Text>
-              <Text style={styles.dateMonthText}>Oct 2024</Text>
+              <Text style={styles.dateMonthText}>June 2026</Text>
             </View>
             <View style={styles.calendarContainer}>
               {/* Weekdays */}
@@ -207,25 +209,14 @@ export default function BookingScreen({ route, navigation }) {
                   </Text>
                 ))}
               </View>
-              {/* Days Mockup Grid */}
+              {/* Days Grid */}
               <View style={styles.daysGrid}>
-                {/* Out of bound past days */}
-                {renderCalendarDay(29, 'past')}
-                {renderCalendarDay(30, 'past')}
-                {/* Days */}
-                {renderCalendarDay(1)}
-                {renderCalendarDay(2)}
-                {renderCalendarDay(3)}
-                {renderCalendarDay(4)}
-                {renderCalendarDay(5)}
-                {renderCalendarDay(6)}
-                {renderCalendarDay(7)}
-                {renderCalendarDay(8)}
-                {renderCalendarDay(9)}
-                {renderCalendarDay(10)}
-                {renderCalendarDay(11)}
-                {renderCalendarDay(12)}
-                {renderCalendarDay(13)}
+                {/* Empty cell for Sunday (June 1, 2026 is Monday) */}
+                {renderCalendarDay('')}
+                {/* Days 1 to 30 */}
+                {Array.from({ length: 30 }, (_, i) => i + 1).map((day) =>
+                  renderCalendarDay(day)
+                )}
               </View>
             </View>
           </View>

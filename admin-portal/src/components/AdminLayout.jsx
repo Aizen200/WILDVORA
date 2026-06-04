@@ -14,7 +14,9 @@ export default function AdminLayout({ children }) {
 
         {/* Scrollable Page Body */}
         <div className="flex-1 overflow-y-auto">
-          {children}
+          <main className="animate-fade-in-up">
+            {children}
+          </main>
         </div>
       </div>
     </div>

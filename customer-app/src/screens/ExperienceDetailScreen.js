@@ -18,6 +18,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   const [loading, setLoading]       = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
   const [readMore, setReadMore]     = useState(false);
+  const [selectedDate, setSelectedDate] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -155,7 +156,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 <Text style={styles.hostName}>{experience.hostName || 'Alex Explorer'}</Text>
                 <View style={styles.verifiedRow}>
                   <MaterialIcons name="verified" size={14} color="#1A5F45" />
-                  <Text style={styles.verifiedText}>Verified Host</Text>
+                  <Text style={styles.verifiedText}>Verified Host • 98% response</Text>
                 </View>
               </View>
             </View>
@@ -194,6 +195,49 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 <Text style={styles.bentoText}>{label}</Text>
               </View>
             ))}
+          </View>
+
+          {/* Availability Calendar / Available Dates Section */}
+          <View style={[styles.section, styles.borderTop]}>
+            <Text style={styles.sectionTitle}>Available Dates</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.datesContainer}>
+              {(experience.availableDates && experience.availableDates.length > 0
+                ? experience.availableDates
+                : ['2026-06-10', '2026-06-12', '2026-06-15', '2026-06-18', '2026-06-22']
+              ).map((dateStr, idx) => {
+                const isSelected = selectedDate === idx;
+                const dateParts = dateStr.split('-');
+                const day = dateParts[2] || dateStr;
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthIdx = parseInt(dateParts[1], 10) - 1;
+                const month = monthNames[monthIdx] || 'Jun';
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setSelectedDate(idx)}
+                    style={[styles.dateCard, isSelected && styles.dateCardActive]}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={[styles.dateMonth, isSelected && styles.dateTextActive]}>{month}</Text>
+                    <Text style={[styles.dateDay, isSelected && styles.dateTextActive]}>{day}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Cancellation Policy Section */}
+          <View style={[styles.section, styles.borderTop]}>
+            <Text style={styles.sectionTitle}>Cancellation Policy</Text>
+            <View style={styles.cancellationCard}>
+              <View style={styles.cancellationHeader}>
+                <MaterialCommunityIcons name="shield-check" size={20} color="#1A5F45" />
+                <Text style={styles.cancellationTitle}>Wildvora Protection Policy</Text>
+              </View>
+              <Text style={styles.cancellationText}>
+                {experience.cancellationPolicy || 'Flexible: Cancel up to 24 hours in advance for a full refund. Get 100% money back if weather prevents the experience.'}
+              </Text>
+            </View>
           </View>
 
           {/* Reviews */}
@@ -341,4 +385,18 @@ const styles = StyleSheet.create({
   viewDatesText:   { fontSize: 12, color: '#1A5F45', fontWeight: '700' },
   bookBtn:         { backgroundColor: '#1A5F45', borderRadius: 24, paddingVertical: 14, paddingHorizontal: 36, ...Platform.select({ ios: { shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }, android: { elevation: 4 } }) },
   bookBtnText:     { color: '#ffffff', fontWeight: '700', fontSize: 15 },
+
+  /* Available Dates */
+  datesContainer:  { gap: 10, paddingVertical: 4 },
+  dateCard:        { width: 64, height: 72, borderRadius: 12, borderWidth: 1, borderColor: '#bec9c1', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  dateCardActive:  { backgroundColor: '#1A5F45', borderColor: '#1A5F45' },
+  dateMonth:       { fontSize: 11, fontWeight: '700', color: '#6f7a73', textTransform: 'uppercase' },
+  dateDay:         { fontSize: 18, fontWeight: '800', color: '#181d1a', marginTop: 2 },
+  dateTextActive:  { color: '#ffffff' },
+
+  /* Cancellation Card */
+  cancellationCard:{ backgroundColor: 'rgba(26,95,69,0.04)', borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#1A5F45', padding: 14 },
+  cancellationHeader:{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  cancellationTitle:{ fontSize: 13, fontWeight: '700', color: '#1A5F45' },
+  cancellationText:{ fontSize: 12, color: '#3f4943', lineHeight: 18 },
 });
