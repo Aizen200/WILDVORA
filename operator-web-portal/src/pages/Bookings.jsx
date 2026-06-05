@@ -122,7 +122,7 @@ export default function Bookings() {
               { label: 'Total Bookings', value: totalCount.toLocaleString(), sub: '+12% from last month', accent: 'border-l-[#1A5F45]' },
               { label: 'Pending',        value: pendingCount,                sub: 'Awaiting review',      accent: 'border-l-blue-400' },
               { label: 'Occupancy Rate', value: '92%',                       sub: 'Peak season trend',    accent: 'border-l-[#C4A482]' },
-              { label: 'RevPAR',         value: '$245',                      sub: 'Average per slot',     accent: 'border-l-gray-300' },
+              { label: 'RevPAR',         value: '₹20,400',                      sub: 'Average per slot',     accent: 'border-l-gray-300' },
             ].map(m => (
               <div key={m.label} className={`bg-white p-5 rounded-2xl border-l-[4px] ${m.accent} shadow-sm`}>
                 <span className="text-[11px] font-bold text-gray-400 tracking-wider uppercase">{m.label}</span>
@@ -202,7 +202,7 @@ export default function Bookings() {
                           </div>
                           <div className="text-[10px] text-gray-400 mt-0.5">08:00 AM</div>
                         </td>
-                        <td className="py-4 px-5 text-sm font-bold text-gray-900">${b.totalPrice?.toFixed(2)}</td>
+                        <td className="py-4 px-5 text-sm font-bold text-gray-900">₹{b.totalPrice?.toFixed(2)}</td>
                         <td className="py-4 px-5">{getStatusBadge(b.status)}</td>
                         <td className="py-4 px-5 text-right" onClick={e => e.stopPropagation()}>
                           <button onClick={() => setSelected(b)} className="text-gray-300 hover:text-gray-500 transition">
@@ -309,7 +309,7 @@ export default function Bookings() {
               <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Payment Summary</span>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500 font-semibold">Experience Base Fee</span>
-                <strong className="text-sm text-gray-900">${selected.totalPrice?.toFixed(2)}</strong>
+                <strong className="text-sm text-gray-900">₹{selected.totalPrice?.toFixed(2)}</strong>
               </div>
             </div>
 

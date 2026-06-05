@@ -46,7 +46,7 @@ const SECTIONS = [
     title: 'Preferences',
     items: [
       { icon: 'translate',            label: 'Language',             key: 'language',    arrow: true, value: 'English' },
-      { icon: 'currency-usd',         label: 'Currency',             key: 'currency',    arrow: true, value: 'USD' },
+      { icon: 'currency-inr',         label: 'Currency',             key: 'currency',    arrow: true, value: 'INR' },
       { icon: 'weather-night',        label: 'Dark Mode',            key: 'dark',        toggle: false },
     ],
   },

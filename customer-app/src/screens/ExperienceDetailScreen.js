@@ -271,7 +271,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.footerLeft}>
           <View style={styles.priceRow}>
-            <Text style={styles.footerPrice}>${experience.price}</Text>
+            <Text style={styles.footerPrice}>₹{experience.price}</Text>
             <Text style={styles.footerPriceSub}> / person</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Booking', { experience })} activeOpacity={0.8}>

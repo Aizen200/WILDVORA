@@ -78,7 +78,7 @@ export default function Hosts() {
             kyc: h.kyc,
             payoutStatus: h.payoutStatus === 'verified' ? 'active' : 'reviewing',
             listings: h.name === 'Amit Operator' ? 15 : 4,
-            revenue: h.name === 'Amit Operator' ? '$52,400' : '$1,200',
+            revenue: h.name === 'Amit Operator' ? '₹4,36,500' : '₹99,900',
             isActive: h.isActive,
             isDb: true
           }));
@@ -92,7 +92,7 @@ export default function Hosts() {
               kyc: 'approved',
               payoutStatus: 'active',
               listings: 12,
-              revenue: '$45,280',
+              revenue: '₹3,77,000',
               isActive: true,
               avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80'
             },
@@ -104,7 +104,7 @@ export default function Hosts() {
               kyc: 'pending',
               payoutStatus: 'reviewing',
               listings: 3,
-              revenue: '$8,450',
+              revenue: '₹70,350',
               isActive: true,
               avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&h=120&q=80'
             },
@@ -116,7 +116,7 @@ export default function Hosts() {
               kyc: 'rejected',
               payoutStatus: 'frozen',
               listings: 0,
-              revenue: '$0',
+              revenue: '₹0',
               isActive: false,
               avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80'
             },
@@ -128,7 +128,7 @@ export default function Hosts() {
               kyc: 'approved',
               payoutStatus: 'active',
               listings: 22,
-              revenue: '$112,000',
+              revenue: '₹9,33,000',
               isActive: true,
               avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=120&h=120&q=80'
             }

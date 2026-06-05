@@ -522,7 +522,7 @@ export default function Customers() {
                             </span>
                             <span className="flex items-center gap-1">
                               <span className="material-symbols-outlined text-xs">payments</span>
-                              ${bk.totalPrice}
+                              ₹{bk.totalPrice}
                             </span>
                           </div>
                         </div>

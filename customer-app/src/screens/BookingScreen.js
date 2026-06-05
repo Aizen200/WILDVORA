@@ -502,19 +502,19 @@ export default function BookingScreen({ route, navigation }) {
               <View style={styles.breakdownRows}>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Base Experience ({nights} night{nights > 1 ? 's' : ''})</Text>
-                  <Text style={styles.breakdownVal}>${basePrice.toFixed(2)}</Text>
+                  <Text style={styles.breakdownVal}>₹{basePrice.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Equipment Rental ({totalGuests}x)</Text>
-                  <Text style={styles.breakdownVal}>${equipmentRental.toFixed(2)}</Text>
+                  <Text style={styles.breakdownVal}>₹{equipmentRental.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Service Fee</Text>
-                  <Text style={styles.breakdownVal}>${serviceFee.toFixed(2)}</Text>
+                  <Text style={styles.breakdownVal}>₹{serviceFee.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Taxes</Text>
-                  <Text style={styles.breakdownVal}>${taxes.toFixed(2)}</Text>
+                  <Text style={styles.breakdownVal}>₹{taxes.toFixed(2)}</Text>
                 </View>
               </View>
 
@@ -523,7 +523,7 @@ export default function BookingScreen({ route, navigation }) {
               {/* Total Row */}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalPriceText}>${grandTotal.toFixed(2)}</Text>
+                <Text style={styles.totalPriceText}>₹{grandTotal.toFixed(2)}</Text>
               </View>
 
               {/* Confirm Pay Button */}
@@ -587,7 +587,7 @@ export default function BookingScreen({ route, navigation }) {
             </View>
             <View style={styles.doneDetailRow}>
               <Ionicons name="cash-outline" size={18} color="#1A5F45" />
-              <Text style={styles.doneDetailText}>Total Paid: ${grandTotal.toFixed(2)}</Text>
+              <Text style={styles.doneDetailText}>Total Paid: ₹{grandTotal.toFixed(2)}</Text>
             </View>
           </View>
 

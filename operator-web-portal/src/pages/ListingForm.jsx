@@ -150,7 +150,7 @@ export default function ListingForm() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Price (USD)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Price (₹)</label>
                   <input type="number" name="price" required value={formData.price} onChange={handleChange}
                     placeholder="250" className={inputCls} />
                 </div>

@@ -8,7 +8,7 @@ const bookingRows = [
     customer: 'Elena Miller', customerType: 'Pro Member',
     host: 'Grand Canyon Glamping',
     date: 'Oct 12–15, 2023',
-    amount: '$1,450.00',
+    amount: '₹1,20,750',
     status: 'Disputed',
   },
   {
@@ -17,7 +17,7 @@ const bookingRows = [
     customer: 'James David', customerType: 'Verified',
     host: 'Olympic Forest Cabin',
     date: 'Oct 14–18, 2023',
-    amount: '$840.00',
+    amount: '₹69,900',
     status: 'Confirmed',
   },
   {
@@ -26,7 +26,7 @@ const bookingRows = [
     customer: 'Sarah L.', customerType: 'New User',
     host: 'Yosemite Valley Dome',
     date: 'Oct 15–17, 2023',
-    amount: '$1,200.00',
+    amount: '₹99,900',
     status: 'Flagged',
   },
   {
@@ -35,7 +35,7 @@ const bookingRows = [
     customer: 'Tom King', customerType: 'Guest',
     host: 'Zion Cliffhouse Suite',
     date: 'Oct 20–22, 2023',
-    amount: '$650.00',
+    amount: '₹54,100',
     status: 'Pending',
   },
 ]
@@ -80,7 +80,7 @@ function SparkBar() {
 const topStats = [
   { label: 'ACTIVE BOOKINGS',      value: '1,284', badge: '+12%',        badgeClass: 'text-emerald-600' },
   { label: 'OPEN DISPUTES',        value: '24',    tag: 'High Priority',  tagClass: 'text-red-500' },
-  { label: 'WEEKLY REVENUE',       value: '$42,500', sub: 'v. Target',   subClass: 'text-emerald-600' },
+  { label: 'WEEKLY REVENUE',       value: '₹3,54,100', sub: 'v. Target',   subClass: 'text-emerald-600' },
   { label: 'AVG. RESOLUTION TIME', value: '4.2h',  badge: '-15%',        badgeClass: 'text-red-500' },
 ]
 

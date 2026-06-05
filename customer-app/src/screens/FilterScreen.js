@@ -149,7 +149,7 @@ export default function FilterScreen({ navigation }) {
           </View>
           <View style={s.resultFooter}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 1 }}>
-              <Text style={s.resultPrice}>${item.price}</Text>
+              <Text style={s.resultPrice}>₹{item.price}</Text>
               <Text style={s.resultPriceSub}>/person</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -219,14 +219,14 @@ export default function FilterScreen({ navigation }) {
             <MaterialIcons name="payments" size={24} color="#1A5F45" />
             <Text style={s.secTitle}>Price Range</Text>
             <View style={s.priceBadge}>
-              <Text style={s.priceBadgeText}>$200 – ${price.toLocaleString()}</Text>
+              <Text style={s.priceBadgeText}>₹200 – ₹{price.toLocaleString()}</Text>
             </View>
           </View>
           <View style={{ paddingHorizontal: 4, marginBottom: 28 }}>
             <CustomSlider min={0} max={5000} value={price} onChange={setPrice} />
             <View style={s.sliderLabels}>
-              <Text style={s.sliderLabel}>$0</Text>
-              <Text style={s.sliderLabel}>$5,000+</Text>
+              <Text style={s.sliderLabel}>₹0</Text>
+              <Text style={s.sliderLabel}>₹5,000+</Text>
             </View>
           </View>
 

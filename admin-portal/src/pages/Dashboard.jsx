@@ -18,10 +18,10 @@ const stats = [
   },
   {
     label: 'GMV',
-    value: '$412,900',
+    value: '₹34,12,900',
     change: '+8.2%',
     up: true,
-    vs: 'vs. $381,500 last week',
+    vs: 'vs. ₹31,81,500 last week',
     icon: (
       <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#1A5F45" strokeWidth={1.8}>
         <rect x="2" y="7" width="20" height="14" rx="2"/>
@@ -66,7 +66,7 @@ const recentBookings = [
     host: 'Sarah Jenkins',
     date: 'Oct 24, 2023',
     status: 'Confirmed',
-    amount: '$1,240.00',
+    amount: '₹1,03,200',
     img: 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?w=64&h=64&fit=crop',
   },
   {
@@ -74,7 +74,7 @@ const recentBookings = [
     host: 'Marcus Thorne',
     date: 'Oct 23, 2023',
     status: 'Pending',
-    amount: '$850.00',
+    amount: '₹70,850',
     img: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=64&h=64&fit=crop',
   },
   {
@@ -82,7 +82,7 @@ const recentBookings = [
     host: 'Elena Rodriguez',
     date: 'Oct 22, 2023',
     status: 'Confirmed',
-    amount: '$2,100.00',
+    amount: '₹1,74,900',
     img: 'https://images.unsplash.com/photo-1488415032361-b7e238421f1b?w=64&h=64&fit=crop',
   },
 ]
@@ -111,7 +111,7 @@ const recentActivity = [
       </svg>
     ),
     title: 'Payout Processed',
-    desc: '$4,200.00 sent to Host #8821',
+    desc: '₹3,49,800 sent to Host #8821',
     time: '1 hour ago',
   },
   {

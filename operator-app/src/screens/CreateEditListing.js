@@ -145,7 +145,7 @@ export default function CreateEditListing({ editListing, setListings, setActiveT
         <View style={styles.card}>
           <Text style={styles.cardHeading}>Pricing</Text>
           <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>$</Text>
+            <Text style={styles.priceCurrency}>₹</Text>
             <TextInput
               style={styles.priceInput}
               placeholder="0.00"

@@ -70,7 +70,7 @@ function FeaturedCard({ item, index, onPress, onWishlist }) {
         </View>
         <View style={s.featFooter}>
           <Text style={s.featPrice}>
-            <Text style={s.featPriceNum}>${item.price}</Text>
+            <Text style={s.featPriceNum}>₹{item.price}</Text>
             <Text style={s.featPriceSub}> / {item.duration?.includes('day') ? 'day' : 'trip'}</Text>
           </Text>
           <TouchableOpacity onPress={() => onPress(item)}>
@@ -95,7 +95,7 @@ function NewCard({ item, index, onPress }) {
       <View style={s.newBody}>
         <Text style={s.newTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={s.newLoc}>{item.location?.city || 'India'}</Text>
-        <Text style={s.newPrice}>${item.price}</Text>
+        <Text style={s.newPrice}>₹{item.price}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -115,7 +115,7 @@ function TrendingItem({ item, index, onPress }) {
           <View style={[s.trendTag, { backgroundColor: tagStyle.bg }]}>
             <Text style={[s.trendTagText, { color: tagStyle.text }]}>{item.category?.toUpperCase()}</Text>
           </View>
-          <Text style={s.trendPrice}>${item.price}</Text>
+          <Text style={s.trendPrice}>₹{item.price}</Text>
         </View>
         <Text style={s.trendTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={s.trendMeta}>{item.duration} • {item.category}</Text>

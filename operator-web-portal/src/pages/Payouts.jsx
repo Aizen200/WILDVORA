@@ -102,15 +102,15 @@ export default function Payouts() {
             <div className="grid grid-cols-3 gap-6">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Earnings</span>
-                <div className="text-3xl font-black text-gray-900 mt-2">${(data?.earnings?.totalEarnings || 0).toLocaleString()}</div>
+                <div className="text-3xl font-black text-gray-900 mt-2">₹{(data?.earnings?.totalEarnings || 0).toLocaleString('en-IN')}</div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-[#1A5F45]">Pending Payouts</span>
-                <div className="text-3xl font-black text-gray-900 mt-2">${(data?.earnings?.pendingPayouts || 0).toLocaleString()}</div>
+                <div className="text-3xl font-black text-gray-900 mt-2">₹{(data?.earnings?.pendingPayouts || 0).toLocaleString('en-IN')}</div>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-blue-600">Settled Payouts</span>
-                <div className="text-3xl font-black text-gray-900 mt-2">${(data?.earnings?.completedPayouts || 0).toLocaleString()}</div>
+                <div className="text-3xl font-black text-gray-900 mt-2">₹{(data?.earnings?.completedPayouts || 0).toLocaleString('en-IN')}</div>
               </div>
             </div>
 
@@ -147,7 +147,7 @@ export default function Payouts() {
                               {p.transactionId || 'TXN-PENDING'}
                             </td>
                             <td className="py-3 px-4 font-black text-gray-800">
-                              ${p.amount.toFixed(2)}
+                              ₹{p.amount.toFixed(2)}
                             </td>
                             <td className="py-3 px-4 text-right">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${

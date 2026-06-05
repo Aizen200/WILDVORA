@@ -29,7 +29,7 @@ const NOTIFICATIONS = [
   {
     id: 2,
     category: 'payment',
-    title: 'Payout sent – $1,280.00',
+    title: 'Payout sent – ₹1,06,600',
     time: '4h ago',
     desc: 'Your earnings for the "Midnight Kayak Tour" series have been processed and sent to your bank account.',
     badges: [{ text: 'Payment', color: 'bg-blue-50 text-blue-600 border border-blue-100' }],
@@ -157,7 +157,7 @@ export default function Notifications() {
                 </svg>
                 <span>Next Payout</span>
               </div>
-              <div className="text-2xl font-black text-gray-900 mt-2.5">$2,450.00</div>
+              <div className="text-2xl font-black text-gray-900 mt-2.5">₹2,04,000</div>
               <p className="text-[10px] text-gray-400 font-bold mt-1">Expected: Oct 24, 2023</p>
             </div>
           </div>

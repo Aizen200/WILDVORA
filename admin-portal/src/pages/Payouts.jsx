@@ -302,7 +302,7 @@ export default function Payouts() {
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-gutter">
             <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_4px_20px_-4px_rgba(96,77,63,0.12)] border-t-4 border-secondary">
               <p className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Pending Total</p>
-              <h3 className="font-display-lg text-secondary mt-1">${pendingTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+              <h3 className="font-display-lg text-secondary mt-1">₹{pendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
               <p className="text-xs text-on-surface-variant mt-2 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px] text-primary" data-icon="trending_up">trending_up</span>
                 12% increase from last week
@@ -407,7 +407,7 @@ export default function Payouts() {
                             <p className="text-[10px] uppercase font-bold text-on-surface-variant/60">Settlement Amount</p>
                             <div className="flex items-center gap-2 mt-1 relative">
                               <span className="font-headline-md text-headline-md text-primary">
-                                ${displayPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                ₹{displayPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                               
                               {/* Override Button Wrapper */}
@@ -422,7 +422,7 @@ export default function Payouts() {
                                 
                                 {showOverrideInput[item._id] && (
                                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-surface-container-highest rounded-lg shadow-xl text-xs z-20 border border-outline-variant/50">
-                                    <label className="block mb-1 font-bold text-gray-900">Override Amount ($):</label>
+                                    <label className="block mb-1 font-bold text-gray-900">Override Amount (₹):</label>
                                     <div className="flex gap-1.5">
                                       <input 
                                         className="w-full bg-surface p-1 border border-outline rounded text-xs focus:ring-1 focus:ring-primary text-gray-900 font-semibold" 
@@ -536,7 +536,7 @@ export default function Payouts() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-body-md">{log.releasedAt}</td>
-                        <td className="px-6 py-4 font-bold text-primary">${log.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-6 py-4 font-bold text-primary">₹{log.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
                             log.status === 'Completed' 

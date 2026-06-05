@@ -56,7 +56,7 @@ export default function Payouts() {
       {/* Total Earnings card */}
       <View style={styles.earningsCard}>
         <Text style={styles.earningsLabel}>TOTAL EARNINGS</Text>
-        <Text style={styles.earningsAmount}>$42,850.00</Text>
+        <Text style={styles.earningsAmount}>₹42,850.00</Text>
         <View style={styles.earningsTrend}>
           <Feather name="trending-up" size={15} color={theme.primaryContainer} />
           <Text style={styles.earningsTrendText}>  +12.5% from last month</Text>
@@ -66,7 +66,7 @@ export default function Payouts() {
       {/* Pending payout card */}
       <View style={styles.pendingCard}>
         <Text style={styles.pendingLabel}>PENDING PAYOUT</Text>
-        <Text style={styles.pendingAmount}>$3,120.45</Text>
+        <Text style={styles.pendingAmount}>₹3,120.45</Text>
         <View style={styles.rowBetween}>
           <Text style={styles.pendingArrival}>Est. arrival: Oct 24</Text>
           <TouchableOpacity style={styles.detailsBtn}>

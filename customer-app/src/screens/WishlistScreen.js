@@ -103,7 +103,7 @@ export default function WishlistScreen({ navigation }) {
                 </View>
                 <View style={s.cardFooter}>
                   <Text style={s.cardPrice}>
-                    <Text style={s.cardPriceNum}>${item.price}</Text>
+                    <Text style={s.cardPriceNum}>₹{item.price}</Text>
                     <Text style={s.cardPriceSub}>/person</Text>
                   </Text>
                   {item.rating > 0 && (
