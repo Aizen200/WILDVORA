@@ -36,10 +36,14 @@ export default function BookingScreen({ route, navigation }) {
   const [viewDone, setViewDone] = useState(false);
 
   const _today = new Date();
-  const [checkInDate, setCheckInDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate()));
-  const [checkOutDate, setCheckOutDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), _today.getDate() + 4));
-  const [currentMonth, setCurrentMonth] = useState(_today.getMonth());
-  const [currentYear, setCurrentYear] = useState(_today.getFullYear());
+  const _monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const _currentMonthLabel = `${_monthNames[_today.getMonth()]} ${_today.getFullYear()}`;
+  const _firstDayOfMonth = new Date(_today.getFullYear(), _today.getMonth(), 1).getDay();
+  const _daysInPrevMonth = new Date(_today.getFullYear(), _today.getMonth(), 0).getDate();
+  const _daysInCurrentMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate();
+  const _todayDay = _today.getDate();
+  const [checkInDay, setCheckInDay] = useState(_todayDay);
+  const [checkOutDay, setCheckOutDay] = useState(Math.min(_todayDay + 4, _daysInCurrentMonth));
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -76,6 +80,9 @@ export default function BookingScreen({ route, navigation }) {
   const taxes = Math.round(subtotal * 0.022184 * 100) / 100;
   const grandTotal = basePrice + equipmentRental + serviceFee + taxes;
 
+  const _formatDay = (day) => `${_monthNames[_today.getMonth()]} ${day}`;
+  const _dateRangeText = `${_formatDay(checkInDay)} - ${_formatDay(checkOutDay)}, ${_today.getFullYear()}`;
+
   const handleConfirm = async () => {
     setLoading(true);
     const formatDateISO = (d) => {
@@ -90,8 +97,8 @@ export default function BookingScreen({ route, navigation }) {
       // Hit real API backend if valid ID
       await bookingAPI.create({
         experienceId: experience._id,
-        startDate: formatDateISO(checkInDate),
-        endDate: formatDateISO(checkOutDate),
+        startDate: `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(checkInDay).padStart(2, '0')}`,
+        endDate: `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(checkOutDay).padStart(2, '0')}`,
         adults,
         children,
         paymentMethod,
@@ -201,7 +208,10 @@ export default function BookingScreen({ route, navigation }) {
       <TouchableOpacity
         key={date.toISOString()}
         style={styles.calendarDayNormal}
-        onPress={() => handleDayPress(date)}
+        onPress={() => {
+          setCheckInDay(day);
+          setCheckOutDay(Math.min(day + 4, _daysInCurrentMonth));
+        }}
         activeOpacity={0.7}
       >
         <Text style={styles.calendarDayTextNormal}>
@@ -283,17 +293,7 @@ export default function BookingScreen({ route, navigation }) {
           <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
               <Text style={styles.cardTitle}>Select Dates</Text>
-              <View style={styles.monthNavRow}>
-                <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavBtn}>
-                  <Ionicons name="chevron-back" size={20} color="#1A5F45" />
-                </TouchableOpacity>
-                <Text style={styles.dateMonthText}>
-                  {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][currentMonth]} {currentYear}
-                </Text>
-                <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavBtn}>
-                  <Ionicons name="chevron-forward" size={20} color="#1A5F45" />
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.dateMonthText}>{_currentMonthLabel}</Text>
             </View>
             <View style={styles.calendarContainer}>
               {/* Weekdays */}
@@ -306,7 +306,12 @@ export default function BookingScreen({ route, navigation }) {
               </View>
               {/* Days Grid */}
               <View style={styles.daysGrid}>
-                {getDaysGrid().map((date) => renderCalendarDay(date))}
+                {Array.from({ length: _firstDayOfMonth }, (_, i) => _daysInPrevMonth - _firstDayOfMonth + 1 + i).map(day =>
+                  React.cloneElement(renderCalendarDay(day, 'past'), { key: `prev-${day}` })
+                )}
+                {Array.from({ length: Math.min(_daysInCurrentMonth, Math.max(checkOutDay + 5, 14)) }, (_, i) => i + 1).map(day =>
+                  React.cloneElement(renderCalendarDay(day), { key: `curr-${day}` })
+                )}
               </View>
             </View>
           </View>
@@ -485,7 +490,7 @@ export default function BookingScreen({ route, navigation }) {
               <View style={styles.summaryMetaRow}>
                 <View style={styles.summaryMetaCol}>
                   <Text style={styles.summaryMetaLabel}>DATE</Text>
-                  <Text style={styles.summaryMetaVal}>{formatDateRange()}</Text>
+                  <Text style={styles.summaryMetaVal}>{_dateRangeText}</Text>
                 </View>
                 <View style={styles.summaryMetaColRight}>
                   <Text style={styles.summaryMetaLabel}>GUESTS</Text>
@@ -501,11 +506,11 @@ export default function BookingScreen({ route, navigation }) {
               {/* Price Breakdown */}
               <View style={styles.breakdownRows}>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Base Experience ({nights} night{nights > 1 ? 's' : ''})</Text>
+                  <Text style={styles.breakdownLabel}>Base Experience (4 nights)</Text>
                   <Text style={styles.breakdownVal}>₹{basePrice.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
-                  <Text style={styles.breakdownLabel}>Equipment Rental ({totalGuests}x)</Text>
+                  <Text style={styles.breakdownLabel}>Equipment Rental (2x)</Text>
                   <Text style={styles.breakdownVal}>₹{equipmentRental.toFixed(2)}</Text>
                 </View>
                 <View style={styles.breakdownRow}>
@@ -575,8 +580,8 @@ export default function BookingScreen({ route, navigation }) {
 
           <View style={styles.doneDetailCard}>
             <View style={styles.doneDetailRow}>
-              <Ionicons name="calendar-outline" size={18} color="#1A5F45" />
-              <Text style={styles.doneDetailText}>{formatDateRange()}</Text>
+              <Ionicons name="calendar-outline" size={18} color="#11694b" />
+              <Text style={styles.doneDetailText}>{_dateRangeText}</Text>
             </View>
             <View style={styles.doneDetailRow}>
               <Ionicons name="people-outline" size={18} color="#1A5F45" />
@@ -586,7 +591,7 @@ export default function BookingScreen({ route, navigation }) {
               </Text>
             </View>
             <View style={styles.doneDetailRow}>
-              <Ionicons name="cash-outline" size={18} color="#1A5F45" />
+              <Ionicons name="cash-outline" size={18} color="#11694b" />
               <Text style={styles.doneDetailText}>Total Paid: ₹{grandTotal.toFixed(2)}</Text>
             </View>
           </View>
