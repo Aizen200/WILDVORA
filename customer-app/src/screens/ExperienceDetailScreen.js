@@ -76,6 +76,28 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   // Button row sits at top of screen respecting safe area
   const btnTop = insets.top + 12;
 
+  const _expToday = new Date();
+  const _expMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const _expDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const _formatAvailDate = (ds) => {
+    const d = new Date(ds + 'T00:00:00');
+    return `${_expDays[d.getDay()]}, ${_expMonths[d.getMonth()]} ${d.getDate()}`;
+  };
+  const _availDates = (() => {
+    const future = (experience.availableDates || [])
+      .filter(ds => new Date(ds + 'T00:00:00') >= _expToday)
+      .slice(0, 6);
+    if (future.length > 0) return future;
+    const dates = [];
+    const d = new Date(_expToday);
+    d.setDate(d.getDate() + 3);
+    for (let i = 0; i < 4; i++) {
+      dates.push(d.toISOString().split('T')[0]);
+      d.setDate(d.getDate() + 7);
+    }
+    return dates;
+  })();
+
   return (
     // No edges — we handle insets manually for the hero overlap
     <View style={styles.rootContainer}>
@@ -196,6 +218,19 @@ export default function ExperienceDetailScreen({ route, navigation }) {
             ))}
           </View>
 
+          {/* Available Dates */}
+          <View style={[styles.section, styles.borderTop]}>
+            <Text style={styles.sectionTitle}>Available Dates</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {_availDates.map((ds, i) => (
+                <View key={i} style={styles.dateChip}>
+                  <Ionicons name="calendar-outline" size={13} color="#11694b" style={{ marginRight: 4 }} />
+                  <Text style={styles.dateChipText}>{_formatAvailDate(ds)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
           {/* Reviews */}
           <View style={[styles.section, styles.borderTop]}>
             <View style={styles.sectionHeader}>
@@ -227,7 +262,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.footerLeft}>
           <View style={styles.priceRow}>
-            <Text style={styles.footerPrice}>${experience.price}</Text>
+            <Text style={styles.footerPrice}>₹{experience.price}</Text>
             <Text style={styles.footerPriceSub}> / person</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Booking', { experience })} activeOpacity={0.8}>
@@ -314,6 +349,10 @@ const styles = StyleSheet.create({
   description:     { fontSize: 14, color: '#3f4943', lineHeight: 22 },
   readMoreBtn:     { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   readMoreText:    { fontSize: 13, color: '#11694b', fontWeight: '700', textDecorationLine: 'underline' },
+
+  /* Available dates */
+  dateChip:      { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(17,105,75,0.08)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(17,105,75,0.2)' },
+  dateChipText:  { fontSize: 13, color: '#11694b', fontWeight: '600' },
 
   /* Bento grid */
   bentoGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
