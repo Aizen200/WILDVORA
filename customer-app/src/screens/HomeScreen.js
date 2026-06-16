@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { experienceAPI } from '../services/api';
+import { experienceAPI, aiAPI } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -133,6 +133,34 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // AI Trip Recommendation States
+  const [aiCategory, setAiCategory] = useState('Trekking');
+  const [aiDuration, setAiDuration] = useState('3 days');
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiPlan, setAiPlan]         = useState(null);
+  const [aiExpanded, setAiExpanded] = useState(true);
+  const [aiError, setAiError]       = useState('');
+
+  const handleGenerateAIPlan = async () => {
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const res = await aiAPI.getTripPlan({
+        category: aiCategory,
+        duration: aiDuration,
+      });
+      if (res.data && res.data.success) {
+        setAiPlan(res.data.tripPlan);
+      } else {
+        setAiError('Failed to generate trip plan');
+      }
+    } catch (err) {
+      setAiError(err.response?.data?.message || err.message || 'Failed to connect to AI server');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [featRes, trendRes] = await Promise.all([
@@ -202,6 +230,128 @@ export default function HomeScreen({ navigation }) {
               <Text style={s.avatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* AI Trip Recommendation */}
+        <View style={s.aiSection}>
+          <TouchableOpacity 
+            style={s.aiHeaderRow} 
+            onPress={() => setAiExpanded(!aiExpanded)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name="auto-fix" size={20} color={C.primary} />
+              <Text style={s.aiSectionTitle}>AI Trip Recommendation</Text>
+            </View>
+            <MaterialCommunityIcons 
+              name={aiExpanded ? 'chevron-up' : 'chevron-down'} 
+              size={22} 
+              color={C.onSurfaceVariant} 
+            />
+          </TouchableOpacity>
+
+          {aiExpanded && (
+            <View style={s.aiContent}>
+              <Text style={s.aiSub}>Choose your preferences and get an instant custom itinerary</Text>
+              
+              {/* Category selector */}
+              <Text style={s.aiFieldLabel}>Adventure Category</Text>
+              <View style={s.aiSelectorRow}>
+                {['Camping', 'Trekking', 'Water Sports', 'Jungle'].map((cat) => {
+                  const active = aiCategory === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[s.aiChip, active ? s.aiChipActive : s.aiChipInactive]}
+                      onPress={() => setAiCategory(cat)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.aiChipText, active ? s.aiChipTextActive : s.aiChipTextInactive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Duration selector */}
+              <Text style={s.aiFieldLabel}>Trip Duration</Text>
+              <View style={s.aiSelectorRow}>
+                {['1 day', '3 days', '7 days'].map((dur) => {
+                  const active = aiDuration === dur;
+                  return (
+                    <TouchableOpacity
+                      key={dur}
+                      style={[s.aiChip, active ? s.aiChipActive : s.aiChipInactive]}
+                      onPress={() => setAiDuration(dur)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.aiChipText, active ? s.aiChipTextActive : s.aiChipTextInactive]}>{dur}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Generate button */}
+              <TouchableOpacity 
+                style={s.aiBtn} 
+                onPress={handleGenerateAIPlan}
+                disabled={aiLoading}
+                activeOpacity={0.85}
+              >
+                {aiLoading ? (
+                  <ActivityIndicator size="small" color={C.white} />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="sparkles" size={16} color={C.white} style={{ marginRight: 6 }} />
+                    <Text style={s.aiBtnText}>Generate Custom Itinerary</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {aiError ? (
+                <Text style={s.aiErrorText}>{aiError}</Text>
+              ) : null}
+
+              {/* Result Area */}
+              {aiPlan && (
+                <View style={s.aiResultContainer}>
+                  <View style={s.aiDivider} />
+                  <Text style={s.aiPlanTitle}>{aiPlan.title}</Text>
+                  <Text style={s.aiPlanDesc}>{aiPlan.description}</Text>
+                  
+                  {aiPlan.days?.map((day, idx) => (
+                    <View key={idx} style={s.aiDayCard}>
+                      <View style={s.aiDayHeader}>
+                        <Text style={s.aiDayNum}>Day {day.dayNumber}</Text>
+                        <Text style={s.aiDayTitle} numberOfLines={1}>{day.title || day.description}</Text>
+                      </View>
+                      
+                      <View style={s.aiDayBody}>
+                        {day.activities?.map((act, actIdx) => (
+                          <View key={actIdx} style={s.aiActivityRow}>
+                            <View style={s.aiActivityTimeBadge}>
+                              <Text style={s.aiActivityTimeText}>{act.time}</Text>
+                            </View>
+                            <Text style={s.aiActivityText}>{act.text}</Text>
+                          </View>
+                        ))}
+
+                        {day.recommendedExperienceId ? (
+                          <TouchableOpacity 
+                            style={s.aiBookBtn}
+                            onPress={() => navigation.navigate('ExperienceDetail', { experienceId: day.recommendedExperienceId })}
+                            activeOpacity={0.8}
+                          >
+                            <MaterialCommunityIcons name="ticket-confirmation-outline" size={16} color={C.primary} style={{ marginRight: 6 }} />
+                            <Text style={s.aiBookBtnText}>Book This Activity on Wildvora</Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Hero */}
@@ -450,4 +600,193 @@ const s = StyleSheet.create({
   safetyIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   safetyTitle:  { fontSize: 12, fontWeight: '700', color: C.onSurface, lineHeight: 16 },
   safetyDesc:   { fontSize: 10, color: C.onSurfaceVariant, marginTop: 2 },
+
+  /* AI Trip Recommendation Styles */
+  aiSection: {
+    margin: 20,
+    marginBottom: 8,
+    backgroundColor: C.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '60',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  aiHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aiSectionTitle: {
+    fontSize: 16,
+    fontWeight: '750',
+    color: C.primary,
+  },
+  aiContent: {
+    marginTop: 12,
+  },
+  aiSub: {
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+    marginBottom: 12,
+  },
+  aiFieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    marginTop: 6,
+  },
+  aiSelectorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  aiChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  aiChipActive: {
+    backgroundColor: C.primary + '15',
+    borderColor: C.primary,
+  },
+  aiChipInactive: {
+    backgroundColor: C.background,
+    borderColor: C.outlineVariant + '80',
+  },
+  aiChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  aiChipTextActive: {
+    color: C.primary,
+  },
+  aiChipTextInactive: {
+    color: C.onSurfaceVariant,
+  },
+  aiBtn: {
+    backgroundColor: C.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  aiBtnText: {
+    color: C.white,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  aiErrorText: {
+    color: C.tertiary,
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  aiResultContainer: {
+    marginTop: 12,
+  },
+  aiDivider: {
+    height: 1,
+    backgroundColor: C.outlineVariant + '40',
+    marginVertical: 14,
+  },
+  aiPlanTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.onSurface,
+    marginBottom: 4,
+  },
+  aiPlanDesc: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  aiDayCard: {
+    backgroundColor: C.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '30',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  aiDayHeader: {
+    backgroundColor: C.primary + '08',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.outlineVariant + '20',
+  },
+  aiDayNum: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.primary,
+    backgroundColor: C.primary + '15',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  aiDayTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onSurface,
+    flex: 1,
+  },
+  aiDayBody: {
+    padding: 12,
+    gap: 10,
+  },
+  aiActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  aiActivityTimeBadge: {
+    width: 65,
+    backgroundColor: C.surfaceContainer,
+    borderRadius: 4,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  aiActivityTimeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+  },
+  aiActivityText: {
+    fontSize: 12,
+    color: C.onSurface,
+    flex: 1,
+    lineHeight: 16,
+  },
+  aiBookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.primary,
+    borderRadius: 6,
+    paddingVertical: 8,
+    marginTop: 6,
+    backgroundColor: C.white,
+  },
+  aiBookBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.primary,
+  },
 });

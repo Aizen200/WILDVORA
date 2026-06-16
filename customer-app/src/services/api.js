@@ -59,4 +59,9 @@ export const userAPI = {
   changePassword: (data) => api.patch('/users/password', data),
 };
 
+// ─── AI Trip Planner ──────────────────────────────────────────
+export const aiAPI = {
+  getTripPlan: (data) => api.post('/ai/plan-trip', data),
+};
+
 export default api;
