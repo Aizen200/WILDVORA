@@ -21,7 +21,8 @@ const {
   releasePayout,
   getPayoutLogs,
   getCustomerBookings,
-  sendEmailToAllHosts
+  sendEmailToAllHosts,
+  getGrowthMapData
 } = require('../controllers/AdminController');
 
 // All admin routes require authentication and the admin role
@@ -29,6 +30,7 @@ router.use(protect);
 router.use(restrictTo('admin'));
 
 router.get('/analytics/overview', getPlatformOverview);
+router.get('/analytics/growth-map', getGrowthMapData);
 router.get('/listings/pending', getPendingListings);
 router.get('/listings/live', getLiveListings);
 router.patch('/listings/:id/approve', approveListing);

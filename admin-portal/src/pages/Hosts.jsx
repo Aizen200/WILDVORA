@@ -64,10 +64,32 @@ export default function Hosts() {
   const [hosts, setHosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isGrowthMapOpen, setIsGrowthMapOpen] = useState(false);
+  const [regions, setRegions] = useState([]);
+  const [mapLoading, setMapLoading] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+
+  useEffect(() => {
+    if (isGrowthMapOpen) {
+      const fetchGrowthMap = async () => {
+        setMapLoading(true);
+        try {
+          const res = await api.get('/admin/analytics/growth-map');
+          if (res.data.success) {
+            setRegions(res.data.regions);
+          }
+        } catch (err) {
+          console.error('Failed to load growth map data:', err);
+        } finally {
+          setMapLoading(false);
+        }
+      };
+      fetchGrowthMap();
+    }
+  }, [isGrowthMapOpen]);
 
   const handleSendEmail = async (e) => {
     e.preventDefault();
@@ -418,7 +440,10 @@ export default function Hosts() {
             </div>
 
             {/* Action 3 */}
-            <div className="flex items-center justify-between p-4.5 hover:bg-gray-50/50 transition cursor-pointer group">
+            <div 
+              onClick={() => setIsGrowthMapOpen(true)}
+              className="flex items-center justify-between p-4.5 hover:bg-gray-50/50 transition cursor-pointer group"
+            >
               <div className="flex items-center gap-3.5">
                 <span className="text-gray-400 group-hover:text-gray-800 transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -525,6 +550,113 @@ export default function Hosts() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isGrowthMapOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 max-w-4xl w-full shadow-2xl border border-gray-150 transform scale-100 transition-all mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">India Market Growth Map</h3>
+                <p className="text-sm text-gray-500 font-medium mt-1">
+                  Geographical distribution of active experiences and operator partners across India.
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsGrowthMapOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Map Graphic (7/12 width on desktop) */}
+              <div className="lg:col-span-7 bg-[#052618]/5 rounded-2xl p-6 border border-[#052618]/10 min-h-[350px] flex flex-col justify-between relative overflow-hidden">
+                <span className="text-[10px] font-bold text-[#052618] uppercase tracking-wider mb-2">Live India Heatmap</span>
+                
+                {/* Abstract India Map Graphic */}
+                <div className="relative w-full h-64 flex items-center justify-center">
+                  <svg className="w-full h-full opacity-40 text-[#052618]" viewBox="0 0 400 400" fill="currentColor">
+                    <path d="M190,40 L210,40 L220,70 L210,90 L230,110 L210,130 L220,150 L270,150 L290,165 L270,180 L280,210 L250,210 L230,230 L220,270 L200,310 L195,340 L190,360 L185,340 L180,310 L160,270 L165,240 L140,230 L115,220 L105,190 L120,170 L140,170 L130,150 L145,130 L155,100 L175,80 Z" />
+                  </svg>
+                  
+                  {/* Glowing Hotspots based on DB data */}
+                  {regions.map((reg, idx) => {
+                    const stateCoords = {
+                      'Himachal Pradesh': { top: '22%', left: '46%' },
+                      'Uttarakhand': { top: '28%', left: '49%' },
+                      'Goa': { top: '65%', left: '38%' },
+                      'Karnataka': { top: '72%', left: '42%' },
+                      'Kerala': { top: '85%', left: '44%' },
+                      'Maharashtra': { top: '55%', left: '41%' },
+                      'Rajasthan': { top: '38%', left: '34%' },
+                      'Sikkim': { top: '40%', left: '68%' },
+                      'Ladakh': { top: '12%', left: '48%' },
+                      'Jammu & Kashmir': { top: '15%', left: '44%' }
+                    };
+                    const coords = stateCoords[reg.state] || { top: `${30 + (idx * 12) % 50}%`, left: `${40 + (idx * 15) % 40}%` };
+                    return (
+                      <div 
+                        key={reg.state} 
+                        style={{ top: coords.top, left: coords.left }}
+                        className="absolute flex items-center justify-center group/spot"
+                      >
+                        <span className="absolute inline-flex h-6 w-6 rounded-full bg-emerald-400 opacity-75 animate-ping"></span>
+                        <span className="relative rounded-full h-3 w-3 bg-[#052618] border-2 border-white"></span>
+                        <div className="absolute hidden group-hover/spot:block bg-white text-[#052618] text-[10px] font-extrabold px-2 py-1 rounded shadow-lg border border-gray-150 whitespace-nowrap z-20 -translate-y-8">
+                          {reg.state}: {reg.tripsCount} {reg.tripsCount === 1 ? 'trip' : 'trips'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-[#052618] text-white p-4 rounded-xl flex items-center justify-between text-xs mt-4">
+                  <div>
+                    <span className="opacity-75 uppercase text-[9px] font-bold tracking-widest block">Active Markets</span>
+                    <span className="font-extrabold text-sm block mt-0.5">{regions.length} Indian States</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-emerald-400 font-bold block">
+                      {regions.reduce((sum, r) => sum + r.tripsCount, 0)} Total Live Trips
+                    </span>
+                    <span className="opacity-75 text-[10px] block">Across database</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Region Stats (5/12 width) */}
+              <div className="lg:col-span-5 flex flex-col gap-4">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">State-wise Breakdown</span>
+                
+                <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1">
+                  {mapLoading ? (
+                    <div className="text-sm text-gray-500 font-medium text-center py-8">Loading state data...</div>
+                  ) : regions.length === 0 ? (
+                    <div className="text-sm text-gray-500 font-medium text-center py-8">No live experiences found.</div>
+                  ) : (
+                    regions.map(reg => (
+                      <div key={reg.state} className="bg-gray-50 border border-gray-100 rounded-xl p-3.5 flex justify-between items-center hover:bg-gray-100/70 transition">
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">{reg.state}</div>
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">
+                            {reg.operatorCount} {reg.operatorCount === 1 ? 'OPERATOR' : 'OPERATORS'} • {reg.tripsCount} {reg.tripsCount === 1 ? 'TRIP' : 'TRIPS'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-[#052618]">{reg.avgPriceRange}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
