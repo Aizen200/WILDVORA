@@ -422,6 +422,47 @@ const toggleFeatured = async (req, res) => {
   }
 };
 
+// @route POST /api/admin/hosts/email
+// Send email / broadcast notification to all hosts
+const sendEmailToAllHosts = async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+    if (!subject || !message) {
+      return res.status(400).json({ success: false, message: 'Subject and message are required' });
+    }
+
+    const hosts = await User.find({ role: 'operator' });
+    const hostEmails = hosts.map(h => h.email).filter(Boolean);
+
+    // Simulate sending email to console
+    console.log(`[Email Broadcast] Subject: ${subject}`);
+    console.log(`[Email Broadcast] Message: ${message}`);
+    console.log(`[Email Broadcast] Recipients: ${hostEmails.join(', ')}`);
+
+    // Create a platform notification for each host
+    const Notification = require('../models/Notification');
+    for (const host of hosts) {
+      await Notification.create({
+        recipient: host._id,
+        type: 'system',
+        title: subject,
+        desc: message,
+        badges: [
+          { text: 'Broadcast', color: 'bg-indigo-50 text-indigo-600 border border-indigo-100' }
+        ]
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Broadcast message sent successfully to all ${hosts.length} hosts.`,
+      recipientCount: hosts.length
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getPlatformOverview,
   getPendingListings,
@@ -440,5 +481,6 @@ module.exports = {
   getPendingSettlements,
   releasePayout,
   getPayoutLogs,
-  getCustomerBookings
+  getCustomerBookings,
+  sendEmailToAllHosts
 };

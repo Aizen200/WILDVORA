@@ -20,7 +20,8 @@ const {
   getPendingSettlements,
   releasePayout,
   getPayoutLogs,
-  getCustomerBookings
+  getCustomerBookings,
+  sendEmailToAllHosts
 } = require('../controllers/AdminController');
 
 // All admin routes require authentication and the admin role
@@ -37,6 +38,7 @@ router.get('/bookings', getAllBookings);
 router.patch('/bookings/:id/dispute', toggleDispute);
 router.post('/bookings/:id/refund', issueRefund);
 router.get('/hosts', getHosts);
+router.post('/hosts/email', sendEmailToAllHosts);
 router.patch('/hosts/:id/kyc', updateHostKYC);
 router.patch('/hosts/:id/payout-status', updateHostPayoutStatus);
 router.get('/customers', getCustomers);

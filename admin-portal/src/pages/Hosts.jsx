@@ -63,6 +63,36 @@ const getPayoutStyle = (status) => {
 export default function Hosts() {
   const [hosts, setHosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    setSending(true);
+    setStatusMessage(null);
+    try {
+      const res = await api.post('/admin/hosts/email', { subject, message });
+      if (res.data.success) {
+        setStatusMessage({ type: 'success', text: res.data.message || 'Email broadcast sent successfully!' });
+        setSubject('');
+        setMessage('');
+        setTimeout(() => {
+          setIsEmailModalOpen(false);
+          setStatusMessage(null);
+        }, 2000);
+      } else {
+        setStatusMessage({ type: 'error', text: res.data.message || 'Failed to send broadcast.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: err.response?.data?.message || 'An error occurred while sending.' });
+    } finally {
+      setSending(false);
+    }
+  };
 
   useEffect(() => {
     const fetchHosts = async () => {
@@ -355,7 +385,10 @@ export default function Hosts() {
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Actions</span>
           <div className="flex flex-col bg-white border border-gray-200 rounded-2xl shadow-sm divide-y divide-gray-150">
             {/* Action 1 */}
-            <div className="flex items-center justify-between p-4.5 hover:bg-gray-50/50 transition cursor-pointer group">
+            <div 
+              onClick={() => setIsEmailModalOpen(true)}
+              className="flex items-center justify-between p-4.5 hover:bg-gray-50/50 transition cursor-pointer group"
+            >
               <div className="flex items-center gap-3.5">
                 <span className="text-gray-400 group-hover:text-gray-800 transition">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -401,6 +434,100 @@ export default function Hosts() {
           </div>
         </div>
       </div>
+
+      {isEmailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl border border-gray-150 transform scale-100 transition-all mx-4">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight">Email All Hosts</h3>
+                <p className="text-xs text-gray-500 font-medium mt-1">
+                  This will send an in-app notification and log a simulated email to the console.
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsEmailModalOpen(false);
+                  setSubject('');
+                  setMessage('');
+                  setStatusMessage(null);
+                }} 
+                className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-1"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSendEmail} className="flex flex-col gap-4">
+              {statusMessage && (
+                <div className={`p-3.5 rounded-xl text-xs font-semibold border ${
+                  statusMessage.type === 'success' 
+                    ? 'bg-[#E6F4EA] text-[#137333] border-[#D4EDDA]' 
+                    : 'bg-[#FCE8E6] text-[#C5221F] border-[#FAD2CF]'
+                }`}>
+                  {statusMessage.text}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Subject</label>
+                <input 
+                  type="text"
+                  required
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="e.g., Important Updates regarding EU KYC Regulations"
+                  className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#052618] focus:border-transparent transition"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">Message</label>
+                <textarea 
+                  required
+                  rows={5}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Write your broadcast message here..."
+                  className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#052618] focus:border-transparent transition resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsEmailModalOpen(false);
+                    setSubject('');
+                    setMessage('');
+                    setStatusMessage(null);
+                  }}
+                  className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl px-5 py-3 hover:bg-gray-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={sending}
+                  className="bg-[#052618] hover:bg-[#073622] text-white text-sm font-bold rounded-xl px-6 py-3 transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                >
+                  {sending ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Sending...
+                    </>
+                  ) : 'Send Broadcast'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
