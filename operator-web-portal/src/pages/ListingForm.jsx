@@ -1,101 +1,320 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { hostAPI } from '../api/hostAPI';
+import api from '../api/axios';
 import Layout from '../components/Layout';
 
-const CATEGORIES   = ['Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling', 'Climbing', 'Safari', 'Skiing'];
-const DIFFICULTIES = ['Easy', 'Moderate', 'Hard', 'Expert'];
+const CATEGORIES = [
+  'Trekking', 'Camping', 'Paragliding', 'Rafting', 'Scuba Diving',
+  'Cycling', 'Wildlife Safari', 'Climbing', 'Skiing', 'Water Sports', 'Jungle',
+];
+const DIFFICULTIES = ['Easy', 'Moderate', 'Difficult'];
 
 const STATUS_LABEL = {
-  live:               { label: 'Approved',       cls: 'bg-green-50 text-green-700 border-green-200' },
-  pending:            { label: 'Pending Review',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  draft:              { label: 'Draft',           cls: 'bg-gray-100 text-gray-500 border-gray-200' },
-  paused:             { label: 'Paused',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-  rejected:           { label: 'Rejected',        cls: 'bg-red-50 text-red-600 border-red-200' },
-  changes_requested:  { label: 'Changes Needed',  cls: 'bg-orange-50 text-orange-600 border-orange-200' },
+  live:              { label: 'Approved',       cls: 'bg-green-50 text-green-700 border-green-200' },
+  pending:           { label: 'Pending Review',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  draft:             { label: 'Draft',           cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+  paused:            { label: 'Paused',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+  rejected:          { label: 'Rejected',        cls: 'bg-red-50 text-red-600 border-red-200' },
+  changes_requested: { label: 'Changes Needed',  cls: 'bg-orange-50 text-orange-600 border-orange-200' },
 };
 
+async function uploadFiles(files) {
+  const formData = new FormData();
+  files.forEach(f => formData.append('files', f));
+  const res = await api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.urls; // string[]
+}
+
+async function uploadFile(file) {
+  const urls = await uploadFiles([file]);
+  return urls[0];
+}
+
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 outline-none focus:ring-1 focus:ring-[#1A5F45] focus:border-[#1A5F45] transition placeholder-gray-400';
+
+function SectionCard({ children }) {
+  return (
+    <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-4">
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({ children }) {
+  return (
+    <h2 className="text-sm font-bold text-[#1A5F45] uppercase tracking-wider border-b pb-2 border-gray-100">
+      {children}
+    </h2>
+  );
+}
+
+function Label({ children, required }) {
+  return (
+    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+      {children}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  );
+}
+
+function UploadPlaceholder({ onClick, disabled, icon, title, subtitle }) {
+  return (
+    <button
+      type="button" onClick={onClick} disabled={disabled}
+      className={`w-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 py-8 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <span className="text-2xl">{icon}</span>
+      <span className="text-sm font-semibold text-gray-500">{title}</span>
+      <span className="text-xs text-gray-400">{subtitle}</span>
+    </button>
+  );
+}
+
 export default function ListingForm() {
-  const { id }      = useParams();
-  const navigate    = useNavigate();
-  const isEdit      = !!id;
+  const { id }   = useParams();
+  const navigate = useNavigate();
+  const isEdit   = !!id;
 
   const [loading,         setLoading]         = useState(isEdit);
   const [saving,          setSaving]          = useState(false);
   const [error,           setError]           = useState('');
   const [currentStatus,   setCurrentStatus]   = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [uploading,       setUploading]       = useState(false);
+
+  // Media state: { preview: string, url: string | null }
+  const [coverImage,      setCoverImage]      = useState(null);
+  const [adventureImages, setAdventureImages] = useState([]);
+  const [video,           setVideo]           = useState(null);
+
+  // Requirements checklist
+  const [reqInput, setReqInput] = useState('');
+
+  const coverRef    = useRef(null);
+  const advRef      = useRef(null);
+  const videoRef    = useRef(null);
 
   const [formData, setFormData] = useState({
-    title: '', description: '', category: 'Camping', city: '', country: 'India',
-    price: '', duration: '', difficulty: 'Moderate', maxGroupSize: 12,
-    images: '', includes: '', exclusions: '',
+    // Basic Info
+    title: '', category: 'Trekking', description: '',
+    // Location
+    city: '', state: '', country: 'India', meetingPoint: '', googleMapsLink: '',
+    // Social
+    instagram: '', website: '',
+    // Booking Info
+    price: '', availableDates: '', duration: '', minGroupSize: 1, maxGroupSize: 12, bookingDeadline: '',
     cancellationPolicy: 'Flexible: Cancel up to 24 hours in advance for a full refund.',
-    availableDates: '',
+    // Difficulty & Requirements
+    difficulty: 'Moderate', ageRestriction: '', medicalRestrictions: '',
+    // Safety
+    firstAidAvailable: false, emergencyContact: '', safetyBriefingIncluded: false,
+    // Requirements checklist
+    requirements: [],
+    // Inclusions / Exclusions
+    includes: '', exclusions: '',
+    // Operator Info
+    businessRegistrationNumber: '', gstNumber: '', tourismRegistration: '',
+    yearsOfOperation: '', guideCertifications: '',
   });
 
   useEffect(() => {
-    if (isEdit) {
-      hostAPI.getListing(id)
-        .then(res => {
-          const exp = res.data.experience;
-          setCurrentStatus(exp.status || '');
-          setRejectionReason(exp.rejectionReason || '');
-          setFormData({
-            title:              exp.title              || '',
-            description:        exp.description        || '',
-            category:           exp.category           || 'Camping',
-            city:               exp.location?.city     || '',
-            country:            exp.location?.country  || 'India',
-            price:              exp.price              || '',
-            duration:           exp.duration           || '',
-            difficulty:         exp.difficulty         || 'Moderate',
-            maxGroupSize:       exp.maxGroupSize       || 12,
-            images:             exp.images?.join(', ')         || '',
-            includes:           exp.includes?.join(', ')       || '',
-            exclusions:         exp.exclusions?.join(', ')     || '',
-            cancellationPolicy: exp.cancellationPolicy || '',
-            availableDates:     exp.availableDates?.join(', ') || '',
-          });
-        })
-        .catch(err => setError(err.response?.data?.message || 'Failed to load listing details.'))
-        .finally(() => setLoading(false));
-    }
+    if (!isEdit) return;
+    hostAPI.getListing(id)
+      .then(res => {
+        const exp = res.data.experience;
+        setCurrentStatus(exp.status || '');
+        setRejectionReason(exp.rejectionReason || '');
+        setFormData({
+          title:               exp.title                || '',
+          category:            exp.category             || 'Trekking',
+          description:         exp.description          || '',
+          city:                exp.location?.city       || '',
+          state:               exp.location?.state      || '',
+          country:             exp.location?.country    || 'India',
+          meetingPoint:        exp.location?.meetingPoint   || '',
+          googleMapsLink:      exp.location?.googleMapsLink || '',
+          instagram:           exp.socialLinks?.instagram   || '',
+          website:             exp.socialLinks?.website     || '',
+          price:               exp.price                || '',
+          availableDates:      exp.availableDates?.join(', ') || '',
+          duration:            exp.duration             || '',
+          minGroupSize:        exp.minGroupSize         || 1,
+          maxGroupSize:        exp.maxGroupSize         || 12,
+          bookingDeadline:     exp.bookingDeadline      || '',
+          cancellationPolicy:  exp.cancellationPolicy   || '',
+          difficulty:          exp.difficulty           || 'Moderate',
+          ageRestriction:      exp.ageRestriction       || '',
+          medicalRestrictions: exp.medicalRestrictions  || '',
+          firstAidAvailable:       exp.safetyInfo?.firstAidAvailable      ?? false,
+          emergencyContact:        exp.safetyInfo?.emergencyContact        || '',
+          safetyBriefingIncluded:  exp.safetyInfo?.safetyBriefingIncluded ?? false,
+          requirements:        exp.requirements         || [],
+          includes:            exp.includes?.join(', ')    || '',
+          exclusions:          exp.exclusions?.join(', ')  || '',
+          businessRegistrationNumber: exp.operatorInfo?.businessRegistrationNumber || '',
+          gstNumber:               exp.operatorInfo?.gstNumber              || '',
+          tourismRegistration:     exp.operatorInfo?.tourismRegistration    || '',
+          yearsOfOperation:        exp.operatorInfo?.yearsOfOperation       || '',
+          guideCertifications:     exp.operatorInfo?.guideCertifications    || '',
+        });
+        if (exp.coverImage) setCoverImage({ preview: exp.coverImage, url: exp.coverImage });
+        const advImgs = exp.adventureImages?.length ? exp.adventureImages : (exp.images || []);
+        if (advImgs.length) setAdventureImages(advImgs.map(u => ({ preview: u, url: u })));
+        if (exp.video) setVideo({ preview: exp.video, url: exp.video });
+      })
+      .catch(err => setError(err.response?.data?.message || 'Failed to load listing details.'))
+      .finally(() => setLoading(false));
   }, [id, isEdit]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
+  // ── Cover Image ──
+  const handleCoverChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setCoverImage({ preview, url: null });
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadFile(file);
+      setCoverImage({ preview, url });
+    } catch (err) {
+      setError('Cover image upload failed: ' + err.message);
+      setCoverImage(null);
+    } finally {
+      setUploading(false);
+      if (coverRef.current) coverRef.current.value = '';
+    }
+  };
+
+  // ── Adventure Images ──
+  const handleAdvChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const placeholders = files.map(f => ({ preview: URL.createObjectURL(f), url: null }));
+    setAdventureImages(prev => [...prev, ...placeholders]);
+    setUploading(true);
+    setError('');
+    try {
+      const urls = await uploadFiles(files);
+      setAdventureImages(prev => {
+        const confirmed = [...prev];
+        const offset = confirmed.length - files.length;
+        urls.forEach((url, i) => { confirmed[offset + i] = { preview: placeholders[i].preview, url }; });
+        return confirmed;
+      });
+    } catch (err) {
+      setAdventureImages(prev => prev.slice(0, prev.length - files.length));
+      setError('Adventure images upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+      if (advRef.current) advRef.current.value = '';
+    }
+  };
+
+  const removeAdvImage = (idx) => setAdventureImages(prev => prev.filter((_, i) => i !== idx));
+
+  // ── Video ──
+  const handleVideoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setVideo({ preview, url: null });
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadFile(file);
+      setVideo({ preview, url });
+    } catch (err) {
+      setError('Video upload failed: ' + err.message);
+      setVideo(null);
+    } finally {
+      setUploading(false);
+      if (videoRef.current) videoRef.current.value = '';
+    }
+  };
+
+  // ── Requirements Checklist ──
+  const addReq = () => {
+    const val = reqInput.trim();
+    if (!val) return;
+    setFormData(prev => ({ ...prev, requirements: [...prev.requirements, val] }));
+    setReqInput('');
+  };
+  const removeReq = (idx) =>
+    setFormData(prev => ({ ...prev, requirements: prev.requirements.filter((_, i) => i !== idx) }));
+
+  // ── Submit ──
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!coverImage?.url) {
+      setError('Please upload a cover image before submitting.');
+      return;
+    }
+    if (uploading) {
+      setError('Please wait for uploads to finish.');
+      return;
+    }
     setSaving(true);
     setError('');
 
-    // Do NOT send status — backend controls status transitions
+    const advUrls = adventureImages.filter(i => i.url).map(i => i.url);
+
     const payload = {
-      title:              formData.title,
-      description:        formData.description,
-      category:           formData.category,
-      location:           { city: formData.city, country: formData.country },
-      price:              Number(formData.price),
-      duration:           formData.duration,
-      difficulty:         formData.difficulty,
-      maxGroupSize:       Number(formData.maxGroupSize),
-      images:             formData.images.split(',').map(s => s.trim()).filter(Boolean),
-      includes:           formData.includes.split(',').map(s => s.trim()).filter(Boolean),
-      exclusions:         formData.exclusions.split(',').map(s => s.trim()).filter(Boolean),
+      title:       formData.title,
+      description: formData.description,
+      category:    formData.category,
+      location: {
+        city:           formData.city,
+        state:          formData.state,
+        country:        formData.country,
+        meetingPoint:   formData.meetingPoint,
+        googleMapsLink: formData.googleMapsLink,
+      },
+      socialLinks: {
+        instagram: formData.instagram,
+        website:   formData.website,
+      },
+      coverImage:      coverImage.url,
+      adventureImages: advUrls,
+      video:           video?.url || '',
+      images:          [coverImage.url, ...advUrls],
+      price:           Number(formData.price),
+      duration:        formData.duration,
+      difficulty:      formData.difficulty,
+      minGroupSize:    Number(formData.minGroupSize),
+      maxGroupSize:    Number(formData.maxGroupSize),
+      bookingDeadline: formData.bookingDeadline ? Number(formData.bookingDeadline) : undefined,
       cancellationPolicy: formData.cancellationPolicy,
-      availableDates:     formData.availableDates.split(',').map(s => s.trim()).filter(Boolean),
+      ageRestriction:     formData.ageRestriction,
+      medicalRestrictions: formData.medicalRestrictions,
+      safetyInfo: {
+        firstAidAvailable:      formData.firstAidAvailable,
+        emergencyContact:       formData.emergencyContact,
+        safetyBriefingIncluded: formData.safetyBriefingIncluded,
+      },
+      requirements: formData.requirements,
+      includes:     formData.includes.split(',').map(s => s.trim()).filter(Boolean),
+      exclusions:   formData.exclusions.split(',').map(s => s.trim()).filter(Boolean),
+      availableDates: formData.availableDates.split(',').map(s => s.trim()).filter(Boolean),
+      operatorInfo: {
+        businessRegistrationNumber: formData.businessRegistrationNumber,
+        gstNumber:                  formData.gstNumber,
+        tourismRegistration:        formData.tourismRegistration,
+        yearsOfOperation:           formData.yearsOfOperation ? Number(formData.yearsOfOperation) : undefined,
+        guideCertifications:        formData.guideCertifications,
+      },
     };
 
     try {
-      if (isEdit) {
-        await hostAPI.editListing(id, payload);
-      } else {
-        await hostAPI.createListing(payload);
-      }
+      if (isEdit) await hostAPI.editListing(id, payload);
+      else        await hostAPI.createListing(payload);
       navigate('/listings');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to save listing. Please try again.');
@@ -105,16 +324,17 @@ export default function ListingForm() {
 
   const isRejected = ['rejected', 'changes_requested'].includes(currentStatus);
   const isPending  = currentStatus === 'pending';
+  const dis        = isPending ? 'opacity-60 cursor-not-allowed' : '';
 
   const submitLabel = saving
     ? 'Submitting...'
+    : uploading
+    ? 'Uploading media...'
     : isRejected
     ? 'Update & Resubmit for Review'
     : isEdit
     ? 'Save & Submit for Review'
     : 'Submit for Review';
-
-  const inputCls = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 outline-none focus:ring-1 focus:ring-[#1A5F45] focus:border-[#1A5F45] transition placeholder-gray-400";
 
   return (
     <Layout>
@@ -146,25 +366,23 @@ export default function ListingForm() {
           )}
         </div>
 
-        {/* Info banner for new listings */}
+        {/* Banners */}
         {!isEdit && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-[#1A5F45]/8 border border-[#1A5F45]/20 rounded-xl text-sm text-[#1A5F45]">
             <span className="text-lg leading-none">ℹ️</span>
             <p>
-              New listings are submitted for <strong>admin review</strong>. Once approved they automatically become visible to customers in the app. You'll see the review status in your <a href="/listings" className="font-semibold underline">Listings</a> page.
+              New listings are submitted for <strong>admin review</strong>. Once approved they become visible to customers in the app.
+              You&apos;ll see the review status in your{' '}
+              <a href="/listings" className="font-semibold underline">Listings</a> page.
             </p>
           </div>
         )}
-
-        {/* Pending banner */}
         {isPending && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
             <span className="text-lg leading-none">⏳</span>
             <p>This listing is <strong>awaiting admin review</strong>. You cannot edit it until the review is complete.</p>
           </div>
         )}
-
-        {/* Rejection reason banner */}
         {isRejected && rejectionReason && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200 rounded-xl">
             <span className="text-lg leading-none mt-0.5">⚠️</span>
@@ -172,12 +390,11 @@ export default function ListingForm() {
               <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Admin Feedback — Action Required</p>
               <p className="text-sm text-red-800">{rejectionReason}</p>
               <p className="text-xs text-gray-500 mt-1.5">
-                Address the feedback above, update the form, then click <strong>"Update &amp; Resubmit for Review"</strong>.
+                Address the feedback above, update the form, then click <strong>&quot;Update &amp; Resubmit for Review&quot;</strong>.
               </p>
             </div>
           </div>
         )}
-
         {error && (
           <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</div>
         )}
@@ -185,145 +402,423 @@ export default function ListingForm() {
         {loading ? (
           <div className="p-8 text-center text-gray-500 font-semibold">Loading listing details...</div>
         ) : (
-          <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Basic Info */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-[#1A5F45] uppercase tracking-wider border-b pb-2 border-gray-100">
-                Basic Information
-              </h2>
+            {/* ── 1. Basic Information ── */}
+            <SectionCard>
+              <SectionHeader>Basic Information</SectionHeader>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Title *</label>
+                <Label required>Adventure Title</Label>
                 <input type="text" name="title" required value={formData.title} onChange={handleChange}
-                  placeholder="e.g. Alpine Glacier Trek &amp; Lake Camping"
-                  disabled={isPending}
-                  className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  placeholder="e.g. Alpine Glacier Trek & Lake Camping"
+                  disabled={isPending} className={`${inputCls} ${dis}`} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Description *</label>
-                <textarea name="description" required rows={4} value={formData.description} onChange={handleChange}
-                  placeholder="Tell adventurers what makes this experience special..."
-                  disabled={isPending}
-                  className={`${inputCls} resize-none ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                <Label required>Adventure Category</Label>
+                <select name="category" value={formData.category} onChange={handleChange}
+                  disabled={isPending} className={`${inputCls} ${dis}`}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Category</label>
-                  <select name="category" value={formData.category} onChange={handleChange}
-                    disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Difficulty Level</label>
-                  <select name="difficulty" value={formData.difficulty} onChange={handleChange}
-                    disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                    {DIFFICULTIES.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
+              <div>
+                <Label required>Detailed Description</Label>
+                <textarea name="description" required rows={5} value={formData.description} onChange={handleChange}
+                  placeholder="Tell adventurers what makes this experience special — the landscape, the journey, the highlights..."
+                  disabled={isPending} className={`${inputCls} resize-none ${dis}`} />
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Location */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-[#1A5F45] uppercase tracking-wider border-b pb-2 border-gray-100">
-                Location &amp; Group Limits
-              </h2>
+            {/* ── 2. Location ── */}
+            <SectionCard>
+              <SectionHeader>Location</SectionHeader>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">City / Region *</label>
-                  <input type="text" name="city" required value={formData.city} onChange={handleChange}
-                    placeholder="e.g. Manali" disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label required>State</Label>
+                  <input type="text" name="state" value={formData.state} onChange={handleChange}
+                    placeholder="e.g. Himachal Pradesh" disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Country *</label>
-                  <input type="text" name="country" required value={formData.country} onChange={handleChange}
-                    disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label required>City / Region</Label>
+                  <input type="text" name="city" required value={formData.city} onChange={handleChange}
+                    placeholder="e.g. Manali" disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
+              </div>
+              <div>
+                <Label>Meeting Point</Label>
+                <input type="text" name="meetingPoint" value={formData.meetingPoint} onChange={handleChange}
+                  placeholder="e.g. Solang Valley Parking Lot, Manali"
+                  disabled={isPending} className={`${inputCls} ${dis}`} />
+              </div>
+              <div>
+                <Label>Google Maps Link (if any)</Label>
+                <input type="url" name="googleMapsLink" value={formData.googleMapsLink} onChange={handleChange}
+                  placeholder="https://maps.google.com/..."
+                  disabled={isPending} className={`${inputCls} ${dis}`} />
+              </div>
+            </SectionCard>
+
+            {/* ── 3. Social Media Links ── */}
+            <SectionCard>
+              <SectionHeader>Social Media Links (Optional)</SectionHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Instagram</Label>
+                  <input type="url" name="instagram" value={formData.instagram} onChange={handleChange}
+                    placeholder="https://instagram.com/yourbusiness"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+                <div>
+                  <Label>Website</Label>
+                  <input type="url" name="website" value={formData.website} onChange={handleChange}
+                    placeholder="https://yourwebsite.com"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* ── 4. Booking Information ── */}
+            <SectionCard>
+              <SectionHeader>Booking Information</SectionHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label required>Price Per Person (₹)</Label>
+                  <input type="number" name="price" required min={1} value={formData.price} onChange={handleChange}
+                    placeholder="2500" disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+                <div>
+                  <Label required>Duration</Label>
+                  <input type="text" name="duration" required value={formData.duration} onChange={handleChange}
+                    placeholder="3 days / 2 nights" disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+              <div>
+                <Label>Available Dates (YYYY-MM-DD, comma-separated)</Label>
+                <input type="text" name="availableDates" value={formData.availableDates} onChange={handleChange}
+                  placeholder="2026-07-05, 2026-07-12, 2026-07-19"
+                  disabled={isPending} className={`${inputCls} ${dis}`} />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Price (₹) *</label>
-                  <input type="number" name="price" required value={formData.price} onChange={handleChange}
-                    placeholder="250" disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label>Min Group Size</Label>
+                  <input type="number" name="minGroupSize" min={1} value={formData.minGroupSize} onChange={handleChange}
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Duration *</label>
-                  <input type="text" name="duration" required value={formData.duration} onChange={handleChange}
-                    placeholder="3 days / 2 nights" disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label>Max Group Size</Label>
+                  <input type="number" name="maxGroupSize" min={1} value={formData.maxGroupSize} onChange={handleChange}
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Max Group Size</label>
-                  <input type="number" name="maxGroupSize" required value={formData.maxGroupSize} onChange={handleChange}
-                    disabled={isPending}
-                    className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label>Booking Deadline (days before)</Label>
+                  <input type="number" name="bookingDeadline" min={0} value={formData.bookingDeadline}
+                    onChange={handleChange} placeholder="2"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
               </div>
-            </div>
-
-            {/* Logistics */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-bold text-[#1A5F45] uppercase tracking-wider border-b pb-2 border-gray-100">
-                Logistics &amp; Dates
-              </h2>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Images (comma-separated URLs)</label>
-                <input type="text" name="images" value={formData.images} onChange={handleChange}
-                  placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
-                  disabled={isPending}
-                  className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                <Label>Cancellation Policy</Label>
+                <input type="text" name="cancellationPolicy" value={formData.cancellationPolicy}
+                  onChange={handleChange} disabled={isPending} className={`${inputCls} ${dis}`} />
+              </div>
+            </SectionCard>
+
+            {/* ── 5. Difficulty & Requirements ── */}
+            <SectionCard>
+              <SectionHeader>Difficulty & Requirements</SectionHeader>
+              <div>
+                <Label>Difficulty Level</Label>
+                <div className="flex gap-3 mt-1">
+                  {DIFFICULTIES.map(d => (
+                    <button key={d} type="button" disabled={isPending}
+                      onClick={() => setFormData(prev => ({ ...prev, difficulty: d }))}
+                      className={`flex-1 py-2 rounded-xl text-sm font-semibold border transition ${
+                        formData.difficulty === d
+                          ? 'bg-[#1A5F45] text-white border-[#1A5F45]'
+                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-[#1A5F45]/50'
+                      } ${dis}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Inclusions (comma-separated)</label>
-                  <textarea name="includes" rows={2} value={formData.includes} onChange={handleChange}
-                    placeholder="Camping gear, Professional Guide, Food"
-                    disabled={isPending}
-                    className={`${inputCls} resize-none ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label>Age Restrictions</Label>
+                  <input type="text" name="ageRestriction" value={formData.ageRestriction} onChange={handleChange}
+                    placeholder="e.g. 12–65 years" disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Exclusions (comma-separated)</label>
-                  <textarea name="exclusions" rows={2} value={formData.exclusions} onChange={handleChange}
-                    placeholder="Travel insurance, Personal expenses"
-                    disabled={isPending}
-                    className={`${inputCls} resize-none ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                  <Label>Medical Restrictions</Label>
+                  <input type="text" name="medicalRestrictions" value={formData.medicalRestrictions}
+                    onChange={handleChange} placeholder="e.g. No heart conditions, no vertigo"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Cancellation Policy</label>
-                <input type="text" name="cancellationPolicy" value={formData.cancellationPolicy} onChange={handleChange}
-                  disabled={isPending}
-                  className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
-                  Available Dates (YYYY-MM-DD, comma-separated)
-                </label>
-                <input type="text" name="availableDates" value={formData.availableDates} onChange={handleChange}
-                  placeholder="2026-06-05, 2026-06-10, 2026-06-15"
-                  disabled={isPending}
-                  className={`${inputCls} ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`} />
-              </div>
-            </div>
+            </SectionCard>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            {/* ── 6. Safety Information ── */}
+            <SectionCard>
+              <SectionHeader>Safety Information</SectionHeader>
+              <div className="flex flex-col gap-3">
+                <label className={`flex items-center gap-3 ${isPending ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input type="checkbox" name="firstAidAvailable" checked={formData.firstAidAvailable}
+                    onChange={handleChange} disabled={isPending} className="w-4 h-4 accent-[#1A5F45]" />
+                  <span className="text-sm text-gray-700 font-medium">First Aid Available</span>
+                </label>
+                <label className={`flex items-center gap-3 ${isPending ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input type="checkbox" name="safetyBriefingIncluded" checked={formData.safetyBriefingIncluded}
+                    onChange={handleChange} disabled={isPending} className="w-4 h-4 accent-[#1A5F45]" />
+                  <span className="text-sm text-gray-700 font-medium">Safety Briefing Included</span>
+                </label>
+              </div>
+              <div>
+                <Label>Emergency Contact Number</Label>
+                <input type="tel" name="emergencyContact" value={formData.emergencyContact} onChange={handleChange}
+                  placeholder="+91 9876543210" disabled={isPending} className={`${inputCls} ${dis}`} />
+              </div>
+            </SectionCard>
+
+            {/* ── 7. Adventure Requirements & Preparation ── */}
+            <SectionCard>
+              <SectionHeader>Adventure Requirements & Preparation</SectionHeader>
+              <p className="text-xs text-gray-400 -mt-2">What should participants bring? Displayed as a checklist in the customer app.</p>
+              <div className="flex gap-2">
+                <input
+                  type="text" value={reqInput} onChange={e => setReqInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
+                  placeholder="e.g. Trekking Shoes, Water Bottle (2L), Rain Jacket..."
+                  disabled={isPending} className={`${inputCls} flex-1 ${dis}`}
+                />
+                <button type="button" onClick={addReq} disabled={isPending || !reqInput.trim()}
+                  className="px-4 py-2 text-sm font-bold bg-[#1A5F45] text-white rounded-xl disabled:opacity-40 hover:bg-[#145038] transition">
+                  Add
+                </button>
+              </div>
+              {formData.requirements.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.requirements.map((r, i) => (
+                    <span key={i} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#1A5F45]/8 text-[#1A5F45] rounded-full border border-[#1A5F45]/20 font-medium">
+                      ✓ {r}
+                      {!isPending && (
+                        <button type="button" onClick={() => removeReq(i)}
+                          className="ml-1 text-gray-400 hover:text-red-500 transition font-bold leading-none">×</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-gray-300">
+                Suggestions: Trekking Shoes · Rain Jacket · Water Bottle (2L) · Government ID · Personal Medicines · Warm Clothing · Torch / Headlamp · Power Bank
+              </p>
+            </SectionCard>
+
+            {/* ── 8. Inclusions & Exclusions ── */}
+            <SectionCard>
+              <SectionHeader>Inclusions & Exclusions</SectionHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Inclusions (comma-separated)</Label>
+                  <textarea name="includes" rows={3} value={formData.includes} onChange={handleChange}
+                    placeholder="Accommodation, Meals, Guide, Equipment, Transportation"
+                    disabled={isPending} className={`${inputCls} resize-none ${dis}`} />
+                </div>
+                <div>
+                  <Label>Exclusions (comma-separated)</Label>
+                  <textarea name="exclusions" rows={3} value={formData.exclusions} onChange={handleChange}
+                    placeholder="Personal Expenses, Travel Insurance, Emergency Evacuation Charges"
+                    disabled={isPending} className={`${inputCls} resize-none ${dis}`} />
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* ── 9. Images & Media ── */}
+            <SectionCard>
+              <SectionHeader>Images & Media</SectionHeader>
+
+              {/* Cover Image */}
+              <div>
+                <Label required>Cover Image</Label>
+                <p className="text-xs text-gray-400 mb-2">Main photo shown on listing cards and as the hero image in the app.</p>
+                {coverImage ? (
+                  <div className="relative w-full h-52 rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
+                    <img src={coverImage.preview} alt="Cover" className="w-full h-full object-cover" />
+                    {!coverImage.url && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <span className="text-white text-xs font-semibold animate-pulse">Uploading...</span>
+                      </div>
+                    )}
+                    {coverImage.url && (
+                      <span className="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-green-500 text-white text-xs font-bold">✓ Uploaded</span>
+                    )}
+                    {!isPending && (
+                      <button type="button"
+                        onClick={() => { setCoverImage(null); if (coverRef.current) coverRef.current.value = ''; }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition text-sm">
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <UploadPlaceholder
+                    onClick={() => coverRef.current?.click()} disabled={isPending}
+                    icon="📷" title="Click to upload cover image" subtitle="JPG, PNG, WEBP · Max 10 MB"
+                  />
+                )}
+                <input ref={coverRef} type="file" accept="image/*" className="hidden"
+                  onChange={handleCoverChange} disabled={isPending} />
+              </div>
+
+              {/* Adventure Images */}
+              <div>
+                <Label>Adventure Images</Label>
+                <p className="text-xs text-gray-400 mb-2">
+                  Multiple photos showcasing the adventure.{' '}
+                  <span className={adventureImages.length < 3 ? 'text-amber-600 font-semibold' : 'text-green-600 font-semibold'}>
+                    {adventureImages.length}/3 minimum
+                  </span>
+                </p>
+                {adventureImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    {adventureImages.map((img, idx) => (
+                      <div key={idx} className="relative h-28 rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
+                        <img src={img.preview} alt={`Adv ${idx + 1}`} className="w-full h-full object-cover" />
+                        {!img.url && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span className="text-white text-xs font-semibold animate-pulse">Uploading...</span>
+                          </div>
+                        )}
+                        {img.url && (
+                          <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-full bg-green-500 text-white text-xs font-bold">✓</span>
+                        )}
+                        {!isPending && (
+                          <button type="button" onClick={() => removeAdvImage(idx)}
+                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition text-xs">
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => advRef.current?.click()} disabled={isPending}
+                  className={`w-full py-3 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition text-sm font-semibold text-gray-500 ${dis}`}>
+                  <span>🖼</span>
+                  {adventureImages.length > 0 ? 'Add More Photos' : 'Upload Adventure Photos'}
+                </button>
+                <input ref={advRef} type="file" accept="image/*" multiple className="hidden"
+                  onChange={handleAdvChange} disabled={isPending} />
+              </div>
+
+              {/* Video */}
+              <div>
+                <Label>Video (Optional)</Label>
+                <p className="text-xs text-gray-400 mb-2">Short clip showcasing the experience. MP4, MOV · Max 100 MB</p>
+                {video ? (
+                  <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-black">
+                    <video src={video.preview} controls className="w-full max-h-52 object-contain" />
+                    {!video.url && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none">
+                        <span className="text-white text-sm font-semibold animate-pulse">Uploading video...</span>
+                      </div>
+                    )}
+                    {video.url && (
+                      <span className="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-green-500 text-white text-xs font-bold">✓ Uploaded</span>
+                    )}
+                    {!isPending && (
+                      <button type="button"
+                        onClick={() => { setVideo(null); if (videoRef.current) videoRef.current.value = ''; }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90 transition text-sm">
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => videoRef.current?.click()} disabled={isPending}
+                    className={`w-full py-3 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition text-sm font-semibold text-gray-500 ${dis}`}>
+                    <span>🎥</span> Upload Video
+                  </button>
+                )}
+                <input ref={videoRef} type="file" accept="video/*" className="hidden"
+                  onChange={handleVideoChange} disabled={isPending} />
+              </div>
+            </SectionCard>
+
+            {/* ── 10. Trust & Verification ── */}
+            <SectionCard>
+              <SectionHeader>Trust & Verification</SectionHeader>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Operator Name</Label>
+                  <input type="text" disabled value={formData.businessRegistrationNumber ? 'From your account profile' : ''}
+                    placeholder="Pulled from your account" className={`${inputCls} opacity-60 cursor-not-allowed`} />
+                  <p className="text-xs text-gray-400 mt-1">Your registered name is used from your account.</p>
+                </div>
+                <div>
+                  <Label>Business Registration Number</Label>
+                  <input type="text" name="businessRegistrationNumber" value={formData.businessRegistrationNumber}
+                    onChange={handleChange} placeholder="CIN / Registration No."
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>GST Number (Optional)</Label>
+                  <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange}
+                    placeholder="e.g. 27AAAA0000A1Z5"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+                <div>
+                  <Label>Tourism Registration (Optional)</Label>
+                  <input type="text" name="tourismRegistration" value={formData.tourismRegistration}
+                    onChange={handleChange} placeholder="Tourism Dept. Registration No."
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Years of Operation</Label>
+                  <input type="number" name="yearsOfOperation" min={0} value={formData.yearsOfOperation}
+                    onChange={handleChange} placeholder="5"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+                <div>
+                  <Label>Guide Certifications</Label>
+                  <input type="text" name="guideCertifications" value={formData.guideCertifications}
+                    onChange={handleChange} placeholder="e.g. IMF Certified, Wilderness First Responder"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* ── 11. Customer Information Collected at Booking ── */}
+            <SectionCard>
+              <SectionHeader>Customer Information Collected During Booking</SectionHeader>
+              <p className="text-xs text-gray-400 -mt-2">The following information is automatically collected from customers when they book this experience.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  'Full Name', 'Phone Number', 'Email Address',
+                  'Emergency Contact Name', 'Emergency Contact Number', 'Age',
+                  'Gender (Optional)', 'Medical Conditions (Optional)', 'Special Requirements',
+                ].map(field => (
+                  <div key={field} className="flex items-center gap-2 text-sm text-gray-600 py-1.5 px-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <span className="text-green-500 font-bold text-xs">✓</span>
+                    <span>{field}</span>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* ── Actions ── */}
+            <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => navigate('/listings')}
-                className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-xl transition">
+                className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition">
                 Cancel
               </button>
               {!isPending && (
-                <button type="submit" disabled={saving}
+                <button type="submit" disabled={saving || uploading}
                   className={`px-6 py-2.5 text-sm font-bold text-white rounded-xl shadow-sm transition disabled:opacity-60 ${
-                    isRejected
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-[#1A5F45] hover:bg-[#145038]'
+                    isRejected ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#1A5F45] hover:bg-[#145038]'
                   }`}>
                   {submitLabel}
                 </button>

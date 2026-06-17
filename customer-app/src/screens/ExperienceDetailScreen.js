@@ -371,6 +371,23 @@ export default function ExperienceDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* Adventure Images Gallery */}
+          {(experience.adventureImages?.length > 0 || experience.images?.length > 1) && (
+            <View style={[styles.section, { marginBottom: 20 }]}>
+              <Text style={styles.sectionTitle}>Gallery</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                {(experience.adventureImages?.length > 0 ? experience.adventureImages : experience.images.slice(1)).map((uri, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri }}
+                    style={{ width: 200, height: 130, borderRadius: 12 }}
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Description */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>The Experience</Text>
@@ -546,6 +563,21 @@ export default function ExperienceDetailScreen({ route, navigation }) {
 
             </View>
           </View>
+
+          {/* What to Bring Checklist */}
+          {experience.requirements?.length > 0 && (
+            <View style={[styles.section, styles.borderTop]}>
+              <Text style={styles.sectionTitle}>What to Bring</Text>
+              <View style={styles.checklistGrid}>
+                {experience.requirements.map((item, idx) => (
+                  <View key={idx} style={styles.checklistItem}>
+                    <Ionicons name="checkmark-circle-outline" size={16} color="#1A5F45" />
+                    <Text style={[styles.checklistText, { marginLeft: 8 }]}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Available Dates */}
           <View style={[styles.section, styles.borderTop]}>

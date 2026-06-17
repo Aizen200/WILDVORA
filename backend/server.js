@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
 dotenv.config();
 
@@ -12,7 +13,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded media files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Routes
+app.use('/api/upload', require('./routes/upload.routes'));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/experiences', require('./routes/experience.routes'));
 app.use('/api/bookings', require('./routes/booking.routes'));
