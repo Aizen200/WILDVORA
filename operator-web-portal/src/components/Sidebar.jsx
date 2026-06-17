@@ -23,9 +23,10 @@ export default function Sidebar() {
         {/* Brand */}
         <div className="px-5 pt-6 pb-4">
           <div className="flex items-center gap-2 mb-0.5">
-            <svg width="22" height="18" viewBox="0 0 28 24" fill="none">
-              <polygon points="14,2 26,22 2,22" fill="#1A5F45" opacity="0.9"/>
-              <polygon points="14,6 22,20 6,20" fill="#C4A482"/>
+            <svg width="28" height="28" viewBox="0 0 80 82" fill="none" className="flex-shrink-0">
+              <polygon points="40,12 80,82 0,82" fill="#397858" />
+              <polygon points="40,0 46,12 34,12" fill="#C4A482" />
+              <polygon points="40,47 60,82 20,82" fill="#67A8B6" />
             </svg>
             <span className="text-base font-extrabold text-[#1A5F45] tracking-wide">Wildvora</span>
           </div>
@@ -59,9 +60,14 @@ export default function Sidebar() {
           <button
             id="btn-create-listing"
             onClick={() => navigate('/listings/new')}
-            className="w-full bg-[#1A5F45] hover:bg-[#145038] text-white text-[12px] font-semibold rounded-xl py-3 px-3 leading-tight transition"
+            className="w-full bg-[#1A5F45] hover:bg-[#145038] text-white text-[12px] font-semibold rounded-xl py-3 px-3 leading-tight transition flex items-center justify-center gap-1.5"
           >
-            Create New<br />Listing
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+            </svg>
+            <span className="text-left">
+              Create New<br />Listing
+            </span>
           </button>
         </div>
 

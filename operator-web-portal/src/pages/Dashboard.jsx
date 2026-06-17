@@ -4,6 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { hostAPI } from '../api/hostAPI';
 import Layout from '../components/Layout';
 
+const FALLBACK_IMAGES = {
+  Trekking:      'https://images.unsplash.com/photo-1551632811-561730d1e4a6?auto=format&fit=crop&w=400&q=80',
+  Camping:       'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=400&q=80',
+  'Water Sports':'https://images.unsplash.com/photo-1530866495561-507c9faab2ed?auto=format&fit=crop&w=400&q=80',
+  Jungle:        'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+  Cycling:       'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=400&q=80',
+  Climbing:      'https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=400&q=80',
+  Safari:        'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=400&q=80',
+  Skiing:        'https://images.unsplash.com/photo-1482867996988-2faec3cbb4f9?auto=format&fit=crop&w=400&q=80',
+};
+
 const StatCard = ({ label, value, meta, badge, children }) => (
   <div className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col gap-1 shadow-sm">
     <div className="flex items-center justify-between mb-1">
@@ -191,9 +202,11 @@ export default function Dashboard() {
             ) : listings.map(exp => (
               <div key={exp._id} className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0 px-1">
                 <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0 overflow-hidden">
-                  {exp.images?.[0]
-                    ? <img src={exp.images[0]} className="w-full h-full object-cover" alt="" />
-                    : <div className="w-full h-full bg-gradient-to-br from-[#C8E6D4] to-[#78B99A]" />}
+                  <img
+                    src={exp.images?.[0] || FALLBACK_IMAGES[exp.category] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80'}
+                    className="w-full h-full object-cover"
+                    alt=""
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{exp.title}</p>

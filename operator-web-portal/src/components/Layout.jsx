@@ -1,8 +1,10 @@
 import Sidebar from './Sidebar';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function Layout({ children }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -15,10 +17,10 @@ export default function Layout({ children }) {
             <input id="search-input" type="text" placeholder="Search experiences, guests, or IDs..." className="text-sm text-gray-600 bg-transparent placeholder-gray-400 outline-none flex-1" />
           </div>
           <div className="flex items-center gap-3">
-            <button id="btn-notifications" className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition relative">
+            <button id="btn-notifications" onClick={() => navigate('/notifications')} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition relative">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
             </button>
-            <button id="btn-help" className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition">
+            <button id="btn-help" onClick={() => navigate('/support')} className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
             </button>
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">

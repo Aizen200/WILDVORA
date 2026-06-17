@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { hostAPI } from '../api/hostAPI';
 import Layout from '../components/Layout';
 
+const FALLBACK_IMAGES = {
+  Trekking:      'https://images.unsplash.com/photo-1551632811-561730d1e4a6?auto=format&fit=crop&w=400&q=80',
+  Camping:       'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=400&q=80',
+  'Water Sports':'https://images.unsplash.com/photo-1530866495561-507c9faab2ed?auto=format&fit=crop&w=400&q=80',
+  Jungle:        'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=400&q=80',
+  Cycling:       'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=400&q=80',
+  Climbing:      'https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=400&q=80',
+  Safari:        'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=400&q=80',
+  Skiing:        'https://images.unsplash.com/photo-1482867996988-2faec3cbb4f9?auto=format&fit=crop&w=400&q=80',
+};
+
 const CATEGORIES = ['All Categories', 'Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling', 'Climbing', 'Safari', 'Skiing'];
 const STATUSES   = ['All Status', 'live', 'pending', 'draft', 'paused', 'rejected', 'changes_requested'];
 const PER_PAGE   = 10;
@@ -29,7 +40,7 @@ const StatusBadge = ({ status }) => {
 const EditIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
 const TrashIcon  = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>;
 const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>;
-const PlusIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>;
+const PlusIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>;
 
 export default function Listings() {
   const navigate = useNavigate();
@@ -230,9 +241,11 @@ export default function Listings() {
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                                {exp.images?.[0]
-                                  ? <img src={exp.images[0]} className="w-full h-full object-cover" alt={exp.title} />
-                                  : <div className="w-full h-full bg-gradient-to-br from-[#C8E6D4] to-[#78B99A]" />}
+                                <img
+                                  src={exp.images?.[0] || FALLBACK_IMAGES[exp.category] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80'}
+                                  className="w-full h-full object-cover"
+                                  alt={exp.title}
+                                />
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900">{exp.title}</p>

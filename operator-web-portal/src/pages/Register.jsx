@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 
 const WildvoraLogo = ({ light = false }) => (
   <div className="flex items-center gap-2">
-    <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
-      <polygon points="14,2 26,22 2,22" fill={light ? '#fff' : '#1A5F45'} opacity="0.9"/>
-      <polygon points="14,6 22,20 6,20" fill={light ? 'rgba(255,255,255,0.4)' : '#C4A482'} />
+    <svg width="28" height="28" viewBox="0 0 80 82" fill="none" className="flex-shrink-0">
+      <polygon points="40,12 80,82 0,82" fill={light ? '#fff' : '#397858'} opacity={light ? 0.9 : undefined} />
+      <polygon points="40,0 46,12 34,12" fill={light ? 'rgba(255,255,255,0.4)' : '#C4A482'} />
+      <polygon points="40,47 60,82 20,82" fill={light ? 'rgba(255,255,255,0.2)' : '#67A8B6'} />
     </svg>
     <span className={`text-lg font-bold tracking-wide ${light ? 'text-white' : 'text-gray-900'}`}>Wildvora</span>
   </div>
