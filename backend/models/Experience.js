@@ -84,6 +84,12 @@ const experienceSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    submittedAt: {
+      type: Date,
+    },
+    approvedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

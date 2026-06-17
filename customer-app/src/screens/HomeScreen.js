@@ -128,8 +128,8 @@ export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
   const [search, setSearch]         = useState('');
   const [category, setCategory]     = useState('All Destinations');
-  const [featured, setFeatured]     = useState([]);
-  const [trending, setTrending]     = useState([]);
+  const [featured, setFeatured]         = useState([]);
+  const [allExperiences, setAllExperiences] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -208,22 +208,15 @@ export default function HomeScreen({ navigation }) {
 
   const fetchData = useCallback(async () => {
     try {
-      const [featRes, trendRes] = await Promise.all([
+      const [featRes, allRes] = await Promise.all([
         experienceAPI.getAll({ featured: true, limit: 6 }),
-        experienceAPI.getAll({ trending: true, limit: 6 }),
+        experienceAPI.getAll({ limit: 20 }),
       ]);
       setFeatured(featRes.data.experiences || []);
-      setTrending(trendRes.data.experiences || []);
+      setAllExperiences(allRes.data.experiences || []);
     } catch {
-      try {
-        await experienceAPI.seed();
-        const [f, t] = await Promise.all([
-          experienceAPI.getAll({ featured: true, limit: 6 }),
-          experienceAPI.getAll({ trending: true, limit: 6 }),
-        ]);
-        setFeatured(f.data.experiences || []);
-        setTrending(t.data.experiences || []);
-      } catch {}
+      setFeatured([]);
+      setAllExperiences([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -241,9 +234,9 @@ export default function HomeScreen({ navigation }) {
   const handleWishlist = (item) =>
     navigation.navigate('ExperienceDetail', { experienceId: item._id });
 
-  const filteredTrending = category === 'All Destinations'
-    ? trending
-    : trending.filter((e) => e.category === category);
+  const filteredAll = category === 'All Destinations'
+    ? allExperiences
+    : allExperiences.filter((e) => e.category === category);
 
   if (loading) {
     return (
@@ -444,6 +437,17 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
+        {/* Empty state — no approved adventures yet */}
+        {featured.length === 0 && allExperiences.length === 0 && (
+          <View style={s.noAdventuresBox}>
+            <MaterialCommunityIcons name="compass-off-outline" size={48} color={C.outlineVariant} />
+            <Text style={s.noAdventuresTitle}>No adventures available yet</Text>
+            <Text style={s.noAdventuresSub}>
+              Check back soon — new experiences are being reviewed and will appear here once approved.
+            </Text>
+          </View>
+        )}
+
         {/* Featured */}
         {featured.length > 0 && (
           <View style={s.section}>
@@ -473,7 +477,7 @@ export default function HomeScreen({ navigation }) {
         )}
 
         {/* New on Wildvora */}
-        {featured.length > 0 && (
+        {allExperiences.length > 0 && (
           <View style={s.section}>
             <View style={s.sectionHdr}>
               <View>
@@ -483,7 +487,7 @@ export default function HomeScreen({ navigation }) {
             </View>
             <FlatList
               horizontal
-              data={[...featured].reverse()}
+              data={allExperiences.slice(0, 6)}
               keyExtractor={(i) => 'new-' + i._id}
               renderItem={({ item, index }) => (
                 <NewCard item={item} index={index} onPress={goToExperience} />
@@ -499,29 +503,34 @@ export default function HomeScreen({ navigation }) {
           <Text style={s.sectionTitle}>Trending This Week</Text>
           <View style={s.trendGrid}>
             <View style={s.trendList}>
-              {(filteredTrending.length > 0 ? filteredTrending : trending).slice(0, 4).map((item, i) => (
+              {(filteredAll.length > 0 ? filteredAll : allExperiences).slice(0, 4).map((item, i) => (
                 <TrendingItem key={item._id} item={item} index={i} onPress={goToExperience} />
               ))}
-              {filteredTrending.length === 0 && trending.length === 0 && (
+              {filteredAll.length === 0 && allExperiences.length === 0 && (
                 <View style={s.emptyBox}>
                   <Text style={s.emptyText}>No experiences yet. Pull to refresh.</Text>
                 </View>
               )}
             </View>
-
-            {/* Pro card */}
-            <View style={s.proCard}>
-              <MaterialCommunityIcons name="shield-star" size={52} color={C.primary} style={{ marginBottom: 10 }} />
-              <Text style={s.proTitle}>Wildvora Pro</Text>
-              <Text style={s.proBody}>
-                Unlock exclusive access to hidden trails and professional local guides.
-              </Text>
-              <TouchableOpacity style={s.proBtn} activeOpacity={0.85}>
-                <Text style={s.proBtnText}>Join The Club</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
+
+        {/* All Experiences */}
+        {allExperiences.length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHdr}>
+              <View>
+                <Text style={s.sectionTitle}>All Experiences</Text>
+                <Text style={s.sectionSub}>Every approved adventure on Wildvora</Text>
+              </View>
+            </View>
+            <View style={s.trendList}>
+              {allExperiences.map((item, i) => (
+                <TrendingItem key={'all-' + item._id} item={item} index={i} onPress={goToExperience} />
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Safety & Prep Guides */}
         <View style={s.section}>
@@ -544,6 +553,17 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+        {/* Pro card */}
+        <View style={s.proCard}>
+          <MaterialCommunityIcons name="shield-star" size={52} color={C.primary} style={{ marginBottom: 10 }} />
+            <Text style={s.proTitle}>Wildvora Pro</Text>
+              <Text style={s.proBody}>
+                Unlock exclusive access to hidden trails and professional local guides.
+              </Text>
+              <TouchableOpacity style={s.proBtn} activeOpacity={0.85}>
+            <Text style={s.proBtnText}>Join The Club</Text>
+            </TouchableOpacity>
         </View>
 
         <View style={{ height: 28 }} />
@@ -629,6 +649,15 @@ const s = StyleSheet.create({
 
   emptyBox:  { padding: 24, backgroundColor: C.surfaceContainerLow, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   emptyText: { color: C.onSurfaceVariant, fontSize: 14 },
+
+  noAdventuresBox: {
+    margin: 20, marginTop: 8, padding: 32,
+    backgroundColor: C.surfaceContainerLow,
+    borderRadius: 20, alignItems: 'center', gap: 10,
+    borderWidth: 1, borderColor: C.outlineVariant + '40',
+  },
+  noAdventuresTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, textAlign: 'center' },
+  noAdventuresSub:   { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 20 },
 
   /* New on Wildvora */
   newList:      { paddingLeft: 0, paddingRight: 12, paddingBottom: 4 },

@@ -127,7 +127,8 @@ const createListing = async (req, res) => {
       host: req.user._id,
       hostName: req.user.name,
       hostVerified: req.user.kyc === 'approved',
-      status: 'pending' // pending admin approval
+      status: 'pending',
+      submittedAt: new Date(),
     });
 
     // Notify all admin users
@@ -159,11 +160,19 @@ const editListing = async (req, res) => {
     const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
     if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
 
-    // Allow status transitions to paused/draft or reset live back to pending upon major changes
     const updates = req.body;
     let becamePending = false;
-    if (exp.status === 'live' && (updates.title || updates.price || updates.description)) {
-      updates.status = 'pending'; // re-verification required for critical updates
+
+    if (['rejected', 'changes_requested'].includes(exp.status)) {
+      // Editing a rejected listing resubmits it for review
+      updates.status = 'pending';
+      updates.submittedAt = new Date();
+      updates.rejectionReason = '';
+      becamePending = true;
+    } else if (exp.status === 'live' && (updates.title || updates.price || updates.description)) {
+      // Critical field changes on a live listing require re-approval
+      updates.status = 'pending';
+      updates.submittedAt = new Date();
       becamePending = true;
     }
 
@@ -346,11 +355,68 @@ const respondToReview = async (req, res) => {
   }
 };
 
+// @route PATCH /api/operator/listings/:id/resubmit
+// Resubmit a rejected/changes_requested listing for review
+const resubmitListing = async (req, res) => {
+  try {
+    const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
+    if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
+
+    if (!['rejected', 'changes_requested'].includes(exp.status)) {
+      return res.status(400).json({ success: false, message: 'Only rejected listings can be resubmitted' });
+    }
+
+    exp.status = 'pending';
+    exp.submittedAt = new Date();
+    exp.rejectionReason = '';
+    await exp.save();
+
+    const admins = await User.find({ role: 'admin' });
+    for (const admin of admins) {
+      await Notification.create({
+        recipient: admin._id,
+        type: 'listing',
+        title: `Listing Resubmitted – "${exp.title}"`,
+        desc: `${req.user.name || 'An operator'} resubmitted a listing for review after addressing feedback.`,
+        referenceId: exp._id,
+        badges: [
+          { text: 'Resubmitted', color: 'bg-blue-50 text-blue-600 border border-blue-100' },
+          { text: `#${exp._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
+    res.json({ success: true, message: 'Listing resubmitted for review', experience: exp });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route DELETE /api/operator/listings/:id
+// Delete a listing (only draft, pending, or rejected listings can be deleted)
+const deleteListing = async (req, res) => {
+  try {
+    const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
+    if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
+
+    if (exp.status === 'live') {
+      return res.status(400).json({ success: false, message: 'Cannot delete a live listing. Pause it first.' });
+    }
+
+    await Experience.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Listing deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getStats,
   getListings,
   createListing,
   editListing,
+  resubmitListing,
+  deleteListing,
   getBookings,
   updateBookingStatus,
   getPayouts,

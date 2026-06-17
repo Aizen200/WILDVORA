@@ -7,6 +7,8 @@ const {
   getListings,
   createListing,
   editListing,
+  resubmitListing,
+  deleteListing,
   getBookings,
   updateBookingStatus,
   getPayouts,
@@ -22,7 +24,9 @@ router.use(restrictTo('operator', 'admin'));
 router.get('/stats', getStats);
 router.get('/listings', getListings);
 router.post('/listings', createListing);
+router.patch('/listings/:id/resubmit', resubmitListing);
 router.patch('/listings/:id', editListing);
+router.delete('/listings/:id', deleteListing);
 router.get('/bookings', getBookings);
 router.patch('/bookings/:id/status', updateBookingStatus);
 router.get('/payouts', getPayouts);

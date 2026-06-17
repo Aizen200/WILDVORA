@@ -9,7 +9,7 @@ const getExperiences = async (req, res) => {
   try {
     const { category, difficulty, minPrice, maxPrice, duration, search, featured, trending, limit = 20, page = 1 } = req.query;
 
-    const query = { isActive: true };
+    const query = { isActive: true, status: 'live' };
 
     if (category && category !== 'All') query.category = category;
     if (difficulty) query.difficulty = difficulty;
