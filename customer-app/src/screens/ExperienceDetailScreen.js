@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, Platform, Alert, StatusBar, Linking,
+  ActivityIndicator, Image, Platform, StatusBar, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Alert from '../utils/alert';
 
 // ── OWM icon code → native icon ─────────────────────────────────────────────
 const getOWMWeatherIcon = (iconCode, size = 36) => {

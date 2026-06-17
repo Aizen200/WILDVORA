@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl, ScrollView, Image,
+  ActivityIndicator, RefreshControl, ScrollView, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Alert from '../utils/alert';
 
 const C = {
   primary:             '#1A5F45',

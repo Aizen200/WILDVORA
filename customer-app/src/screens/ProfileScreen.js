@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, TextInput, ActivityIndicator, Modal, Image,
+  TextInput, ActivityIndicator, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { userAPI, reviewAPI } from '../services/api';
+import Alert from '../utils/alert';
 
 const C = {
   primary:             '#1A5F45',

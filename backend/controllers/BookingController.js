@@ -87,13 +87,29 @@ const getBooking = async (req, res) => {
 // @route PATCH /api/bookings/:id/cancel
 const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate('experience');
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     if (booking.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
     booking.status = 'cancelled';
     await booking.save();
+
+    // Create a notification for the operator (host)
+    if (booking.experience && booking.experience.host) {
+      await Notification.create({
+        recipient: booking.experience.host,
+        type: 'booking',
+        title: `Booking Cancelled – "${booking.experience.title}"`,
+        desc: `${req.user.name || 'A customer'} has cancelled their booking for ${booking.startDate}.`,
+        referenceId: booking._id,
+        badges: [
+          { text: 'Cancelled', color: 'bg-rose-50 text-rose-600 border border-rose-100' },
+          { text: `#${booking._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
     res.json({ success: true, booking });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
