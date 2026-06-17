@@ -28,12 +28,8 @@ export default function Layout({ children }) {
                 <p className="text-[13px] font-semibold text-gray-800 leading-tight">{user?.name || 'Host'}</p>
                 <p className="text-[11px] text-gray-400 leading-tight">Mountain Guide</p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-[#1A5F45] text-white flex items-center justify-center text-sm font-bold overflow-hidden border border-gray-200">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{user?.name?.[0] || 'H'}</span>
-                )}
+              <div className="w-9 h-9 rounded-full bg-[#1A5F45] text-white flex items-center justify-center text-sm font-bold border border-gray-200">
+                <span>{user?.name?.[0] || 'H'}</span>
               </div>
             </div>
           </div>

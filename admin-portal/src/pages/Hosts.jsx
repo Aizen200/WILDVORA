@@ -72,6 +72,11 @@ export default function Hosts() {
   const [sending, setSending] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
+  const [selectedHost, setSelectedHost] = useState(null);
+  const [showHostPanel, setShowHostPanel] = useState(false);
+  const [kycUpdating, setKycUpdating] = useState(false);
+  const [payoutUpdating, setPayoutUpdating] = useState(false);
+
   useEffect(() => {
     if (isGrowthMapOpen) {
       const fetchGrowthMap = async () => {
@@ -145,8 +150,7 @@ export default function Hosts() {
               payoutStatus: 'active',
               listings: 12,
               revenue: '₹3,77,000',
-              isActive: true,
-              avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80'
+              isActive: true
             },
             {
               _id: 'mock-2',
@@ -157,8 +161,7 @@ export default function Hosts() {
               payoutStatus: 'reviewing',
               listings: 3,
               revenue: '₹70,350',
-              isActive: true,
-              avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&h=120&q=80'
+              isActive: true
             },
             {
               _id: 'mock-3',
@@ -169,8 +172,7 @@ export default function Hosts() {
               payoutStatus: 'frozen',
               listings: 0,
               revenue: '₹0',
-              isActive: false,
-              avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80'
+              isActive: false
             },
             {
               _id: 'mock-4',
@@ -181,8 +183,7 @@ export default function Hosts() {
               payoutStatus: 'active',
               listings: 22,
               revenue: '₹9,33,000',
-              isActive: true,
-              avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=120&h=120&q=80'
+              isActive: true
             }
           ];
 
@@ -199,13 +200,67 @@ export default function Hosts() {
 
   const handleToggleStatus = async (hostId, isDb, currentStatus) => {
     setHosts(prev => prev.map(h => h._id === hostId ? { ...h, isActive: !h.isActive } : h));
+    if (selectedHost && selectedHost._id === hostId) {
+      setSelectedHost(prev => ({ ...prev, isActive: !prev.isActive }));
+    }
     if (isDb) {
       try {
         await api.patch(`/admin/users/${hostId}/toggle-status`);
       } catch (err) {
         setHosts(prev => prev.map(h => h._id === hostId ? { ...h, isActive: currentStatus } : h));
+        if (selectedHost && selectedHost._id === hostId) {
+          setSelectedHost(prev => ({ ...prev, isActive: currentStatus }));
+        }
         console.error(err);
       }
+    }
+  };
+
+  const handleKycChange = async (status) => {
+    if (!selectedHost) return;
+    if (!selectedHost.isDb) {
+      const updated = { ...selectedHost, kyc: status };
+      setSelectedHost(updated);
+      setHosts(prev => prev.map(h => h._id === selectedHost._id ? { ...h, kyc: status } : h));
+      return;
+    }
+    setKycUpdating(true);
+    try {
+      const res = await api.patch(`/admin/hosts/${selectedHost._id}/kyc`, { status });
+      if (res.data.success) {
+        const updated = { ...selectedHost, kyc: status };
+        setSelectedHost(updated);
+        setHosts(prev => prev.map(h => h._id === selectedHost._id ? { ...h, kyc: status } : h));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update KYC.');
+    } finally {
+      setKycUpdating(false);
+    }
+  };
+
+  const handlePayoutChange = async (status) => {
+    if (!selectedHost) return;
+    if (!selectedHost.isDb) {
+      const uiStatus = status === 'verified' ? 'active' : 'reviewing';
+      const updated = { ...selectedHost, payoutStatus: uiStatus };
+      setSelectedHost(updated);
+      setHosts(prev => prev.map(h => h._id === selectedHost._id ? { ...h, payoutStatus: uiStatus } : h));
+      return;
+    }
+    setPayoutUpdating(true);
+    try {
+      const res = await api.patch(`/admin/hosts/${selectedHost._id}/payout-status`, { status });
+      if (res.data.success) {
+        const uiStatus = status === 'verified' ? 'active' : 'reviewing';
+        const updated = { ...selectedHost, payoutStatus: uiStatus };
+        setSelectedHost(updated);
+        setHosts(prev => prev.map(h => h._id === selectedHost._id ? { ...h, payoutStatus: uiStatus } : h));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update payout status.');
+    } finally {
+      setPayoutUpdating(false);
     }
   };
 
@@ -298,16 +353,19 @@ export default function Hosts() {
           </thead>
           <tbody className="divide-y divide-gray-200">
             {hosts.map(host => (
-              <tr key={host._id} className="hover:bg-gray-50/50 transition">
+              <tr 
+                key={host._id} 
+                onClick={() => {
+                  setSelectedHost(host);
+                  setShowHostPanel(true);
+                }}
+                className="hover:bg-gray-50/80 transition cursor-pointer"
+              >
                 {/* Host Details */}
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-emerald-700 text-white flex items-center justify-center font-bold text-sm border border-gray-100 flex-shrink-0">
-                      {host.avatar ? (
-                        <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{host.name.charAt(0).toUpperCase()}</span>
-                      )}
+                    <div className="w-10 h-10 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm border border-gray-100 flex-shrink-0">
+                      <span>{host.name.charAt(0).toUpperCase()}</span>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-gray-900">{host.name}</div>
@@ -339,7 +397,10 @@ export default function Hosts() {
                 {/* Status Toggle */}
                 <td className="px-6 py-4 align-middle">
                   <button
-                    onClick={() => handleToggleStatus(host._id, host.isDb, host.isActive)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleStatus(host._id, host.isDb, host.isActive);
+                    }}
                     className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 ${
                       host.isActive ? 'bg-[#052618]' : 'bg-gray-300'
                     }`}
@@ -354,7 +415,14 @@ export default function Hosts() {
 
                 {/* Actions Icon */}
                 <td className="px-6 py-4 align-middle text-right text-gray-400">
-                  <button className="hover:text-gray-900 transition p-1 cursor-pointer">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedHost(host);
+                      setShowHostPanel(true);
+                    }}
+                    className="hover:text-gray-900 transition p-1 cursor-pointer"
+                  >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                     </svg>
@@ -660,6 +728,175 @@ export default function Hosts() {
           </div>
         </div>
       )}
+
+      {showHostPanel && selectedHost && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-fadeIn" onClick={() => setShowHostPanel(false)}>
+          <div className="bg-[#F8F6F4] w-full max-w-xl h-full shadow-2xl flex flex-col animate-slideIn relative" onClick={e => e.stopPropagation()}>
+            {/* Header: Dark Green */}
+            <div className="bg-[#052618] text-white p-6 pb-8 flex flex-col gap-4 relative">
+              <button 
+                onClick={() => setShowHostPanel(false)}
+                className="absolute top-4 right-4 text-white/70 hover:text-white transition cursor-pointer p-1.5 rounded-full hover:bg-white/10"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              <div className="flex items-center gap-4 mt-2">
+                <div className="w-16 h-16 rounded-full bg-emerald-700 text-white flex items-center justify-center font-extrabold text-2xl border-2 border-white/20 shadow-md flex-shrink-0">
+                  <span>{selectedHost.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold tracking-tight">{selectedHost.name}</h3>
+                  <p className="text-xs text-emerald-300 font-semibold mt-0.5">{selectedHost.businessName || 'Operator Partner'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+              {!selectedHost.isDb && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-4 py-3 rounded-xl flex items-center gap-2">
+                  <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <span>Demo Host: status modifications will only update the local UI session.</span>
+                </div>
+              )}
+
+              {/* General Information */}
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">General Information</h4>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-[11px] text-gray-400 font-bold block uppercase tracking-wider">Email</span>
+                    <span className="font-semibold text-gray-800 block mt-0.5 break-all">{selectedHost.email || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 font-bold block uppercase tracking-wider">Location</span>
+                    <span className="font-semibold text-gray-800 block mt-0.5">{selectedHost.location}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 font-bold block uppercase tracking-wider">Listings</span>
+                    <span className="font-semibold text-gray-800 block mt-0.5">{selectedHost.listings} Units</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-gray-400 font-bold block uppercase tracking-wider">Revenue</span>
+                    <span className="font-semibold text-gray-800 block mt-0.5">{selectedHost.revenue}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* KYC Status Verification */}
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">KYC Verification</h4>
+                  <div>{getKycBadge(selectedHost.kyc)}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handleKycChange('approved')}
+                    disabled={kycUpdating}
+                    className={`flex-1 text-center py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      selectedHost.kyc?.toLowerCase() === 'approved' 
+                        ? 'bg-[#E6F4EA] text-[#137333] border-[#137333]' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Verify KYC
+                  </button>
+                  <button 
+                    onClick={() => handleKycChange('pending')}
+                    disabled={kycUpdating}
+                    className={`flex-1 text-center py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      selectedHost.kyc?.toLowerCase() === 'pending' 
+                        ? 'bg-[#E8F0FE] text-[#1A73E8] border-[#1A73E8]' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Set Pending
+                  </button>
+                  <button 
+                    onClick={() => handleKycChange('rejected')}
+                    disabled={kycUpdating}
+                    className={`flex-1 text-center py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      selectedHost.kyc?.toLowerCase() === 'rejected' 
+                        ? 'bg-[#FCE8E6] text-[#C5221F] border-[#C5221F]' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Reject KYC
+                  </button>
+                </div>
+              </div>
+
+              {/* Payout Account Verification */}
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Payout Account Status</h4>
+                  <div>{getPayoutStyle(selectedHost.payoutStatus)}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => handlePayoutChange('verified')}
+                    disabled={payoutUpdating}
+                    className={`flex-1 text-center py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      selectedHost.payoutStatus?.toLowerCase() === 'active' || selectedHost.payoutStatus?.toLowerCase() === 'verified'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-600' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Approve Payouts
+                  </button>
+                  <button 
+                    onClick={() => handlePayoutChange('pending')}
+                    disabled={payoutUpdating}
+                    className={`flex-1 text-center py-2 px-3 text-xs font-bold rounded-lg border transition cursor-pointer ${
+                      selectedHost.payoutStatus?.toLowerCase() === 'reviewing' || selectedHost.payoutStatus?.toLowerCase() === 'pending'
+                        ? 'bg-amber-50 text-amber-800 border-amber-500' 
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Require Review
+                  </button>
+                </div>
+              </div>
+
+              {/* Account Status Control */}
+              <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Account Status control</h4>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-semibold text-gray-800">Account status is {selectedHost.isActive ? 'Active' : 'Suspended'}</span>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Suspended hosts cannot accept new bookings or receive payouts.</p>
+                  </div>
+                  <button
+                    onClick={() => handleToggleStatus(selectedHost._id, selectedHost.isDb, selectedHost.isActive)}
+                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 flex-shrink-0 ${
+                      selectedHost.isActive ? 'bg-[#052618]' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                        selectedHost.isActive ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-slideIn { animation: slideIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+      `}</style>
     </div>
   );
 }

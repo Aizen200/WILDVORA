@@ -68,12 +68,8 @@ export default function AdminTopbar() {
 
         {/* User Profile Avatar */}
         <Link to="/profile" className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition">
-          <div className="w-8 h-8 rounded-full bg-[#1A5F45] text-white flex items-center justify-center font-bold text-sm overflow-hidden border border-gray-200">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
-            )}
+          <div className="w-8 h-8 rounded-full bg-[#1A5F45] text-white flex items-center justify-center font-bold text-sm border border-gray-200">
+            <span>{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</span>
           </div>
         </Link>
       </div>

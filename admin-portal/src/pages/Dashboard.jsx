@@ -85,7 +85,7 @@ export default function Dashboard() {
             date: new Date(b.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
             status: b.status,
             amount: `₹${b.totalPrice.toLocaleString()}`,
-            img: b.experience?.images?.[0] || 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?w=64&h=64&fit=crop',
+            img: b.experience?.images?.[0] || null,
           }));
           setRecentBookings(bList);
         }
@@ -219,17 +219,7 @@ export default function Dashboard() {
   return (
     <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#f0f2ef' }}>
       {/* ── Hero Banner ── */}
-      <div className="relative" style={{ height: '240px' }}>
-        <img
-          src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1400&h=480&fit=crop"
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: 'brightness(0.52)' }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.35) 0%, transparent 70%)' }}
-        />
+      <div className="relative" style={{ height: '240px', background: 'linear-gradient(135deg, #052618 0%, #0a4028 50%, #0f5c38 100%)' }}>
         <div className="relative px-8 pt-14">
           <h1 className="text-4xl font-extrabold text-white tracking-tight leading-tight">
             Welcome Back, Alex.
@@ -322,12 +312,23 @@ export default function Dashboard() {
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <img
-                          src={b.img}
-                          alt=""
-                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                          style={{ border: '1px solid #e4e8e4' }}
-                        />
+                        {b.img ? (
+                          <img
+                            src={b.img}
+                            alt=""
+                            className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                            style={{ border: '1px solid #e4e8e4' }}
+                          />
+                        ) : (
+                          <div
+                            className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center bg-[#f0f5f1]"
+                            style={{ border: '1px solid #e4e8e4' }}
+                          >
+                            <svg className="w-5 h-5 text-[#052618]/50" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                            </svg>
+                          </div>
+                        )}
                         <span className="text-gray-800 text-sm font-semibold leading-snug truncate">{b.listing}</span>
                       </div>
                       <span className="text-gray-600 text-sm truncate">{b.host}</span>

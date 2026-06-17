@@ -105,7 +105,7 @@ export default function Payouts() {
     _id: s._id,
     experience: {
       title: s.experience?.title || 'Outdoor Adventure',
-      imageUrl: s.experience?.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80',
+      imageUrl: s.experience?.images?.[0] || null,
       hostName: s.experience?.host?.name || s.experience?.hostName || 'Operator'
     },
     host: {
@@ -248,11 +248,19 @@ export default function Payouts() {
                   className="bg-white rounded-xl p-6 shadow-sm border border-outline-variant/30 flex flex-col md:flex-row gap-6 hover:shadow-md transition-shadow relative"
                 >
                   <div className="relative w-full md:w-32 h-32 flex-shrink-0">
-                    <img 
-                      alt={item.experience.title} 
-                      className="w-full h-full object-cover rounded-lg" 
-                      src={item.experience.imageUrl} 
-                    />
+                    {item.experience.imageUrl ? (
+                      <img 
+                        alt={item.experience.title} 
+                        className="w-full h-full object-cover rounded-lg" 
+                        src={item.experience.imageUrl} 
+                      />
+                    ) : (
+                      <div className="w-full h-full rounded-lg bg-[#f0f5f1] flex items-center justify-center border border-[#e4e8e4]">
+                        <svg className="w-8 h-8 text-[#052618]/30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="flex-grow flex flex-col justify-between">

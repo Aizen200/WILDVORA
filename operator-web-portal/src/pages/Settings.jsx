@@ -138,37 +138,16 @@ export default function Settings() {
               </div>
 
               <div className="grid grid-cols-12 gap-5">
-                {/* Avatar Upload */}
+                {/* Avatar */}
                 <div className="col-span-12 flex items-center gap-5 pb-4">
                   <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shadow-sm">
-                      {user?.avatar ? (
-                        <img
-                          alt="User Profile Avatar"
-                          className="w-full h-full object-cover"
-                          src={user.avatar}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-[#1A5F45] text-white flex items-center justify-center font-bold text-2xl uppercase">
-                          {user?.name ? user.name.charAt(0) : 'U'}
-                        </div>
-                      )}
+                    <div className="w-24 h-24 rounded-2xl bg-[#1A5F45] border border-[#145038] shadow-sm flex items-center justify-center">
+                      <span className="text-3xl font-black text-white">{user?.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
                     </div>
-                    <button className="absolute -bottom-2 -right-2 bg-primary text-white p-1.5 rounded-full shadow-md hover:scale-105 transition">
-                      <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                    </button>
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-800">Profile Photo</h4>
-                    <p className="text-[11px] text-gray-400 mb-2.5">JPG, GIF or PNG. Max size of 800K</p>
-                    <div className="flex gap-2">
-                      <button className="px-3.5 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition">
-                        Upload New
-                      </button>
-                      <button className="px-3.5 py-1.5 text-red-500 rounded-lg text-xs font-semibold hover:underline">
-                        Delete
-                      </button>
-                    </div>
+                    <h4 className="text-sm font-semibold text-gray-800">Profile Avatar</h4>
+                    <p className="text-[11px] text-gray-400 mb-2.5">Your avatar is generated from your display name.</p>
                   </div>
                 </div>
 

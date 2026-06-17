@@ -88,11 +88,19 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="relative">
-          <img
-            src={listing.img}
-            alt={listing.name}
-            className="w-full h-52 object-cover"
-          />
+          {listing.img ? (
+            <img
+              src={listing.img}
+              alt={listing.name}
+              className="w-full h-52 object-cover"
+            />
+          ) : (
+            <div className="w-full h-52 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
+              <svg className="w-14 h-14 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+              </svg>
+            </div>
+          )}
           <button
             onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 hover:bg-white shadow cursor-pointer"
@@ -261,7 +269,7 @@ export default function ListingsApprovalQueue() {
           kycStatus:      l.host?.kyc || '',
           date:           new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
           location:       l.location ? `${l.location.city || ''}, ${l.location.country || ''}` : '—',
-          img:            l.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=480&h=260&fit=crop',
+          img:            l.images?.[0] || null,
           price:          l.price,
           duration:       l.duration,
           difficulty:     l.difficulty,
@@ -362,7 +370,15 @@ export default function ListingsApprovalQueue() {
             >
               {/* Image */}
               <div className="relative">
-                <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
+                {l.img ? (
+                  <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
+                ) : (
+                  <div className="w-full h-44 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
+                    <svg className="w-10 h-10 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                    </svg>
+                  </div>
+                )}
                 <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-600 border border-sky-200 tracking-wide">
                   EXPERIENCE
                 </span>

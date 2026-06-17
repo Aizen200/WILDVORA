@@ -137,30 +137,18 @@ export default function Profile() {
               </div>
 
               <div className="grid grid-cols-12 gap-5">
-                {/* Avatar Upload */}
-                <div className="col-span-12 flex items-center gap-5 pb-4">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shadow-sm flex items-center justify-center text-gray-400">
-                      {user?.avatar ? (
-                        <img alt="Profile" className="w-full h-full object-cover" src={user.avatar} />
-                      ) : (
-                        <span className="text-3xl font-black text-[#1A5F45]">{fullName.charAt(0)}</span>
-                      )}
+                  {/* Avatar: always use initials, no photo */}
+                  <div className="col-span-12 flex items-center gap-5 pb-4">
+                    <div className="relative">
+                      <div className="w-24 h-24 rounded-2xl bg-[#052618] border border-[#083622] shadow-sm flex items-center justify-center">
+                        <span className="text-3xl font-black text-white">{fullName.charAt(0).toUpperCase()}</span>
+                      </div>
                     </div>
-                    <button className="absolute -bottom-2 -right-2 bg-[#1A5F45] text-white p-1.5 rounded-full shadow-md hover:scale-105 transition cursor-pointer">
-                      <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                    </button>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-800">Profile Photo</h4>
-                    <p className="text-[11px] text-gray-400 mb-2.5">Used in internal audit logs and admin directory.</p>
-                    <div className="flex gap-2">
-                      <button className="px-3.5 py-1.5 border border-gray-200 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition cursor-pointer">
-                        Upload New
-                      </button>
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-800">Profile Avatar</h4>
+                      <p className="text-[11px] text-gray-400 mb-2.5">Your avatar is generated from your display name.</p>
                     </div>
                   </div>
-                </div>
 
                 {/* Form Fields */}
                 <div className="col-span-6 flex flex-col gap-1.5">
