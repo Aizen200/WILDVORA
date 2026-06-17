@@ -372,9 +372,36 @@ const getCustomerBookings = async (req, res) => {
   }
 };
 
+// @route GET /api/admin/listings/live
+const getLiveListings = async (req, res) => {
+  try {
+    const listings = await Experience.find({ status: 'live' })
+      .populate('host', 'name email kyc')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, count: listings.length, listings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/admin/listings/:id/feature
+const toggleFeatured = async (req, res) => {
+  try {
+    const experience = await Experience.findById(req.params.id);
+    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    experience.isFeatured = !experience.isFeatured;
+    await experience.save();
+    res.json({ success: true, isFeatured: experience.isFeatured, experience });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getPlatformOverview,
   getPendingListings,
+  getLiveListings,
+  toggleFeatured,
   approveListing,
   rejectListing,
   getAllBookings,

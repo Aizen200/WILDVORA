@@ -5,6 +5,8 @@ const { restrictTo } = require('../middlewares/rbac');
 const {
   getPlatformOverview,
   getPendingListings,
+  getLiveListings,
+  toggleFeatured,
   approveListing,
   rejectListing,
   getAllBookings,
@@ -27,8 +29,10 @@ router.use(restrictTo('admin'));
 
 router.get('/analytics/overview', getPlatformOverview);
 router.get('/listings/pending', getPendingListings);
+router.get('/listings/live', getLiveListings);
 router.patch('/listings/:id/approve', approveListing);
 router.patch('/listings/:id/reject', rejectListing);
+router.patch('/listings/:id/feature', toggleFeatured);
 router.get('/bookings', getAllBookings);
 router.patch('/bookings/:id/dispute', toggleDispute);
 router.post('/bookings/:id/refund', issueRefund);

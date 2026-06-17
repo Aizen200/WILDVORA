@@ -165,9 +165,33 @@ function DetailModal({ listing, onClose, onApprove, onReject }) {
   );
 }
 
+function mapListing(l) {
+  return {
+    _id:            l._id,
+    name:           l.title,
+    host:           l.host?.name || l.hostName || 'Operator',
+    operatorEmail:  l.host?.email || '',
+    kycStatus:      l.host?.kyc || '',
+    date:           new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    location:       l.location ? `${l.location.city || ''}, ${l.location.country || ''}` : '—',
+    img:            l.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=480&h=260&fit=crop',
+    price:          l.price,
+    duration:       l.duration,
+    difficulty:     l.difficulty,
+    description:    l.description,
+    includes:       l.includes || [],
+    exclusions:     l.exclusions || [],
+    availableDates: l.availableDates || [],
+    isFeatured:     l.isFeatured || false,
+  };
+}
+
 export default function ListingsApprovalQueue() {
+  const [tab, setTab]                   = useState('pending');
   const [listings, setListings]         = useState([]);
+  const [liveListings, setLiveListings] = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [liveLoading, setLiveLoading]   = useState(false);
   const [detailListing, setDetailListing] = useState(null);
   const [rejectTarget, setRejectTarget]   = useState(null);
   const [actionMsg, setActionMsg]         = useState('');
@@ -176,25 +200,7 @@ export default function ListingsApprovalQueue() {
     setLoading(true);
     try {
       const res = await api.get('/admin/listings/pending');
-      if (res.data?.success) {
-        setListings(res.data.listings.map(l => ({
-          _id:            l._id,
-          name:           l.title,
-          host:           l.host?.name || l.hostName || 'Operator',
-          operatorEmail:  l.host?.email || '',
-          kycStatus:      l.host?.kyc || '',
-          date:           new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-          location:       l.location ? `${l.location.city || ''}, ${l.location.country || ''}` : '—',
-          img:            l.images?.[0] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=480&h=260&fit=crop',
-          price:          l.price,
-          duration:       l.duration,
-          difficulty:     l.difficulty,
-          description:    l.description,
-          includes:       l.includes || [],
-          exclusions:     l.exclusions || [],
-          availableDates: l.availableDates || [],
-        })));
-      }
+      if (res.data?.success) setListings(res.data.listings.map(mapListing));
     } catch (err) {
       console.error('Failed to fetch pending listings:', err);
     } finally {
@@ -202,11 +208,40 @@ export default function ListingsApprovalQueue() {
     }
   };
 
+  const fetchLiveListings = async () => {
+    setLiveLoading(true);
+    try {
+      const res = await api.get('/admin/listings/live');
+      if (res.data?.success) setLiveListings(res.data.listings.map(mapListing));
+    } catch (err) {
+      console.error('Failed to fetch live listings:', err);
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
   useEffect(() => { fetchPendingListings(); }, []);
+
+  useEffect(() => {
+    if (tab === 'live' && liveListings.length === 0) fetchLiveListings();
+  }, [tab]);
 
   const flash = (msg) => {
     setActionMsg(msg);
     setTimeout(() => setActionMsg(''), 3500);
+  };
+
+  const handleToggleFeatured = async (listing) => {
+    try {
+      const res = await api.patch(`/admin/listings/${listing._id}/feature`);
+      if (res.data?.success) {
+        const nowFeatured = res.data.isFeatured;
+        setLiveListings(prev => prev.map(l => l._id === listing._id ? { ...l, isFeatured: nowFeatured } : l));
+        flash(nowFeatured ? `⭐ "${listing.name}" is now featured in the customer app.` : `"${listing.name}" removed from featured.`);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update featured status.');
+    }
   };
 
   const handleApprove = async (listing) => {
@@ -239,20 +274,14 @@ export default function ListingsApprovalQueue() {
   return (
     <div className="flex-1 overflow-y-auto px-8 py-8" style={{ backgroundColor: '#f5f1ea' }}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-7">
+      <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Pending Review</h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {loading
-              ? 'Loading...'
-              : listings.length === 0
-              ? 'All listings have been reviewed — nothing pending.'
-              : `${listings.length} listing${listings.length > 1 ? 's' : ''} awaiting approval, newest first.`}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Listings</h1>
+          <p className="text-gray-500 text-sm mt-1">Review pending submissions or manage live listings.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchPendingListings}
+            onClick={tab === 'pending' ? fetchPendingListings : fetchLiveListings}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 bg-white hover:bg-gray-50 transition-all cursor-pointer"
           >
             ↻ Refresh
@@ -263,87 +292,165 @@ export default function ListingsApprovalQueue() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 border border-gray-200 w-fit">
+        <button
+          onClick={() => setTab('pending')}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            tab === 'pending' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          Pending Review
+          {listings.length > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 font-bold">{listings.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab('live')}
+          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            tab === 'live' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          Live Listings
+        </button>
+      </div>
+
       {/* Flash message */}
       {actionMsg && (
         <div className={`mb-5 px-4 py-3 rounded-xl text-sm font-medium ${
-          actionMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+          actionMsg.startsWith('✓') || actionMsg.startsWith('⭐')
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
         }`}>
           {actionMsg}
         </div>
       )}
 
-      {loading ? (
-        <div className="text-center py-16 text-gray-400">Loading pending listings...</div>
-      ) : listings.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
-          <div className="text-4xl mb-3">✓</div>
-          <p className="text-gray-600 font-semibold">All listings reviewed</p>
-          <p className="text-gray-400 text-sm mt-1">New operator submissions will appear here.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-5">
-          {listings.map((l) => (
-            <div
-              key={l._id}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:border-gray-300 hover:shadow-md transition-all"
-            >
-              {/* Image */}
-              <div className="relative">
-                <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
-                <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-600 border border-sky-200 tracking-wide">
-                  EXPERIENCE
-                </span>
+      {/* Pending Tab */}
+      {tab === 'pending' && (
+        loading ? (
+          <div className="text-center py-16 text-gray-400">Loading pending listings...</div>
+        ) : listings.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
+            <div className="text-4xl mb-3">✓</div>
+            <p className="text-gray-600 font-semibold">All listings reviewed</p>
+            <p className="text-gray-400 text-sm mt-1">New operator submissions will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-5">
+            {listings.map((l) => (
+              <div
+                key={l._id}
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:border-gray-300 hover:shadow-md transition-all"
+              >
+                <div className="relative">
+                  <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
+                  <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-600 border border-sky-200 tracking-wide">
+                    EXPERIENCE
+                  </span>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-gray-900 font-bold text-sm mb-1 truncate">{l.name}</h3>
+                  <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium mb-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                    {l.host}
+                    {l.kycStatus && (
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-semibold ${
+                        l.kycStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        KYC: {l.kycStatus}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-400 text-xs mb-4">
+                    <span className="flex items-center gap-1"><CalIcon /> {l.date}</span>
+                    <span className="flex items-center gap-1"><MapPinIcon /> {l.location}</span>
+                  </div>
+                  {l.price && (
+                    <p className="text-gray-700 text-xs font-semibold mb-3">
+                      ₹{Number(l.price).toLocaleString()} per person · {l.duration || '—'}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleApprove(l)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition-all cursor-pointer"
+                    >
+                      <CheckIcon /> Approve
+                    </button>
+                    <button
+                      onClick={() => setRejectTarget(l)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 text-red-500 bg-white hover:bg-red-50 transition-all cursor-pointer"
+                    >
+                      <XCircleIcon /> Reject
+                    </button>
+                    <button
+                      onClick={() => setDetailListing(l)}
+                      className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer"
+                    >
+                      <EyeIcon /> Details
+                    </button>
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+        )
+      )}
 
-              {/* Content */}
-              <div className="p-4">
-                <h3 className="text-gray-900 font-bold text-sm mb-1 truncate">{l.name}</h3>
-                <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium mb-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                  {l.host}
-                  {l.kycStatus && (
-                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-semibold ${
-                      l.kycStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                      KYC: {l.kycStatus}
+      {/* Live Listings Tab */}
+      {tab === 'live' && (
+        liveLoading ? (
+          <div className="text-center py-16 text-gray-400">Loading live listings...</div>
+        ) : liveListings.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
+            <div className="text-4xl mb-3">📭</div>
+            <p className="text-gray-600 font-semibold">No live listings yet</p>
+            <p className="text-gray-400 text-sm mt-1">Approved listings will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-5">
+            {liveListings.map((l) => (
+              <div
+                key={l._id}
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:border-gray-300 hover:shadow-md transition-all"
+              >
+                <div className="relative">
+                  <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
+                  <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 tracking-wide">
+                    LIVE
+                  </span>
+                  {l.isFeatured && (
+                    <span className="absolute top-3 right-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 tracking-wide">
+                      ⭐ FEATURED
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-3 text-gray-400 text-xs mb-4">
-                  <span className="flex items-center gap-1"><CalIcon /> {l.date}</span>
-                  <span className="flex items-center gap-1"><MapPinIcon /> {l.location}</span>
-                </div>
-                {l.price && (
-                  <p className="text-gray-700 text-xs font-semibold mb-3">
-                    ₹{Number(l.price).toLocaleString()} per person · {l.duration || '—'}
-                  </p>
-                )}
-
-                {/* Action buttons */}
-                <div className="flex items-center gap-2">
+                <div className="p-4">
+                  <h3 className="text-gray-900 font-bold text-sm mb-1 truncate">{l.name}</h3>
+                  <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium mb-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                    {l.host}
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-400 text-xs mb-4">
+                    <span className="flex items-center gap-1"><MapPinIcon /> {l.location}</span>
+                    {l.price && <span>₹{Number(l.price).toLocaleString()}</span>}
+                  </div>
                   <button
-                    onClick={() => handleApprove(l)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition-all cursor-pointer"
+                    onClick={() => handleToggleFeatured(l)}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      l.isFeatured
+                        ? 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100'
+                        : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                    }`}
                   >
-                    <CheckIcon /> Approve
-                  </button>
-                  <button
-                    onClick={() => setRejectTarget(l)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-red-200 text-red-500 bg-white hover:bg-red-50 transition-all cursor-pointer"
-                  >
-                    <XCircleIcon /> Reject
-                  </button>
-                  <button
-                    onClick={() => setDetailListing(l)}
-                    className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer"
-                  >
-                    <EyeIcon /> Details
+                    {l.isFeatured ? '⭐ Remove from Featured' : '☆ Mark as Featured'}
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* Detail modal */}
