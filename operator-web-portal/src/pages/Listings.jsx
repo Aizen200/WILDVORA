@@ -156,7 +156,9 @@ export default function Listings() {
         {/* Status banners */}
         {pendingCount > 0 && (
           <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
-            <span className="font-bold">⏳</span>
+            <svg className="w-4 h-4 flex-shrink-0 text-yellow-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
             <span>
               <strong>{pendingCount} listing{pendingCount > 1 ? 's' : ''}</strong> awaiting admin approval — not yet visible to customers.
             </span>
@@ -164,7 +166,9 @@ export default function Listings() {
         )}
         {rejectedCount > 0 && (
           <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-            <span className="font-bold">⚠️</span>
+            <svg className="w-4 h-4 flex-shrink-0 text-red-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
             <span>
               <strong>{rejectedCount} listing{rejectedCount > 1 ? 's' : ''}</strong> require your attention — edit and resubmit to re-enter the review queue.
             </span>

@@ -94,57 +94,16 @@ const getListings = async (req, res) => {
 // Create Listing
 const createListing = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      category,
-      location,
-      images,
-      price,
-      duration,
-      difficulty,
-      maxGroupSize,
-      includes,
-      exclusions,
-      cancellationPolicy,
-      availableDates,
-      safetyChecklist,
-      medicalAdvisories,
-      emergencyInfo
-    } = req.body;
-
     const experience = await Experience.create({
-      title,
-      description,
-      category,
-      location,
-      socialLinks:       socialLinks || {},
-      coverImage:        coverImage  || '',
-      adventureImages:   adventureImages || [],
-      video:             video || '',
-      images:            images || [],
-      price,
-      duration,
-      difficulty:        difficulty || 'Moderate',
-      minGroupSize:      minGroupSize || 1,
-      maxGroupSize:      maxGroupSize || 12,
-      bookingDeadline:   bookingDeadline || undefined,
-      ageRestriction:    ageRestriction || '',
-      medicalRestrictions: medicalRestrictions || '',
-      safetyInfo:        safetyInfo || {},
-      requirements:      requirements || [],
-      includes:          includes || [],
-      exclusions:        exclusions || [],
-      cancellationPolicy,
-      availableDates: availableDates || [],
-      safetyChecklist: safetyChecklist || [],
-      medicalAdvisories: medicalAdvisories || [],
-      emergencyInfo: emergencyInfo || { contact: '', nearestFacility: '' },
-      host: req.user._id,
-      hostName: req.user.name,
+      ...req.body,
+      host:         req.user._id,
+      hostName:     req.user.name,
       hostVerified: req.user.kyc === 'approved',
-      status: 'pending',
-      submittedAt: new Date(),
+      status:       'pending',
+      submittedAt:  new Date(),
+      // clear any operator-supplied approval fields
+      approvedAt:      undefined,
+      rejectionReason: '',
     });
 
     // Notify all admin users
@@ -185,11 +144,16 @@ const editListing = async (req, res) => {
       updates.submittedAt = new Date();
       updates.rejectionReason = '';
       becamePending = true;
-    } else if (exp.status === 'live' && (updates.title || updates.price || updates.description)) {
-      // Critical field changes on a live listing require re-approval
-      updates.status = 'pending';
-      updates.submittedAt = new Date();
-      becamePending = true;
+    } else if (exp.status === 'live') {
+      // Only send back to pending if critical fields actually changed
+      const titleChanged = updates.title !== undefined && updates.title !== exp.title;
+      const priceChanged = updates.price !== undefined && Number(updates.price) !== exp.price;
+      const descChanged  = updates.description !== undefined && updates.description !== exp.description;
+      if (titleChanged || priceChanged || descChanged) {
+        updates.status = 'pending';
+        updates.submittedAt = new Date();
+        becamePending = true;
+      }
     }
 
     const experience = await Experience.findByIdAndUpdate(

@@ -59,7 +59,13 @@ export default function ForgotPassword() {
 
             {sent ? (
               <div className="text-center">
-                <div className="text-5xl mb-4">✉️</div>
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-[#1A5F45]/10 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-[#1A5F45]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>
+                    </svg>
+                  </div>
+                </div>
                 <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Check your inbox</h2>
                 <p className="text-sm text-gray-500 mb-6">
                   We sent a password reset link to <strong className="text-gray-700">{email}</strong>.
@@ -79,7 +85,9 @@ export default function ForgotPassword() {
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">✉</span>
+                      <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>
+                      </svg>
                       <input
                         id="forgot-email"
                         type="email"

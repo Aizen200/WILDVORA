@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { experienceAPI, aiAPI } from '../services/api';
+import { experienceAPI } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -133,78 +133,6 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // AI Chatbot States
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      role: 'assistant',
-      text: 'Hi! I am your Wildvora AI assistant. Tell me about your dream adventure and I will recommend the perfect itinerary!',
-      experiences: []
-    }
-  ]);
-  const [aiInput, setAiInput]       = useState('');
-  const [aiLoading, setAiLoading]   = useState(false);
-  const [aiExpanded, setAiExpanded] = useState(true);
-  const [aiError, setAiError]       = useState('');
-
-  const handleSendAIMessage = async () => {
-    if (!aiInput.trim()) return;
-
-    const userMsg = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: aiInput,
-    };
-
-    // Optimistically add the user's message
-    setMessages((prev) => [...prev, userMsg]);
-    const inputToSend = aiInput;
-    setAiInput('');
-    setAiLoading(true);
-    setAiError('');
-
-    const conversationHistory = [...messages, userMsg].map((m) => ({
-      role: m.role,
-      content: m.text,
-    }));
-
-    try {
-      const res = await aiAPI.getTripPlan({ messages: conversationHistory });
-      if (res.data && res.data.success) {
-        const { text, recommendedExperienceIds } = res.data.tripPlan;
-
-        // Resolve details for recommended experiences
-        let resolvedExperiences = [];
-        if (Array.isArray(recommendedExperienceIds) && recommendedExperienceIds.length > 0) {
-          const promises = recommendedExperienceIds.map(async (id) => {
-            try {
-              const expRes = await experienceAPI.getOne(id);
-              return expRes.data.experience;
-            } catch {
-              return null;
-            }
-          });
-          const results = await Promise.all(promises);
-          resolvedExperiences = results.filter(Boolean);
-        }
-
-        const assistantMsg = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          text,
-          experiences: resolvedExperiences,
-        };
-
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        setAiError('Failed to get a response from AI');
-      }
-    } catch (err) {
-      setAiError(err.response?.data?.message || err.message || 'Failed to connect to AI server');
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -316,130 +244,6 @@ export default function HomeScreen({ navigation }) {
             );
           })}
         </ScrollView>
-        {/* AI Trip Recommendation Chatbot */}
-        <View style={s.aiSection}>
-          <TouchableOpacity 
-            style={s.aiHeaderRow} 
-            onPress={() => setAiExpanded(!aiExpanded)}
-            activeOpacity={0.8}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <MaterialCommunityIcons name="robot" size={20} color={C.primary} />
-              <Text style={s.aiSectionTitle}>AI Trip Recommendation</Text>
-            </View>
-            <MaterialCommunityIcons 
-              name={aiExpanded ? 'chevron-up' : 'chevron-down'} 
-              size={22} 
-              color={C.onSurfaceVariant} 
-            />
-          </TouchableOpacity>
-
-          {aiExpanded && (
-            <View style={s.aiContent}>
-              {/* Messages History */}
-              <ScrollView 
-                style={s.chatScroll}
-                contentContainerStyle={s.chatContent}
-                nestedScrollEnabled={true}
-              >
-                {messages.map((msg) => {
-                  const isUser = msg.role === 'user';
-                  return (
-                    <View key={msg.id} style={[s.msgWrapper, isUser ? s.msgUserWrapper : s.msgAssistantWrapper]}>
-                      {!isUser && (
-                        <View style={s.chatAvatar}>
-                          <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
-                        </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <View style={[s.msgBubble, isUser ? s.msgBubbleUser : s.msgBubbleAssistant]}>
-                          <Text style={[s.msgText, isUser ? s.msgTextUser : s.msgTextAssistant]}>
-                            {msg.text}
-                          </Text>
-                        </View>
-                        
-                        {/* Recommended Experience Cards */}
-                        {msg.experiences && msg.experiences.length > 0 && (
-                          <ScrollView 
-                            horizontal 
-                            showsHorizontalScrollIndicator={false}
-                            style={s.chatExpScroll}
-                            contentContainerStyle={s.chatExpContainer}
-                            nestedScrollEnabled={true}
-                          >
-                            {msg.experiences.map((exp, idx) => (
-                              <TouchableOpacity 
-                                key={exp._id || idx} 
-                                style={s.chatExpCard}
-                                onPress={() => navigation.navigate('ExperienceDetail', { experienceId: exp._id })}
-                                activeOpacity={0.9}
-                              >
-                                <Image 
-                                  source={{ uri: exp.images?.[0] || CARD_IMAGES[idx % CARD_IMAGES.length] }} 
-                                  style={s.chatExpImg} 
-                                />
-                                <View style={s.chatExpBody}>
-                                  <Text style={s.chatExpTitle} numberOfLines={1}>{exp.title}</Text>
-                                  <Text style={s.chatExpLoc} numberOfLines={1}>{exp.location?.city}, {exp.location?.country}</Text>
-                                  <View style={s.chatExpFooter}>
-                                    <Text style={s.chatExpPrice}>₹{exp.price}</Text>
-                                    <Text style={s.chatExpBook}>BOOK NOW</Text>
-                                  </View>
-                                </View>
-                              </TouchableOpacity>
-                            ))}
-                          </ScrollView>
-                        )}
-                      </View>
-                    </View>
-                  );
-                })}
-
-                {aiLoading && (
-                  <View style={[s.msgWrapper, s.msgAssistantWrapper]}>
-                    <View style={s.chatAvatar}>
-                      <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
-                    </View>
-                    <View style={[s.msgBubble, s.msgBubbleAssistant, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-                      <ActivityIndicator size="small" color={C.primary} />
-                      <Text style={[s.msgText, s.msgTextAssistant, { fontStyle: 'italic' }]}>
-                        AI is planning...
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {aiError ? (
-                  <View style={s.chatErrorWrap}>
-                    <Text style={s.aiErrorText}>{aiError}</Text>
-                  </View>
-                ) : null}
-              </ScrollView>
-
-              {/* Input Box */}
-              <View style={s.chatInputRow}>
-                <TextInput
-                  style={s.chatInput}
-                  placeholder="Ask about trekking, camping, budgets..."
-                  placeholderTextColor={C.onSurfaceVariant + '80'}
-                  value={aiInput}
-                  onChangeText={setAiInput}
-                  onSubmitEditing={handleSendAIMessage}
-                  returnKeyType="send"
-                  editable={!aiLoading}
-                />
-                <TouchableOpacity 
-                  style={[s.chatSendBtn, !aiInput.trim() || aiLoading ? s.chatSendBtnDisabled : null]} 
-                  onPress={handleSendAIMessage}
-                  disabled={!aiInput.trim() || aiLoading}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons name="send" size={18} color={C.white} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
 
         {/* Empty state — no approved adventures yet */}
         {featured.length === 0 && allExperiences.length === 0 && (
@@ -502,39 +306,42 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Trending + Pro */}
+        {/* Experiences — filtered by active category */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Trending This Week</Text>
-          <View style={s.trendGrid}>
-            <View style={s.trendList}>
-              {(filteredAll.length > 0 ? filteredAll : allExperiences).slice(0, 4).map((item, i) => (
-                <TrendingItem key={item._id} item={item} index={i} onPress={goToExperience} />
-              ))}
-              {filteredAll.length === 0 && allExperiences.length === 0 && (
-                <View style={s.emptyBox}>
-                  <Text style={s.emptyText}>No experiences yet. Pull to refresh.</Text>
-                </View>
-              )}
+          <View style={s.sectionHdr}>
+            <View>
+              <Text style={s.sectionTitle}>
+                {category === 'All Destinations' ? 'All Experiences' : category}
+              </Text>
+              <Text style={s.sectionSub}>
+                {category === 'All Destinations'
+                  ? 'Every approved adventure on Wildvora'
+                  : `Live ${category.toLowerCase()} experiences`}
+              </Text>
             </View>
+            {category !== 'All Destinations' && (
+              <TouchableOpacity onPress={() => setCategory('All Destinations')}>
+                <Text style={s.clearFilter}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
+          {filteredAll.length > 0 ? (
+            <View style={s.trendList}>
+              {filteredAll.map((item, i) => (
+                <TrendingItem key={'cat-' + item._id} item={item} index={i} onPress={goToExperience} />
+              ))}
+            </View>
+          ) : (
+            <View style={s.emptyBox}>
+              <MaterialCommunityIcons name="compass-off-outline" size={32} color={C.outlineVariant} />
+              <Text style={s.emptyText}>
+                {allExperiences.length === 0
+                  ? 'No experiences yet. Pull to refresh.'
+                  : `No ${category.toLowerCase()} experiences available yet.`}
+              </Text>
+            </View>
+          )}
         </View>
-
-        {/* All Experiences */}
-        {allExperiences.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHdr}>
-              <View>
-                <Text style={s.sectionTitle}>All Experiences</Text>
-                <Text style={s.sectionSub}>Every approved adventure on Wildvora</Text>
-              </View>
-            </View>
-            <View style={s.trendList}>
-              {allExperiences.map((item, i) => (
-                <TrendingItem key={'all-' + item._id} item={item} index={i} onPress={goToExperience} />
-              ))}
-            </View>
-          </View>
-        )}
 
         {/* Safety & Prep Guides */}
         <View style={s.section}>
@@ -570,8 +377,17 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
         </View>
 
-        <View style={{ height: 28 }} />
+        <View style={{ height: 96 }} />
       </ScrollView>
+
+      {/* Floating AI chat bubble */}
+      <TouchableOpacity
+        style={s.aiFab}
+        onPress={() => navigation.navigate('AIChat')}
+        activeOpacity={0.88}
+      >
+        <MaterialCommunityIcons name="robot" size={24} color={C.white} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -651,8 +467,27 @@ const s = StyleSheet.create({
   proBtn:      { width: '100%', paddingVertical: 14, backgroundColor: C.primary, borderRadius: 50, alignItems: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
   proBtnText:  { color: C.white, fontWeight: '700', fontSize: 15 },
 
-  emptyBox:  { padding: 24, backgroundColor: C.surfaceContainerLow, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  emptyText: { color: C.onSurfaceVariant, fontSize: 14 },
+  emptyBox:  { padding: 24, backgroundColor: C.surfaceContainerLow, borderRadius: 12, alignItems: 'center', marginTop: 8, gap: 8 },
+  emptyText: { color: C.onSurfaceVariant, fontSize: 14, textAlign: 'center' },
+
+  clearFilter: { fontSize: 13, fontWeight: '700', color: C.primary },
+
+  aiFab: {
+    position: 'absolute',
+    bottom: 22,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+  },
 
   noAdventuresBox: {
     margin: 20, marginTop: 8, padding: 32,
@@ -681,188 +516,4 @@ const s = StyleSheet.create({
   safetyTitle:  { fontSize: 12, fontWeight: '700', color: C.onSurface, lineHeight: 16 },
   safetyDesc:   { fontSize: 10, color: C.onSurfaceVariant, marginTop: 2 },
 
-  /* AI Trip Recommendation Chatbot Styles */
-  aiSection: {
-    margin: 20,
-    marginBottom: 8,
-    backgroundColor: C.white,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: C.outlineVariant + '60',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  aiHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  aiSectionTitle: {
-    fontSize: 16,
-    fontWeight: '750',
-    color: C.primary,
-  },
-  aiContent: {
-    marginTop: 12,
-  },
-  chatScroll: {
-    maxHeight: 320,
-    minHeight: 180,
-    backgroundColor: C.background,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: C.outlineVariant + '30',
-    padding: 10,
-    marginBottom: 10,
-  },
-  chatContent: {
-    paddingBottom: 10,
-    gap: 12,
-  },
-  msgWrapper: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
-    maxWidth: '85%',
-    marginBottom: 6,
-  },
-  msgUserWrapper: {
-    alignSelf: 'flex-end',
-    justifyContent: 'flex-end',
-  },
-  msgAssistantWrapper: {
-    alignSelf: 'flex-start',
-    justifyContent: 'flex-start',
-  },
-  chatAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.primary + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  msgBubble: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 16,
-  },
-  msgBubbleUser: {
-    backgroundColor: C.primary,
-    borderTopRightRadius: 2,
-  },
-  msgBubbleAssistant: {
-    backgroundColor: C.surfaceContainer,
-    borderTopLeftRadius: 2,
-  },
-  msgText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  msgTextUser: {
-    color: C.white,
-  },
-  msgTextAssistant: {
-    color: C.onSurface,
-  },
-  chatErrorWrap: {
-    padding: 8,
-    backgroundColor: '#feebee',
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  aiErrorText: {
-    color: C.tertiary,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  chatInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  chatInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: C.background,
-    borderWidth: 1,
-    borderColor: C.outlineVariant + '80',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    fontSize: 13,
-    color: C.onSurface,
-  },
-  chatSendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chatSendBtnDisabled: {
-    backgroundColor: C.outlineVariant,
-  },
-  chatExpScroll: {
-    marginTop: 10,
-    width: '100%',
-  },
-  chatExpContainer: {
-    gap: 10,
-    paddingRight: 10,
-  },
-  chatExpCard: {
-    width: 180,
-    backgroundColor: C.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.outlineVariant + '45',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  chatExpImg: {
-    width: '100%',
-    height: 85,
-  },
-  chatExpBody: {
-    padding: 8,
-  },
-  chatExpTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  chatExpLoc: {
-    fontSize: 10,
-    color: C.onSurfaceVariant,
-    marginTop: 2,
-  },
-  chatExpFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: C.outlineVariant + '20',
-    paddingTop: 6,
-  },
-  chatExpPrice: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: C.primary,
-  },
-  chatExpBook: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: C.secondary,
-  },
 });

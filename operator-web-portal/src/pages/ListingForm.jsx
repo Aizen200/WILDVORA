@@ -65,7 +65,7 @@ function UploadPlaceholder({ onClick, disabled, icon, title, subtitle }) {
       type="button" onClick={onClick} disabled={disabled}
       className={`w-full border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 py-8 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
     >
-      <span className="text-2xl">{icon}</span>
+      <span>{icon}</span>
       <span className="text-sm font-semibold text-gray-500">{title}</span>
       <span className="text-xs text-gray-400">{subtitle}</span>
     </button>
@@ -369,7 +369,9 @@ export default function ListingForm() {
         {/* Banners */}
         {!isEdit && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-[#1A5F45]/8 border border-[#1A5F45]/20 rounded-xl text-sm text-[#1A5F45]">
-            <span className="text-lg leading-none">ℹ️</span>
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
             <p>
               New listings are submitted for <strong>admin review</strong>. Once approved they become visible to customers in the app.
               You&apos;ll see the review status in your{' '}
@@ -379,13 +381,17 @@ export default function ListingForm() {
         )}
         {isPending && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-800">
-            <span className="text-lg leading-none">⏳</span>
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-yellow-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
             <p>This listing is <strong>awaiting admin review</strong>. You cannot edit it until the review is complete.</p>
           </div>
         )}
         {isRejected && rejectionReason && (
           <div className="mb-5 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200 rounded-xl">
-            <span className="text-lg leading-none mt-0.5">⚠️</span>
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
             <div>
               <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Admin Feedback — Action Required</p>
               <p className="text-sm text-red-800">{rejectionReason}</p>
@@ -662,7 +668,7 @@ export default function ListingForm() {
                 ) : (
                   <UploadPlaceholder
                     onClick={() => coverRef.current?.click()} disabled={isPending}
-                    icon="📷" title="Click to upload cover image" subtitle="JPG, PNG, WEBP · Max 10 MB"
+                    icon={<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>} title="Click to upload cover image" subtitle="JPG, PNG, WEBP · Max 10 MB"
                   />
                 )}
                 <input ref={coverRef} type="file" accept="image/*" className="hidden"
@@ -703,7 +709,9 @@ export default function ListingForm() {
                 )}
                 <button type="button" onClick={() => advRef.current?.click()} disabled={isPending}
                   className={`w-full py-3 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition text-sm font-semibold text-gray-500 ${dis}`}>
-                  <span>🖼</span>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                  </svg>
                   {adventureImages.length > 0 ? 'Add More Photos' : 'Upload Adventure Photos'}
                 </button>
                 <input ref={advRef} type="file" accept="image/*" multiple className="hidden"
@@ -736,7 +744,10 @@ export default function ListingForm() {
                 ) : (
                   <button type="button" onClick={() => videoRef.current?.click()} disabled={isPending}
                     className={`w-full py-3 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center gap-2 hover:border-[#1A5F45] hover:bg-[#1A5F45]/4 transition text-sm font-semibold text-gray-500 ${dis}`}>
-                    <span>🎥</span> Upload Video
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                    Upload Video
                   </button>
                 )}
                 <input ref={videoRef} type="file" accept="video/*" className="hidden"
