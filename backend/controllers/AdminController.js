@@ -81,6 +81,8 @@ const approveListing = async (req, res) => {
     if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
 
     experience.status = 'live';
+    experience.approvedAt = new Date();
+    experience.rejectionReason = '';
     await experience.save();
 
     res.json({ success: true, message: 'Experience listing approved and is now live', experience });
@@ -93,16 +95,19 @@ const approveListing = async (req, res) => {
 // Reject Experience / Request Changes
 const rejectListing = async (req, res) => {
   try {
-    const { status, reason } = req.body; // status can be 'rejected' or 'changes_requested'
+    const { status = 'rejected', reason } = req.body;
     if (!['rejected', 'changes_requested'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid reject status' });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'A rejection reason is required' });
     }
 
     const experience = await Experience.findById(req.params.id);
     if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
 
     experience.status = status;
-    experience.rejectionReason = reason || '';
+    experience.rejectionReason = reason.trim();
     await experience.save();
 
     res.json({ success: true, message: `Listing status updated to ${status}`, experience });

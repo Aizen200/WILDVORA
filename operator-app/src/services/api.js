@@ -29,4 +29,19 @@ export const authAPI = {
   me:       ()     => api.get('/auth/me'),
 };
 
+// Operator API endpoints
+export const operatorAPI = {
+  getStats:         ()         => api.get('/operator/stats'),
+  getListings:      ()         => api.get('/operator/listings'),
+  createListing:    (data)     => api.post('/operator/listings', data),
+  editListing:      (id, data) => api.patch(`/operator/listings/${id}`, data),
+  resubmitListing:  (id)       => api.patch(`/operator/listings/${id}/resubmit`),
+  deleteListing:    (id)       => api.delete(`/operator/listings/${id}`),
+  getBookings:      (params)   => api.get('/operator/bookings', { params }),
+  updateBooking:    (id, data) => api.patch(`/operator/bookings/${id}/status`, data),
+  getPayouts:       ()         => api.get('/operator/payouts'),
+  getReviews:       ()         => api.get('/operator/reviews'),
+  respondToReview:  (id, data) => api.patch(`/operator/reviews/${id}/reply`, data),
+};
+
 export default api;
