@@ -315,7 +315,7 @@ export default function FilterScreen({ navigation }) {
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <View style={s.emptyBox}>
-                  <MaterialCommunityIcons name="mountain" size={40} color="#bec9c1" style={{ marginBottom: 12 }} />
+                  <MaterialCommunityIcons name="image-filter-hdr" size={40} color="#bec9c1" style={{ marginBottom: 12 }} />
                   <Text style={s.emptyText}>No experiences match your filters.</Text>
                   <TouchableOpacity onPress={handleReset}>
                     <Text style={s.emptyLink}>Reset all filters</Text>

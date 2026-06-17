@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image
 } from 'react-native';
+import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -104,7 +105,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <TextInput style={styles.inputFull} placeholder="••••••••" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+              <TextInput style={styles.inputFull} placeholder="••••••••" placeholderTextColor="#888" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} textContentType="oneTimeCode" />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 <Feather name={showPassword ? "eye-off" : "eye"} size={20} color="#888" />
               </TouchableOpacity>
@@ -113,7 +114,7 @@ export default function RegisterScreen({ navigation }) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirm Password</Text>
-            <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor="#888" value={confirm} onChangeText={setConfirm} secureTextEntry={!showPassword} />
+            <TextInput style={styles.input} placeholder="••••••••" placeholderTextColor="#888" value={confirm} onChangeText={setConfirm} secureTextEntry={!showPassword} textContentType="oneTimeCode" />
           </View>
 
           <TouchableOpacity style={styles.checkboxRow} onPress={() => setAgreed(!agreed)} activeOpacity={0.8}>

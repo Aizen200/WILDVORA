@@ -277,6 +277,48 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Hero */}
+        <ImageBackground source={{ uri: HERO_URI }} style={s.hero} resizeMode="cover">
+          <View style={s.heroOverlay} />
+          <View style={s.heroContent}>
+            <Text style={s.heroTitle}>Find your next{'\n'}adventure</Text>
+            <View style={s.searchBox}>
+              <MaterialCommunityIcons name="magnify" size={20} color={C.primary} style={{ marginRight: 6 }} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Where do you want to go?"
+                placeholderTextColor="#9aafa5"
+                value={search}
+                onChangeText={setSearch}
+                onSubmitEditing={handleSearch}
+                returnKeyType="search"
+              />
+              <TouchableOpacity style={s.exploreBtn} onPress={handleSearch}>
+                <Text style={s.exploreBtnText}>Explore</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ImageBackground>
+
+        {/* Category chips */}
+        <ScrollView
+          horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chips} style={s.chipsWrap}
+        >
+          {CATEGORIES.map((cat) => {
+            const active = category === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[s.chip, active ? s.chipActive : s.chipInactive]}
+                onPress={() => setCategory(cat)}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.chipText, active ? s.chipTextActive : s.chipTextInactive]}>{cat}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
         {/* AI Trip Recommendation Chatbot */}
         <View style={s.aiSection}>
           <TouchableOpacity 
@@ -401,49 +443,6 @@ export default function HomeScreen({ navigation }) {
             </View>
           )}
         </View>
-
-        {/* Hero */}
-        <ImageBackground source={{ uri: HERO_URI }} style={s.hero} resizeMode="cover">
-          <View style={s.heroOverlay} />
-          <View style={s.heroContent}>
-            <Text style={s.heroTitle}>Find your next{'\n'}adventure</Text>
-            <View style={s.searchBox}>
-              <MaterialCommunityIcons name="magnify" size={20} color={C.primary} style={{ marginRight: 6 }} />
-              <TextInput
-                style={s.searchInput}
-                placeholder="Where do you want to go?"
-                placeholderTextColor="#9aafa5"
-                value={search}
-                onChangeText={setSearch}
-                onSubmitEditing={handleSearch}
-                returnKeyType="search"
-              />
-              <TouchableOpacity style={s.exploreBtn} onPress={handleSearch}>
-                <Text style={s.exploreBtnText}>Explore</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ImageBackground>
-
-        {/* Category chips */}
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.chips} style={s.chipsWrap}
-        >
-          {CATEGORIES.map((cat) => {
-            const active = category === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[s.chip, active ? s.chipActive : s.chipInactive]}
-                onPress={() => setCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.chipText, active ? s.chipTextActive : s.chipTextInactive]}>{cat}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
 
         {/* Featured */}
         {featured.length > 0 && (
