@@ -42,6 +42,34 @@ export default function Bookings() {
   const [page,      setPage]      = useState(1);
   const PER_PAGE = 10;
 
+  const handleExportBookings = () => {
+    if (bookings.length === 0) {
+      alert('No bookings to export.');
+      return;
+    }
+    let csvContent = "data:text/csv;charset=utf-8,Customer Name,Email,Booking ID,Experience,Start Date,Amount,Status\n";
+    bookings.forEach(b => {
+      const name = b.user?.name || '';
+      const email = b.user?.email || '';
+      const bookingId = `WV-${b._id?.slice(-4).toUpperCase() || ''}`;
+      const experience = b.experience?.title || '';
+      const date = b.startDate ? new Date(b.startDate).toLocaleDateString('en-US') : '';
+      const amount = `₹${b.totalPrice || 0}`;
+      const status = b.status || '';
+      const row = [name, email, bookingId, experience, date, amount, status]
+        .map(field => `"${String(field).replace(/"/g, '""')}"`)
+        .join(',');
+      csvContent += row + "\n";
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "wildvora_bookings_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const fetchBookings = async (statusFilter) => {
     setLoading(true);
     try {
@@ -101,7 +129,7 @@ export default function Bookings() {
                 <span>Oct 12 - Oct 28, 2023</span>
               </div>
               <button
-                onClick={() => alert('Exporting bookings...')}
+                onClick={handleExportBookings}
                 className="flex items-center gap-2 bg-[#1A5F45] hover:bg-[#145038] text-white font-semibold rounded-xl px-4 py-2.5 text-sm shadow-sm transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">

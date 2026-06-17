@@ -39,13 +39,22 @@ export default function BookingScreen({ route, navigation }) {
 
   const _today = new Date();
   const _monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const _currentMonthLabel = `${_monthNames[_today.getMonth()]} ${_today.getFullYear()}`;
-  const _firstDayOfMonth = new Date(_today.getFullYear(), _today.getMonth(), 1).getDay();
-  const _daysInPrevMonth = new Date(_today.getFullYear(), _today.getMonth(), 0).getDate();
-  const _daysInCurrentMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate();
   const _todayDay = _today.getDate();
+
+  // Declaring missing state variables to prevent ReferenceErrors and white screens
+  const [currentMonth, setCurrentMonth] = useState(_today.getMonth());
+  const [currentYear, setCurrentYear] = useState(_today.getFullYear());
+  const [checkInDate, setCheckInDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), _todayDay));
+  const [checkOutDate, setCheckOutDate] = useState(new Date(_today.getFullYear(), _today.getMonth(), Math.min(_todayDay + 4, new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate())));
+
   const [checkInDay, setCheckInDay] = useState(_todayDay);
-  const [checkOutDay, setCheckOutDay] = useState(Math.min(_todayDay + 4, _daysInCurrentMonth));
+  const [checkOutDay, setCheckOutDay] = useState(Math.min(_todayDay + 4, new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate()));
+
+  const _firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const _daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+  const _daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+  const _currentMonthLabel = `${_monthNames[currentMonth]} ${currentYear}`;
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -82,8 +91,7 @@ export default function BookingScreen({ route, navigation }) {
   const taxes = Math.round(subtotal * 0.022184 * 100) / 100;
   const grandTotal = basePrice + equipmentRental + serviceFee + taxes;
 
-  const _formatDay = (day) => `${_monthNames[_today.getMonth()]} ${day}`;
-  const _dateRangeText = `${_formatDay(checkInDay)} - ${_formatDay(checkOutDay)}, ${_today.getFullYear()}`;
+
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -157,7 +165,7 @@ export default function BookingScreen({ route, navigation }) {
   };
 
   // Calendar Day Component
-  const renderCalendarDay = (date) => {
+  const renderCalendarDay = (date, isPast = false) => {
     if (!date) {
       return <View style={styles.calendarDayEmpty} key={`empty-${Math.random()}`} />;
     }
@@ -210,13 +218,10 @@ export default function BookingScreen({ route, navigation }) {
       <TouchableOpacity
         key={date.toISOString()}
         style={styles.calendarDayNormal}
-        onPress={() => {
-          setCheckInDay(day);
-          setCheckOutDay(Math.min(day + 4, _daysInCurrentMonth));
-        }}
+        onPress={() => handleDayPress(date)}
         activeOpacity={0.7}
       >
-        <Text style={styles.calendarDayTextNormal}>
+        <Text style={[styles.calendarDayTextNormal, isPast && styles.calendarDayTextPast]}>
           {dayNum}
         </Text>
       </TouchableOpacity>
@@ -314,12 +319,14 @@ export default function BookingScreen({ route, navigation }) {
               </View>
               {/* Days Grid */}
               <View style={styles.daysGrid}>
-                {Array.from({ length: _firstDayOfMonth }, (_, i) => _daysInPrevMonth - _firstDayOfMonth + 1 + i).map(day =>
-                  React.cloneElement(renderCalendarDay(day, 'past'), { key: `prev-${day}` })
-                )}
-                {Array.from({ length: Math.min(_daysInCurrentMonth, Math.max(checkOutDay + 5, 14)) }, (_, i) => i + 1).map(day =>
-                  React.cloneElement(renderCalendarDay(day), { key: `curr-${day}` })
-                )}
+                {Array.from({ length: _firstDayOfMonth }, (_, i) => _daysInPrevMonth - _firstDayOfMonth + 1 + i).map(day => {
+                  const date = new Date(currentYear, currentMonth - 1, day);
+                  return renderCalendarDay(date, true);
+                })}
+                {Array.from({ length: Math.min(_daysInCurrentMonth, Math.max(checkOutDay + 5, 14)) }, (_, i) => i + 1).map(day => {
+                  const date = new Date(currentYear, currentMonth, day);
+                  return renderCalendarDay(date, false);
+                })}
               </View>
             </View>
           </View>
@@ -498,7 +505,7 @@ export default function BookingScreen({ route, navigation }) {
               <View style={styles.summaryMetaRow}>
                 <View style={styles.summaryMetaCol}>
                   <Text style={styles.summaryMetaLabel}>DATE</Text>
-                  <Text style={styles.summaryMetaVal}>{_dateRangeText}</Text>
+                  <Text style={styles.summaryMetaVal}>{formatDateRange()}</Text>
                 </View>
                 <View style={styles.summaryMetaColRight}>
                   <Text style={styles.summaryMetaLabel}>GUESTS</Text>
@@ -589,7 +596,7 @@ export default function BookingScreen({ route, navigation }) {
           <View style={styles.doneDetailCard}>
             <View style={styles.doneDetailRow}>
               <Ionicons name="calendar-outline" size={18} color="#11694b" />
-              <Text style={styles.doneDetailText}>{_dateRangeText}</Text>
+              <Text style={styles.doneDetailText}>{formatDateRange()}</Text>
             </View>
             <View style={styles.doneDetailRow}>
               <Ionicons name="people-outline" size={18} color="#1A5F45" />

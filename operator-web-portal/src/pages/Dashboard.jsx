@@ -46,6 +46,17 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState([]);
   const [loading,  setLoading]  = useState(true);
 
+  const handleExportDashboard = () => {
+    const csvContent = "data:text/csv;charset=utf-8,Month,Revenue,Bookings,Listings,Occupancy\nMay,₹14000,10,3,78%\nJun,₹22000,15,4,82%\nJul,₹18000,12,4,75%\nAug,₹28000,20,4,88%\nSep,₹26000,18,4,84%\nOct,₹36000,24,5,92%\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "wildvora_dashboard_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     Promise.all([
       hostAPI.getStats(),
@@ -231,7 +242,7 @@ export default function Dashboard() {
               {[
                 { label: 'Create Listing',  sub: 'Add a new wild experience',    action: () => navigate('/listings/new') },
                 { label: 'View Schedule',   sub: 'Manage guide assignments',     action: () => navigate('/bookings') },
-                { label: 'Export Report',   sub: 'CSV, PDF for this month',      action: () => {} },
+                { label: 'Export Report',   sub: 'CSV, PDF for this month',      action: handleExportDashboard },
               ].map(({ label, sub, action }) => (
                 <button key={label} onClick={action}
                   className="w-full flex items-center gap-3 bg-white/10 hover:bg-white/20 rounded-xl p-3 text-left transition">

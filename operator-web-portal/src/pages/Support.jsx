@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 export default function Support() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaq, setOpenFaq] = useState(null);
+  const [showChat, setShowChat] = useState(false);
 
   // Load Google Fonts Material Symbols dynamically
   useEffect(() => {
@@ -105,15 +106,15 @@ export default function Support() {
               <h2 className="text-2xl font-bold mb-2">Need expert help?</h2>
               <p className="text-xs opacity-90 mb-6 leading-relaxed">Our dedicated support team is available 24/7 to assist with your outdoor operations.</p>
               <div className="space-y-3 relative z-10">
-                <button className="w-full py-3 bg-white text-primary rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#a3f3cd]/30 transition-colors shadow-sm">
+                <button onClick={() => setShowChat(true)} className="w-full py-3 bg-white text-primary rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[#a3f3cd]/30 transition-colors shadow-sm cursor-pointer">
                   <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
                   Live Chat
                 </button>
-                <button className="w-full py-3 border border-white/40 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
+                <a href="mailto:support@wildvora.com" className="w-full py-3 border border-white/40 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-colors no-underline hover:no-underline">
                   <span className="material-symbols-outlined text-[18px]">mail</span>
                   Email Us
-                </button>
-                <button className="w-full py-3 border border-white/40 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-colors">
+                </a>
+                <button onClick={() => alert('Call scheduling system is offline. Please email support@wildvora.com.')} className="w-full py-3 border border-white/40 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-colors cursor-pointer">
                   <span className="material-symbols-outlined text-[18px]">call</span>
                   Schedule a Call
                 </button>
@@ -182,11 +183,33 @@ export default function Support() {
           <div className="relative z-10 max-w-lg space-y-4 text-white">
             <h3 className="text-2xl font-bold leading-tight">Join the Wildvora Operator Community</h3>
             <p className="text-sm opacity-80 leading-relaxed">Connect with over 2,000 professional guides, share best practices, and get exclusive industry insights.</p>
-            <button className="px-5 py-3 bg-primary text-white font-semibold text-sm rounded-xl hover:bg-primary-dark transition-all shadow-md">
+            <button onClick={() => window.open('https://slack.com', '_blank')} className="px-5 py-3 bg-primary text-white font-semibold text-sm rounded-xl hover:bg-primary-dark transition-all shadow-md cursor-pointer">
               Join Slack Workspace
             </button>
           </div>
         </section>
+
+        {/* Live Chat Modal Popup */}
+        {showChat && (
+          <div className="fixed bottom-6 right-6 w-80 bg-white rounded-2xl shadow-2xl border border-gray-150 overflow-hidden z-50 flex flex-col">
+            <div className="bg-[#1A5F45] text-white p-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-450 rounded-full bg-emerald-400" />
+                <span className="font-bold text-sm">Wildvora Support Agent</span>
+              </div>
+              <button onClick={() => setShowChat(false)} className="text-white hover:text-gray-200 transition text-sm font-bold">✕</button>
+            </div>
+            <div className="p-4 h-48 overflow-y-auto space-y-3 bg-gray-50 flex flex-col justify-end text-xs font-semibold">
+              <div className="bg-white border border-gray-100 rounded-xl p-3 text-gray-700 max-w-[85%] self-start leading-relaxed shadow-sm">
+                Hello! Thanks for reaching out to Wildvora support. How can we help you manage your adventure listings or payouts today?
+              </div>
+            </div>
+            <div className="p-3 border-t border-gray-100 bg-white flex gap-2">
+              <input type="text" placeholder="Type a message..." className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-[#1A5F45]" />
+              <button onClick={() => alert('Demo mode: Messages cannot be sent.')} className="bg-[#1A5F45] text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-[#145038] transition">Send</button>
+            </div>
+          </div>
+        )}
 
       </div>
     </Layout>
