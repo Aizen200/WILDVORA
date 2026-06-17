@@ -33,7 +33,6 @@ export const authAPI = {
 export const experienceAPI = {
   getAll: (params) => api.get('/experiences', { params }),
   getOne: (id)     => api.get(`/experiences/${id}`),
-  seed:   ()       => api.post('/experiences/seed/demo'),
 };
 
 // ─── Bookings ────────────────────────────────────────────────

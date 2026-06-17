@@ -124,18 +124,12 @@ export default function ProfileScreen({ navigation }) {
 
   const displayUser = profile || user;
 
-  const demoReviews = [
-    { title: 'Alpine Ridge Trail', rating: 5, text: 'The ascent was challenging but the sunrise views from the ridge were absolutely world-class...', img: REVIEW_IMAGES[0] },
-    { title: 'Mistwood Sanctuary', rating: 4, text: 'Perfect for a weekend escape. Very quiet and the trails are well-marked...', img: REVIEW_IMAGES[1] },
-  ];
-  const displayReviews = reviews.length > 0
-    ? reviews.slice(0, 2).map((r, i) => ({
-        title: r.experience?.title || 'Experience',
-        rating: r.rating,
-        text: r.comment,
-        img: REVIEW_IMAGES[i % REVIEW_IMAGES.length],
-      }))
-    : demoReviews;
+  const displayReviews = reviews.slice(0, 2).map((r, i) => ({
+    title: r.experience?.title || 'Experience',
+    rating: r.rating,
+    text: r.comment,
+    img: REVIEW_IMAGES[i % REVIEW_IMAGES.length],
+  }));
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -247,18 +241,24 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={s.reviewsViewAll}>View All</Text>
               </TouchableOpacity>
             </View>
-            {displayReviews.map((r, i) => (
-              <View key={i} style={s.reviewItem}>
-                <View style={s.reviewItemTop}>
-                  <Image source={{ uri: r.img }} style={s.reviewImg} resizeMode="cover" />
-                  <View style={s.reviewItemInfo}>
-                    <Text style={s.reviewItemTitle} numberOfLines={1}>{r.title}</Text>
-                    <StarRow count={r.rating} />
+            {displayReviews.length === 0 ? (
+              <Text style={{ color: '#9CA3AF', fontSize: 13, textAlign: 'center', paddingVertical: 16 }}>
+                No reviews yet. Book an experience to leave your first review!
+              </Text>
+            ) : (
+              displayReviews.map((r, i) => (
+                <View key={i} style={s.reviewItem}>
+                  <View style={s.reviewItemTop}>
+                    <Image source={{ uri: r.img }} style={s.reviewImg} resizeMode="cover" />
+                    <View style={s.reviewItemInfo}>
+                      <Text style={s.reviewItemTitle} numberOfLines={1}>{r.title}</Text>
+                      <StarRow count={r.rating} />
+                    </View>
                   </View>
+                  <Text style={s.reviewItemText} numberOfLines={2}>{r.text}</Text>
                 </View>
-                <Text style={s.reviewItemText} numberOfLines={2}>{r.text}</Text>
-              </View>
-            ))}
+              ))
+            )}
           </View>
 
         </View>

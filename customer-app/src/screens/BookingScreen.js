@@ -16,15 +16,15 @@ import { bookingAPI } from '../services/api';
 import Alert from '../utils/alert';
 
 export default function BookingScreen({ route, navigation }) {
-  // Gracefully fallback to seeded experience or provided parameter
-  const experience = route.params?.experience || {
-    _id: 'demo_123',
-    title: 'High-Alpine Glacial Trek',
-    location: { city: 'Zermatt', country: 'Switzerland' },
-    price: 310,
-    duration: '4 nights',
-    maxGroupSize: 12,
-  };
+  const experience = route.params?.experience;
+
+  useEffect(() => {
+    if (!experience) {
+      navigation.goBack();
+    }
+  }, [experience]);
+
+  if (!experience) return null;
 
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
