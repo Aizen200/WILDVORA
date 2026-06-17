@@ -163,6 +163,28 @@ const getSuitabilityStyle = (suitability) => {
   }
 };
 
+const getDeterministicAvatar = (name) => {
+  const avatars = [
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&h=150&q=80',
+    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&h=150&q=80'
+  ];
+  if (!name) return avatars[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % avatars.length;
+  return avatars[index];
+};
+
 export default function ExperienceDetailScreen({ route, navigation }) {
   const { experienceId } = route.params;
   const { user } = useAuth();
@@ -221,7 +243,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   if (!experience) return null;
 
   const heroImage = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWD971kShMZZtm1tqLB1M4tT3C06H-IIw4sAIM6q8Is0Z9f0vV3ghGpyKWw2nsI4RtbB5uFyLJ5KVbQBPqQZ6gfNwyC1lom8RMKstswmSXAi0R33J96h_T0nlJ7drHXfktm54c2af9pWrWq-mvNbCkov7u8y65OtgNfN26r9q0XApuM_gY2XgxZLsXXkdn9w-FJhi7TZIApYrX9KkoguY-CxCc-IZM5n1re5sZpl6C3J0RkedcQGyLBdqfw99XC6CuwtXrTw8BrHI';
-  const hostAvatar = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAxvAqhiKslj3TU3hkTN0aTpyErN45FaI1bC5dTIh145GMLa5MKJKC-y_PZLsWw2boHuKnNn852nWapfByDXJIYTSyYA4OzkCrrq4T-VIDhRdkQMMOYzQgl1iE_FybIikOHI2SgX6h0Xs0NqxpfGGwKfS1jLl-sAWDpfnTdsWhsljtlNN1CjlKjGbpVNIJUOl0UB3dZxDiXjE4hKH6Qp18eU17iLI5YCVvtp11ej88ZBVBYmVoRXHQwkvdSJV2HoH5FvbNleuMCDFg';
+  const hostAvatar = experience.host?.avatar || (experience.hostName ? getDeterministicAvatar(experience.hostName) : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80');
 
   const renderStars = (rating) =>
     Array.from({ length: 5 }).map((_, i) => (

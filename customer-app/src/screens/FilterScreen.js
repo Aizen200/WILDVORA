@@ -171,9 +171,12 @@ export default function FilterScreen({ navigation }) {
           <Ionicons name="menu-outline" size={24} color="#1A5F45" />
         </TouchableOpacity>
         <Text style={s.appBarLogo}>Wildvora</Text>
-        {/* Avatar — initials fallback, no external image needed */}
         <View style={s.avatarCircle}>
-          <Text style={s.avatarInitial}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
+          {user?.avatar ? (
+            <Image source={{ uri: user.avatar }} style={{ width: '100%', height: '100%', borderRadius: 19 }} />
+          ) : (
+            <Text style={s.avatarInitial}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
+          )}
         </View>
       </View>
 

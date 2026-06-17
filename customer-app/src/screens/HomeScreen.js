@@ -265,7 +265,11 @@ export default function HomeScreen({ navigation }) {
               <MaterialCommunityIcons name="magnify" size={22} color={C.onSurfaceVariant} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={s.avatar}>
-              <Text style={s.avatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+              ) : (
+                <Text style={s.avatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

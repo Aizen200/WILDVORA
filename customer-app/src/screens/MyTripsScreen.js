@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   primary:             '#1A5F45',
@@ -117,6 +118,7 @@ function PastCard({ booking, index, onPress }) {
 }
 
 export default function MyTripsScreen({ navigation }) {
+  const { user } = useAuth();
   const [bookings, setBookings]     = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -177,7 +179,13 @@ export default function MyTripsScreen({ navigation }) {
           <Text style={s.appBarLogo}>Wildvora</Text>
         </View>
         <View style={s.appBarAvatar}>
-          <Text style={s.appBarAvatarText}>A</Text>
+          {user?.avatar ? (
+            <Image source={{ uri: user.avatar }} style={{ width: '100%', height: '100%', borderRadius: 18 }} />
+          ) : (
+            <Text style={s.appBarAvatarText}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            </Text>
+          )}
         </View>
       </View>
 

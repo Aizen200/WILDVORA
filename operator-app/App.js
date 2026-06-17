@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar,
-  ActivityIndicator, Alert
+  ActivityIndicator, Alert, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -146,7 +146,11 @@ function MainApp() {
         ) : (
           <View style={styles.brandRow}>
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={18} color={theme.primary} />
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={{ width: '100%', height: '100%' }} />
+              ) : (
+                <Ionicons name="person" size={18} color={theme.primary} />
+              )}
             </View>
             <Text style={styles.brandName}>Wildvora</Text>
           </View>

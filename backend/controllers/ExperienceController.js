@@ -36,7 +36,7 @@ const getExperiences = async (req, res) => {
 // @route GET /api/experiences/:id
 const getExperience = async (req, res) => {
   try {
-    const experience = await Experience.findById(req.params.id);
+    const experience = await Experience.findById(req.params.id).populate('host', 'name email avatar');
     if (!experience) return res.status(404).json({ success: false, message: 'Experience not found' });
     res.json({ success: true, experience });
   } catch (err) {

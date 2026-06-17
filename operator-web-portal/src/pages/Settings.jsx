@@ -142,11 +142,17 @@ export default function Settings() {
                 <div className="col-span-12 flex items-center gap-5 pb-4">
                   <div className="relative">
                     <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shadow-sm">
-                      <img
-                        alt="User Profile Avatar"
-                        className="w-full h-full object-cover"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqNCU47Mvwga75FFvbl3wUsVNOE7r5s6QrRtSRClMdP2KfT93eBl0iygdsmJfh5CaSsSE3Lq5qFbuG9z6ijIAmxXhQ9fMtaU7MXEBxOTT5HVnb0QXvql9cJ263wJs8reiyU67Ly7UgzeG9kg57Odu6Js4kd-vjbs3sLM0DcmaUa74uyyy3HiZBgqeL9jK77fkVfAoobRBBKBIbgckktVQQVnpzTe9AkQBDtoMSy7uJwxnSlV43ZVL5nNGkG4QW9sshKR2SHGChUrs"
-                      />
+                      {user?.avatar ? (
+                        <img
+                          alt="User Profile Avatar"
+                          className="w-full h-full object-cover"
+                          src={user.avatar}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#1A5F45] text-white flex items-center justify-center font-bold text-2xl uppercase">
+                          {user?.name ? user.name.charAt(0) : 'U'}
+                        </div>
+                      )}
                     </div>
                     <button className="absolute -bottom-2 -right-2 bg-primary text-white p-1.5 rounded-full shadow-md hover:scale-105 transition">
                       <span className="material-symbols-outlined text-[16px]">photo_camera</span>

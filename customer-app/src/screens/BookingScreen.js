@@ -14,8 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingAPI } from '../services/api';
 import Alert from '../utils/alert';
+import { useAuth } from '../context/AuthContext';
 
 export default function BookingScreen({ route, navigation }) {
+  const { user } = useAuth();
   const experience = route.params?.experience;
 
   useEffect(() => {
@@ -232,12 +234,18 @@ export default function BookingScreen({ route, navigation }) {
           <Text style={styles.logo}>Wildvora</Text>
         </View>
         <View style={styles.avatarContainer}>
-          <Image
-            source={{
-              uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQgiT_9j6qwszX3g-smJNA39-RQznBR-q_8Y5ZlKGcA0d9L4Cuge-N5nxzTzCuBeynVQJdfviloAIAJHG4Bt4k2RfZMhzvQeZLi8o7n6r4UP8HlHwsfi_Po95qtS4qHjIEsA6wWR4BdoZ9JoUDjqY1QNVp0Ww8x4_0AG9P0anF_B0rRJX5ED9ufffGzrXQbgVQS_vzDg-itcovh8aokhSU8gC9ukfSSc8IISki1rEYAmDNJJ3XybAV-zXmsHPETVAm63ktj5Ly0GA',
-            }}
-            style={styles.avatar}
-          />
+          {user?.avatar ? (
+            <Image
+              source={{ uri: user.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center' }]}>
+              <Text style={{ color: '#ffffff', fontWeight: 'bold', fontSize: 16 }}>
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
