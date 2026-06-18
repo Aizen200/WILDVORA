@@ -18,12 +18,13 @@ const generateMockReply = (messages, experiences) => {
   const recommendedExpIds = matchingExps.map(e => e._id.toString());
   const destName = matchingExps[0] ? `${matchingExps[0].location.city}, ${matchingExps[0].location.country}` : 'Cascades, USA';
 
-  let replyText = `I would love to help you plan your adventure! Based on your interest in **${category}**, I recommend visiting **${destName}**. 
+  let replyText = `I would love to help you plan your adventure! Based on your interest in ${category}, I recommend visiting ${destName}.
 
 Here is a recommended 3-day itinerary:
-* **Day 1:** Arrive at basecamp, acclimatize to the environment, and check your gear.
-* **Day 2:** Head out for a main guided ${category.toLowerCase()} expedition.
-* **Day 3:** Wrap up with local food exploration and pack up.
+
+Day 1: Arrive at basecamp, acclimatize to the environment, and check your gear.
+Day 2: Head out for a main guided ${category.toLowerCase()} expedition with your guide.
+Day 3: Wrap up with local food exploration and pack up.
 
 I have found some active listings on Wildvora that match your interests perfectly! You can view and book them below:`;
 
@@ -91,7 +92,8 @@ Instructions:
 1. Provide helpful travel advice and draft custom day-by-day itineraries.
 2. In your response, if any of the available database experiences fit the user's inquiry, recommend them and include their exact database ID strings in the "recommendedExperienceIds" array.
 3. If no experiences fit or you are just answering a general question, return an empty array [] for "recommendedExperienceIds".
-4. Do NOT output any text other than the raw JSON object. No markdown wrappers (like \`\`\`json). Just the clean JSON string.`
+4. Do NOT output any text other than the raw JSON object. No markdown wrappers (like \`\`\`json). Just the clean JSON string.
+5. CRITICAL: In the "text" field, do NOT use any markdown formatting. No **bold**, no *italic*, no # headings, no bullet points with * or -. Write in plain text only. For day headers write "Day 1:", "Day 2:", etc. For lists use the • character.`
     };
 
     // Prepare message history, removing any client-side extra fields and keeping role/content
@@ -112,7 +114,7 @@ Instructions:
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: 'llama3-8b-8192',
+          model: 'llama-3.1-8b-instant',
           messages: apiMessages,
           temperature: 0.7,
           response_format: { type: 'json_object' }
@@ -158,9 +160,9 @@ const generateGuidedTripPlan = async (req, res) => {
     if (!apiKey) {
       console.warn('Groq API key missing. Using database lookup fallback.');
       // Find a matching fallback experience from DB
-      const fallbackExps = experiences.filter(e => 
+      const fallbackExps = experiences.filter(e =>
         e.price <= (budget || 100000) &&
-        (adventureLevel === 'All' || !adventureLevel || e.difficulty.toLowerCase() === adventureLevel.toLowerCase())
+        (!adventureLevel || adventureLevel === 'All' || (e.difficulty || '').toLowerCase() === adventureLevel.toLowerCase())
       );
       const chosen = fallbackExps[0] || experiences[0];
       const tripPlan = {
@@ -206,7 +208,8 @@ Rules:
 1. Ensure the chosen experiences actually exist in the provided database list.
 2. The difficulty should align with the user's preferred adventure level (Easy, Moderate, Hard, Expert) and match the experience difficulty.
 3. The cost should match the experience price in the database.
-4. Do NOT output any text other than the raw JSON object. No markdown wrappers (like \`\`\`json). Just the clean JSON string.`;
+4. Do NOT output any text other than the raw JSON object. No markdown wrappers (like \`\`\`json). Just the clean JSON string.
+5. CRITICAL: In the "explanation" field, do NOT use any markdown formatting. Plain text only, no **bold** or *italic*.`;
 
     const userPrompt = `Please recommend a trip with the following preferences:
 - Budget: ₹${budget}
@@ -214,34 +217,53 @@ Rules:
 - Duration: ${duration}
 - Adventure Level: ${adventureLevel}`;
 
-    // 5. Invoke Groq API
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' }
-      })
-    });
+    // 5. Invoke Groq API with fallback on failure
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          response_format: { type: 'json_object' }
+        })
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Groq API error: ${response.status} - ${errText}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Groq API error: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content.trim();
+      const tripPlan = JSON.parse(content);
+      return res.json({ success: true, tripPlan });
+
+    } catch (apiErr) {
+      console.warn('Groq API call failed for guided planner, using DB fallback:', apiErr.message);
+      const fallbackExps = experiences.filter(e =>
+        e.price <= (budget || 100000) &&
+        (!adventureLevel || adventureLevel === 'All' || (e.difficulty || '').toLowerCase() === adventureLevel.toLowerCase())
+      );
+      const chosen = fallbackExps[0] || experiences[0];
+      const tripPlan = {
+        recommendedTrip: chosen ? chosen.title : 'Custom Adventure',
+        cost: `₹${chosen ? chosen.price : budget || 3000}/person`,
+        distance: '150 km',
+        difficulty: chosen ? chosen.difficulty : (adventureLevel || 'Moderate'),
+        explanation: `Based on your budget of ₹${budget}, group of ${groupSize}, and ${duration} duration, here is our best-matched adventure from our catalogue.`,
+        recommendedExperienceIds: chosen ? [chosen._id.toString()] : []
+      };
+      return res.json({ success: true, tripPlan, warning: `Fallback used: ${apiErr.message}` });
     }
 
-    const data = await response.json();
-    const content = data.choices[0].message.content.trim();
-    const tripPlan = JSON.parse(content);
-
-    res.json({ success: true, tripPlan });
   } catch (err) {
     console.error('AI Guided Trip Planner Error:', err);
     res.status(500).json({ success: false, message: err.message || 'Failed to generate guided trip plan' });
