@@ -282,6 +282,30 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+// @route DELETE /api/admin/hosts/:id
+// Permanently delete a suspended operator account and deactivate all their listings
+const deleteHost = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Host not found' });
+    if (user.isActive) {
+      return res.status(400).json({ success: false, message: 'Only suspended host accounts can be deleted. Suspend the account first.' });
+    }
+
+    // Deactivate all their listings so they disappear from the platform
+    await Experience.updateMany(
+      { host: user._id },
+      { $set: { isActive: false, status: 'draft' } }
+    );
+
+    await User.findByIdAndDelete(user._id);
+
+    res.json({ success: true, message: `Host account "${user.name}" has been permanently deleted and all listings deactivated.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // @route GET /api/admin/payouts/pending
 // Payouts Control: Pending settlements
 const getPendingSettlements = async (req, res) => {
@@ -392,6 +416,98 @@ const getCustomerBookings = async (req, res) => {
       .populate('experience', 'title price hostName')
       .sort({ createdAt: -1 });
     res.json({ success: true, count: bookings.length, bookings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route GET /api/admin/hosts/:id/listings
+// All listings belonging to a specific operator
+const getHostListings = async (req, res) => {
+  try {
+    const listings = await Experience.find({ host: req.params.id })
+      .sort({ createdAt: -1 })
+      .select('title status category price location coverImage images suspensionReason rejectionReason createdAt');
+    res.json({ success: true, count: listings.length, listings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/admin/listings/:id/suspend
+// Suspend a live listing — requires a reason
+const suspendListing = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'A suspension reason is required' });
+    }
+
+    const experience = await Experience.findById(req.params.id).populate('host', 'name _id');
+    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    if (experience.status === 'suspended') {
+      return res.status(400).json({ success: false, message: 'Listing is already suspended' });
+    }
+
+    experience.status = 'suspended';
+    experience.suspensionReason = reason.trim();
+    experience.suspendedAt = new Date();
+    await experience.save();
+
+    // Notify the operator
+    if (experience.host?._id) {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: experience.host._id,
+        type: 'listing',
+        title: `Listing Suspended – "${experience.title}"`,
+        desc: `Your listing "${experience.title}" has been suspended by an admin. Reason: ${reason.trim()}. Please review, make necessary changes, and request reactivation.`,
+        referenceId: experience._id,
+        badges: [
+          { text: 'Suspended', color: 'bg-red-50 text-red-600 border border-red-200' },
+          { text: `#${experience._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
+    res.json({ success: true, message: 'Listing suspended successfully', experience });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/admin/listings/:id/reactivate
+// Reactivate a suspended listing back to live
+const reactivateListing = async (req, res) => {
+  try {
+    const experience = await Experience.findById(req.params.id).populate('host', 'name _id');
+    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    if (experience.status !== 'suspended') {
+      return res.status(400).json({ success: false, message: 'Listing is not suspended' });
+    }
+
+    experience.status = 'live';
+    experience.suspensionReason = '';
+    experience.suspendedAt = undefined;
+    await experience.save();
+
+    // Notify the operator
+    if (experience.host?._id) {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: experience.host._id,
+        type: 'listing',
+        title: `Listing Reactivated – "${experience.title}"`,
+        desc: `Your listing "${experience.title}" has been reactivated by an admin and is now live for customers.`,
+        referenceId: experience._id,
+        badges: [
+          { text: 'Reactivated', color: 'bg-green-50 text-green-700 border border-green-200' },
+          { text: `#${experience._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
+    res.json({ success: true, message: 'Listing reactivated and is now live', experience });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -628,6 +744,9 @@ module.exports = {
   toggleFeatured,
   approveListing,
   rejectListing,
+  suspendListing,
+  reactivateListing,
+  getHostListings,
   getAllBookings,
   toggleDispute,
   issueRefund,
@@ -636,6 +755,7 @@ module.exports = {
   updateHostPayoutStatus,
   getCustomers,
   toggleUserStatus,
+  deleteHost,
   getPendingSettlements,
   releasePayout,
   getPayoutLogs,

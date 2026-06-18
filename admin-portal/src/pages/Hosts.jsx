@@ -77,6 +77,16 @@ export default function Hosts() {
   const [kycUpdating, setKycUpdating] = useState(false);
   const [payoutUpdating, setPayoutUpdating] = useState(false);
 
+  // Listings panel state
+  const [hostListings, setHostListings] = useState([]);
+  const [listingsLoading, setListingsLoading] = useState(false);
+  const [suspendModal, setSuspendModal] = useState(null); // listing to suspend
+  const [suspendReason, setSuspendReason] = useState('');
+  const [suspendSaving, setSuspendSaving] = useState(false);
+  const [listingActionId, setListingActionId] = useState(null);
+  const [deleteHostModal, setDeleteHostModal] = useState(false);
+  const [deletingHost, setDeletingHost] = useState(false);
+
   // Filter state
   const [searchText, setSearchText] = useState('');
   const [kycFilter, setKycFilter] = useState('All');
@@ -267,6 +277,66 @@ export default function Hosts() {
       alert(err.response?.data?.message || 'Failed to update payout status.');
     } finally {
       setPayoutUpdating(false);
+    }
+  };
+
+  // Fetch listings when a real host panel opens
+  useEffect(() => {
+    if (!showHostPanel || !selectedHost?.isDb) {
+      setHostListings([]);
+      return;
+    }
+    setListingsLoading(true);
+    api.get(`/admin/hosts/${selectedHost._id}/listings`)
+      .then(res => { if (res.data.success) setHostListings(res.data.listings); })
+      .catch(() => {})
+      .finally(() => setListingsLoading(false));
+  }, [showHostPanel, selectedHost]);
+
+  const handleSuspendListing = async () => {
+    if (!suspendReason.trim() || !suspendModal) return;
+    setSuspendSaving(true);
+    try {
+      const res = await api.patch(`/admin/listings/${suspendModal._id}/suspend`, { reason: suspendReason.trim() });
+      if (res.data.success) {
+        setHostListings(prev => prev.map(l => l._id === suspendModal._id ? { ...l, status: 'suspended', suspensionReason: suspendReason.trim() } : l));
+        setSuspendModal(null);
+        setSuspendReason('');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to suspend listing.');
+    } finally {
+      setSuspendSaving(false);
+    }
+  };
+
+  const handleReactivateListing = async (listing) => {
+    setListingActionId(listing._id);
+    try {
+      const res = await api.patch(`/admin/listings/${listing._id}/reactivate`);
+      if (res.data.success) {
+        setHostListings(prev => prev.map(l => l._id === listing._id ? { ...l, status: 'live', suspensionReason: '' } : l));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to reactivate listing.');
+    } finally {
+      setListingActionId(null);
+    }
+  };
+
+  const handleDeleteHost = async () => {
+    if (!selectedHost) return;
+    setDeletingHost(true);
+    try {
+      await api.delete(`/admin/hosts/${selectedHost._id}`);
+      setHosts(prev => prev.filter(h => h._id !== selectedHost._id));
+      setDeleteHostModal(false);
+      setShowHostPanel(false);
+      setSelectedHost(null);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete host account.');
+    } finally {
+      setDeletingHost(false);
     }
   };
 
@@ -915,7 +985,220 @@ export default function Hosts() {
                     />
                   </button>
                 </div>
+
+                {/* Delete account — only shown for suspended (inactive) hosts */}
+                {selectedHost.isDb && !selectedHost.isActive && (
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-red-700">Delete Account</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Permanently removes this operator and deactivates all their listings. This cannot be undone.</p>
+                      </div>
+                      <button
+                        onClick={() => setDeleteHostModal(true)}
+                        className="flex-shrink-0 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Listings Management */}
+              {selectedHost.isDb && (
+                <div className="bg-white border border-gray-150 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Listings</h4>
+                    {!listingsLoading && (
+                      <span className="text-[11px] font-semibold text-gray-500">{hostListings.length} total</span>
+                    )}
+                  </div>
+
+                  {listingsLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="w-5 h-5 border-2 border-[#052618] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : hostListings.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-4">No listings found for this operator.</p>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-gray-100">
+                      {hostListings.map(listing => {
+                        const statusMap = {
+                          live:              { label: 'Live',            cls: 'bg-green-50 text-green-700 border-green-200' },
+                          pending:           { label: 'Pending Review',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+                          suspended:         { label: 'Suspended',       cls: 'bg-red-50 text-red-600 border-red-200' },
+                          rejected:          { label: 'Rejected',        cls: 'bg-red-50 text-red-600 border-red-200' },
+                          changes_requested: { label: 'Changes Needed',  cls: 'bg-orange-50 text-orange-600 border-orange-200' },
+                          paused:            { label: 'Paused',          cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+                          draft:             { label: 'Draft',           cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+                        };
+                        const cfg = statusMap[listing.status] || { label: listing.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' };
+                        const isBusy = listingActionId === listing._id;
+
+                        return (
+                          <div key={listing._id} className="py-3 first:pt-0 last:pb-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{listing.title}</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">
+                                  {listing.category} · ₹{listing.price}
+                                  {listing.location?.city ? ` · ${listing.location.city}` : ''}
+                                </p>
+                                <span className={`mt-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.cls}`}>
+                                  {cfg.label}
+                                </span>
+                              </div>
+                              <div className="flex gap-1.5 flex-shrink-0 mt-0.5">
+                                {listing.status === 'suspended' ? (
+                                  <button
+                                    onClick={() => handleReactivateListing(listing)}
+                                    disabled={isBusy}
+                                    className="text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-lg hover:bg-green-100 transition disabled:opacity-40 cursor-pointer"
+                                  >
+                                    {isBusy ? '...' : 'Reactivate'}
+                                  </button>
+                                ) : listing.status === 'live' ? (
+                                  <button
+                                    onClick={() => { setSuspendModal(listing); setSuspendReason(''); }}
+                                    className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-100 transition cursor-pointer"
+                                  >
+                                    Suspend
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                            {listing.status === 'suspended' && listing.suspensionReason && (
+                              <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-0.5">Suspension Reason</p>
+                                <p className="text-[11px] text-red-800">{listing.suspensionReason}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Host Confirmation Modal */}
+      {deleteHostModal && selectedHost && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl p-7 max-w-md w-full shadow-2xl border border-gray-200 mx-4">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-gray-900">Delete Host Account</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  You are about to permanently delete <strong className="text-gray-800">{selectedHost.name}</strong>'s account.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 space-y-1.5">
+              <p className="text-xs font-bold text-red-700 uppercase tracking-wide">This action will:</p>
+              <ul className="text-xs text-red-800 space-y-1 list-disc list-inside">
+                <li>Permanently delete the operator's account</li>
+                <li>Deactivate all their listings from the platform</li>
+                <li>This <strong>cannot be undone</strong></li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteHostModal(false)}
+                disabled={deletingHost}
+                className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl px-5 py-2.5 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteHost}
+                disabled={deletingHost}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl px-5 py-2.5 transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingHost ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Deleting...
+                  </>
+                ) : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suspend Listing Modal */}
+      {suspendModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl p-7 max-w-md w-full shadow-2xl border border-gray-200 mx-4">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-extrabold text-gray-900">Suspend Listing</h3>
+                <p className="text-xs text-gray-500 mt-1 font-medium">"{suspendModal.title}"</p>
+              </div>
+              <button onClick={() => setSuspendModal(null)} className="text-gray-400 hover:text-gray-600 transition cursor-pointer p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5 flex items-start gap-2.5">
+              <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs text-red-700 font-medium">This listing will be hidden from customers immediately. The operator will be notified with your reason.</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5 mb-6">
+              <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                Suspension Reason <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={suspendReason}
+                onChange={e => setSuspendReason(e.target.value)}
+                placeholder="Describe the policy violation or reason for suspension. This will be shown to the operator."
+                className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition resize-none text-gray-800 placeholder-gray-400"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setSuspendModal(null); setSuspendReason(''); }}
+                className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl px-5 py-2.5 hover:bg-gray-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSuspendListing}
+                disabled={!suspendReason.trim() || suspendSaving}
+                className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl px-5 py-2.5 transition cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {suspendSaving ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Suspending...
+                  </>
+                ) : 'Suspend Listing'}
+              </button>
             </div>
           </div>
         </div>

@@ -15,16 +15,17 @@ const FALLBACK_IMAGES = {
 };
 
 const CATEGORIES = ['All Categories', 'Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling', 'Climbing', 'Safari', 'Skiing'];
-const STATUSES   = ['All Status', 'live', 'pending', 'draft', 'paused', 'rejected', 'changes_requested'];
+const STATUSES   = ['All Status', 'live', 'pending', 'draft', 'paused', 'rejected', 'changes_requested', 'suspended'];
 const PER_PAGE   = 10;
 
 const STATUS_CONFIG = {
-  live:               { label: 'Approved',        cls: 'bg-green-50 text-green-700 border border-green-200' },
-  pending:            { label: 'Pending Review',   cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
-  draft:              { label: 'Draft',            cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  paused:             { label: 'Paused',           cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
-  rejected:           { label: 'Rejected',         cls: 'bg-red-50 text-red-600 border border-red-200' },
-  changes_requested:  { label: 'Changes Needed',   cls: 'bg-orange-50 text-orange-600 border border-orange-200' },
+  live:               { label: 'Approved',            cls: 'bg-green-50 text-green-700 border border-green-200' },
+  pending:            { label: 'Pending Review',       cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  draft:              { label: 'Draft',                cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
+  paused:             { label: 'Paused',               cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  rejected:           { label: 'Rejected',             cls: 'bg-red-50 text-red-600 border border-red-200' },
+  changes_requested:  { label: 'Changes Needed',       cls: 'bg-orange-50 text-orange-600 border border-orange-200' },
+  suspended:          { label: 'Suspended by Admin',   cls: 'bg-red-100 text-red-700 border border-red-300' },
 };
 
 const StatusBadge = ({ status }) => {
@@ -81,12 +82,16 @@ export default function Listings() {
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paginated  = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const pendingCount  = listings.filter(l => l.status === 'pending').length;
-  const rejectedCount = listings.filter(l => ['rejected', 'changes_requested'].includes(l.status)).length;
+  const pendingCount   = listings.filter(l => l.status === 'pending').length;
+  const rejectedCount  = listings.filter(l => ['rejected', 'changes_requested'].includes(l.status)).length;
+  const suspendedCount = listings.filter(l => l.status === 'suspended').length;
 
   const handleDelete = async (exp) => {
-    if (exp.status === 'live') {
-      flash('error', `Cannot delete "${exp.title}" — it's live. Pause it first.`);
+    if (['live', 'suspended'].includes(exp.status)) {
+      flash('error', exp.status === 'live'
+        ? `Cannot delete "${exp.title}" — it's live. Pause it first.`
+        : `Cannot delete "${exp.title}" — it is suspended by admin. Request reactivation or contact support.`
+      );
       return;
     }
     if (!window.confirm(`Delete "${exp.title}"? This cannot be undone.`)) return;
@@ -103,14 +108,21 @@ export default function Listings() {
   };
 
   const handleResubmit = async (exp) => {
-    if (!window.confirm(`Resubmit "${exp.title}" for admin review?`)) return;
+    const isSuspended = exp.status === 'suspended';
+    const confirmMsg = isSuspended
+      ? `Request reactivation for "${exp.title}"? Admin will review your changes.`
+      : `Resubmit "${exp.title}" for admin review?`;
+    if (!window.confirm(confirmMsg)) return;
     setActionId(exp._id);
     try {
       await hostAPI.resubmitListing(exp._id);
-      flash('success', `"${exp.title}" resubmitted — awaiting admin review.`);
+      flash('success', isSuspended
+        ? `Reactivation requested for "${exp.title}" — admin will review.`
+        : `"${exp.title}" resubmitted — awaiting admin review.`
+      );
       reload();
     } catch (err) {
-      flash('error', err.response?.data?.message || 'Failed to resubmit listing.');
+      flash('error', err.response?.data?.message || 'Failed to submit request.');
     } finally {
       setActionId(null);
     }
@@ -171,6 +183,16 @@ export default function Listings() {
             </svg>
             <span>
               <strong>{rejectedCount} listing{rejectedCount > 1 ? 's' : ''}</strong> require your attention — edit and resubmit to re-enter the review queue.
+            </span>
+          </div>
+        )}
+        {suspendedCount > 0 && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-red-100 border border-red-300 rounded-xl text-sm text-red-900">
+            <svg className="w-4 h-4 flex-shrink-0 text-red-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+            <span>
+              <strong>{suspendedCount} listing{suspendedCount > 1 ? 's have' : ' has'} been suspended by an admin.</strong> Review the reason, make necessary changes, and request reactivation.
             </span>
           </div>
         )}
@@ -236,12 +258,14 @@ export default function Listings() {
                       <td colSpan={5} className="text-center text-gray-400 py-12 text-sm">No listings found.</td>
                     </tr>
                   ) : paginated.map(exp => {
-                    const isRejected = ['rejected', 'changes_requested'].includes(exp.status);
-                    const isPending  = exp.status === 'pending';
-                    const busy       = actionId === exp._id;
+                    const isRejected  = ['rejected', 'changes_requested'].includes(exp.status);
+                    const isSuspended = exp.status === 'suspended';
+                    const isPending   = exp.status === 'pending';
+                    const busy        = actionId === exp._id;
+                    const rowBg       = isSuspended ? 'bg-red-50/60' : isRejected ? 'bg-red-50/30' : '';
                     return (
                       <>
-                        <tr key={exp._id} className={`hover:bg-gray-50/50 transition ${isRejected ? 'bg-red-50/30' : ''}`}>
+                        <tr key={exp._id} className={`hover:bg-gray-50/50 transition ${rowBg}`}>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
@@ -280,24 +304,24 @@ export default function Listings() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Resubmit — only for rejected */}
-                              {isRejected && (
+                              {/* Resubmit — for rejected; Request Reactivation — for suspended */}
+                              {(isRejected || isSuspended) && (
                                 <button
                                   onClick={() => handleResubmit(exp)}
                                   disabled={busy}
-                                  title="Resubmit for review"
-                                  className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition disabled:opacity-40"
+                                  title={isSuspended ? 'Request reactivation' : 'Resubmit for review'}
+                                  className={`p-2 rounded-lg transition disabled:opacity-40 ${isSuspended ? 'text-purple-600 hover:text-purple-800 hover:bg-purple-50' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'}`}
                                 >
                                   {busy ? (
-                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    <div className={`w-4 h-4 border-2 ${isSuspended ? 'border-purple-500' : 'border-blue-500'} border-t-transparent rounded-full animate-spin`} />
                                   ) : <RefreshIcon />}
                                 </button>
                               )}
 
-                              {/* Edit — disabled while pending */}
+                              {/* Edit — disabled while pending only */}
                               <button
                                 onClick={() => !isPending && navigate(`/listings/${exp._id}/edit`)}
-                                title={isPending ? 'Cannot edit — awaiting review' : 'Edit'}
+                                title={isPending ? 'Cannot edit — awaiting review' : isSuspended ? 'Edit and request reactivation' : 'Edit'}
                                 className={`p-2 rounded-lg transition ${
                                   isPending
                                     ? 'text-gray-200 cursor-not-allowed'
@@ -311,8 +335,8 @@ export default function Listings() {
                               <button
                                 onClick={() => handleDelete(exp)}
                                 disabled={busy}
-                                title="Delete"
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-40"
+                                title={isSuspended ? 'Cannot delete suspended listings' : 'Delete'}
+                                className={`p-2 rounded-lg transition disabled:opacity-40 ${isSuspended ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
                               >
                                 {busy ? (
                                   <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
@@ -333,6 +357,26 @@ export default function Listings() {
                                   <p className="text-sm text-red-800">{exp.rejectionReason}</p>
                                   <p className="text-[11px] text-gray-400 mt-1">
                                     Edit your listing to address this feedback, then click <strong>Resubmit</strong>.
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Suspension reason row */}
+                        {isSuspended && exp.suspensionReason && (
+                          <tr key={`${exp._id}-suspension`} className="bg-red-100/50">
+                            <td colSpan={5} className="px-5 pb-3 pt-0">
+                              <div className="flex items-start gap-2 bg-white border border-red-300 rounded-xl px-4 py-2.5">
+                                <svg className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                </svg>
+                                <div>
+                                  <p className="text-[11px] font-bold text-red-700 uppercase tracking-wide mb-0.5">Suspended by Admin</p>
+                                  <p className="text-sm text-red-900">{exp.suspensionReason}</p>
+                                  <p className="text-[11px] text-gray-500 mt-1">
+                                    Edit your listing to address the issue, then click <strong>Request Reactivation</strong> to re-enter admin review.
                                   </p>
                                 </div>
                               </div>

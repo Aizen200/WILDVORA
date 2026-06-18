@@ -138,11 +138,12 @@ const editListing = async (req, res) => {
     const updates = req.body;
     let becamePending = false;
 
-    if (['rejected', 'changes_requested'].includes(exp.status)) {
-      // Editing a rejected listing resubmits it for review
+    if (['rejected', 'changes_requested', 'suspended'].includes(exp.status)) {
+      // Editing a rejected/suspended listing resubmits it for review
       updates.status = 'pending';
       updates.submittedAt = new Date();
       updates.rejectionReason = '';
+      // Keep suspensionReason visible to admin during re-review
       becamePending = true;
     } else if (exp.status === 'live') {
       // Only send back to pending if critical fields actually changed
@@ -412,13 +413,15 @@ const resubmitListing = async (req, res) => {
     const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
     if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
 
-    if (!['rejected', 'changes_requested'].includes(exp.status)) {
-      return res.status(400).json({ success: false, message: 'Only rejected listings can be resubmitted' });
+    if (!['rejected', 'changes_requested', 'suspended'].includes(exp.status)) {
+      return res.status(400).json({ success: false, message: 'Only rejected or suspended listings can be resubmitted' });
     }
 
+    const wasSuspended = exp.status === 'suspended';
     exp.status = 'pending';
     exp.submittedAt = new Date();
     exp.rejectionReason = '';
+    // Keep suspensionReason so admin has context during re-review
     await exp.save();
 
     const admins = await User.find({ role: 'admin' });
@@ -426,11 +429,15 @@ const resubmitListing = async (req, res) => {
       await Notification.create({
         recipient: admin._id,
         type: 'listing',
-        title: `Listing Resubmitted – "${exp.title}"`,
-        desc: `${req.user.name || 'An operator'} resubmitted a listing for review after addressing feedback.`,
+        title: wasSuspended
+          ? `Reactivation Requested – "${exp.title}"`
+          : `Listing Resubmitted – "${exp.title}"`,
+        desc: wasSuspended
+          ? `${req.user.name || 'An operator'} has edited their suspended listing and is requesting reactivation. Please review before approving.`
+          : `${req.user.name || 'An operator'} resubmitted a listing for review after addressing feedback.`,
         referenceId: exp._id,
         badges: [
-          { text: 'Resubmitted', color: 'bg-blue-50 text-blue-600 border border-blue-100' },
+          { text: wasSuspended ? 'Reactivation Request' : 'Resubmitted', color: wasSuspended ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-blue-50 text-blue-600 border border-blue-100' },
           { text: `#${exp._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
         ]
       });
@@ -449,11 +456,14 @@ const deleteListing = async (req, res) => {
     const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
     if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
 
-    if (exp.status === 'live') {
-      return res.status(400).json({ success: false, message: 'Cannot delete a live listing. Pause it first.' });
+    if (['live', 'suspended'].includes(exp.status)) {
+      return res.status(400).json({ success: false, message: exp.status === 'live' ? 'Cannot delete a live listing. Pause it first.' : 'Cannot delete a suspended listing. Contact admin for reactivation.' });
     }
 
-    await Experience.findByIdAndDelete(req.params.id);
+    // Soft-delete: mark as deleted rather than removing from DB
+    exp.status = 'draft';
+    exp.isActive = false;
+    await exp.save();
     res.json({ success: true, message: 'Listing deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

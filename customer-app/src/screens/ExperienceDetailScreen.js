@@ -540,10 +540,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
 
           {/* Reviews */}
           <Accordion title={`Reviews (${experience.reviewCount || reviews.length || 0})`} defaultOpen icon={<Ionicons name="star-outline" size={16} color="#1A5F45" />}>
-            {(reviews.length > 0 ? reviews.slice(0, 3) : [
-              { _id: 'd1', rating: 5, comment: 'The sunrise was life-changing. The guide knows every rock on that mountain.', userName: 'Sarah M.', createdAt: '2 days ago' },
-              { _id: 'd2', rating: 5, comment: 'Expertly organized. Food was surprisingly good for being at 2000 meters.', userName: 'James L.', createdAt: '1 week ago' },
-            ]).map((r, idx, arr) => (
+            {reviews.length > 0 ? reviews.slice(0, 3).map((r, idx, arr) => (
               <View key={r._id} style={[styles.reviewCard, idx === arr.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <View style={styles.reviewAvatar}>
@@ -557,7 +554,13 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 </View>
                 <Text style={styles.reviewComment}>{r.comment}</Text>
               </View>
-            ))}
+            )) : (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Ionicons name="chatbubble-outline" size={32} color="#D1D5DB" />
+                <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>No reviews yet</Text>
+                <Text style={{ color: '#C4C9D4', fontSize: 12, marginTop: 4 }}>Be the first to share your experience</Text>
+              </View>
+            )}
           </Accordion>
 
           {/* ── Policies & Booking ── */}

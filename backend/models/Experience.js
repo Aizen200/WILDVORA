@@ -96,12 +96,14 @@ const experienceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested'],
+      enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested', 'suspended'],
       default: 'pending',
     },
-    rejectionReason: { type: String, default: '' },
-    submittedAt:     { type: Date },
-    approvedAt:      { type: Date },
+    rejectionReason:  { type: String, default: '' },
+    suspensionReason: { type: String, default: '' },
+    suspendedAt:      { type: Date },
+    submittedAt:      { type: Date },
+    approvedAt:       { type: Date },
   },
   { timestamps: true }
 );
