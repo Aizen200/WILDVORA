@@ -61,6 +61,7 @@ export const userAPI = {
 // ─── AI Trip Planner ──────────────────────────────────────────
 export const aiAPI = {
   getTripPlan: (data) => api.post('/ai/plan-trip', data),
+  getGuidedTripPlan: (data) => api.post('/ai/plan-trip-guided', data),
 };
 
 export default api;

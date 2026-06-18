@@ -34,6 +34,9 @@ export default function AIChatScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
 
+  const [activeTab, setActiveTab] = useState('Chat'); // 'Chat' or 'Planner'
+
+  // Chat states
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -45,6 +48,16 @@ export default function AIChatScreen({ navigation }) {
   const [input, setInput]       = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
+
+  // Form planner states
+  const [budget, setBudget] = useState('');
+  const [groupSize, setGroupSize] = useState('');
+  const [duration, setDuration] = useState('');
+  const [adventureLevel, setAdventureLevel] = useState('Easy'); // Easy, Moderate, Hard, Expert
+  
+  const [plannerResult, setPlannerResult] = useState(null);
+  const [plannerLoading, setPlannerLoading] = useState(false);
+  const [plannerError, setPlannerError] = useState('');
 
   useEffect(() => {
     if (scrollRef.current && messages.length > 1) {
@@ -92,6 +105,46 @@ export default function AIChatScreen({ navigation }) {
     }
   };
 
+  const handlePlanTrip = async () => {
+    if (!budget || !groupSize || !duration) {
+      setPlannerError('Please fill in all fields.');
+      return;
+    }
+    setPlannerLoading(true);
+    setPlannerError('');
+    setPlannerResult(null);
+    try {
+      const res = await aiAPI.getGuidedTripPlan({
+        budget: Number(budget),
+        groupSize: Number(groupSize),
+        duration: duration,
+        adventureLevel: adventureLevel,
+      });
+      if (res.data?.success) {
+        const { tripPlan } = res.data;
+        let resolved = [];
+        if (Array.isArray(tripPlan.recommendedExperienceIds) && tripPlan.recommendedExperienceIds.length > 0) {
+          const results = await Promise.all(
+            tripPlan.recommendedExperienceIds.map((id) =>
+              experienceAPI.getOne(id).then((r) => r.data.experience).catch(() => null)
+            )
+          );
+          resolved = results.filter(Boolean);
+        }
+        setPlannerResult({
+          ...tripPlan,
+          experiences: resolved
+        });
+      } else {
+        setPlannerError('Failed to generate a plan. Please try again.');
+      }
+    } catch (err) {
+      setPlannerError(err.response?.data?.message || 'Failed to connect to the AI. Check connection.');
+    } finally {
+      setPlannerLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       {/* Header */}
@@ -111,134 +164,298 @@ export default function AIChatScreen({ navigation }) {
         <View style={{ width: 38 }} />
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        {/* Messages */}
-        <ScrollView
-          ref={scrollRef}
-          style={s.scroll}
-          contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 16 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+      {/* Tabs */}
+      <View style={s.tabContainer}>
+        <TouchableOpacity
+          style={[s.tabButton, activeTab === 'Chat' && s.tabButtonActive]}
+          onPress={() => setActiveTab('Chat')}
         >
-          {messages.map((msg) => {
-            const isUser = msg.role === 'user';
-            return (
-              <View key={msg.id} style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAssistant]}>
-                {!isUser && (
-                  <View style={s.avatar}>
-                    <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
-                  </View>
-                )}
-                <View style={s.msgContent}>
-                  <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAssistant]}>
-                    <Text style={[s.bubbleText, isUser ? s.bubbleTextUser : s.bubbleTextAssistant]}>
-                      {msg.text}
-                    </Text>
-                  </View>
-                  {msg.experiences?.length > 0 && (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={s.expScroll}
-                      contentContainerStyle={{ gap: 10, paddingRight: 4 }}
-                      nestedScrollEnabled
-                    >
-                      {msg.experiences.map((exp, idx) => (
-                        <TouchableOpacity
-                          key={exp._id || idx}
-                          style={s.expCard}
-                          onPress={() => navigation.navigate('ExperienceDetail', { experienceId: exp._id })}
-                          activeOpacity={0.9}
-                        >
-                          <Image
-                            source={{ uri: exp.coverImage || exp.images?.[0] || CARD_IMAGES[idx % CARD_IMAGES.length] }}
-                            style={s.expImg}
-                            resizeMode="cover"
-                          />
-                          <View style={s.expBody}>
-                            <Text style={s.expTitle} numberOfLines={1}>{exp.title}</Text>
-                            <Text style={s.expLoc} numberOfLines={1}>
-                              {exp.location?.city}, {exp.location?.country}
-                            </Text>
-                            <View style={s.expFooter}>
-                              <Text style={s.expPrice}>Rs. {exp.price}</Text>
-                              <Text style={s.expCta}>View</Text>
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+          <Text style={[s.tabText, activeTab === 'Chat' && s.tabTextActive]}>AI Chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.tabButton, activeTab === 'Planner' && s.tabButtonActive]}
+          onPress={() => setActiveTab('Planner')}
+        >
+          <Text style={[s.tabText, activeTab === 'Planner' && s.tabTextActive]}>AI Guided Planner</Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'Chat' ? (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          {/* Messages */}
+          <ScrollView
+            ref={scrollRef}
+            style={s.scroll}
+            contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 16 }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.map((msg) => {
+              const isUser = msg.role === 'user';
+              return (
+                <View key={msg.id} style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAssistant]}>
+                  {!isUser && (
+                    <View style={s.avatar}>
+                      <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
+                    </View>
                   )}
+                  <View style={s.msgContent}>
+                    <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAssistant]}>
+                      <Text style={[s.bubbleText, isUser ? s.bubbleTextUser : s.bubbleTextAssistant]}>
+                        {msg.text}
+                      </Text>
+                    </View>
+                    {msg.experiences?.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={s.expScroll}
+                        contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+                        nestedScrollEnabled
+                      >
+                        {msg.experiences.map((exp, idx) => (
+                          <TouchableOpacity
+                            key={exp._id || idx}
+                            style={s.expCard}
+                            onPress={() => navigation.navigate('ExperienceDetail', { experienceId: exp._id })}
+                            activeOpacity={0.9}
+                          >
+                            <Image
+                              source={{ uri: exp.coverImage || exp.images?.[0] || CARD_IMAGES[idx % CARD_IMAGES.length] }}
+                              style={s.expImg}
+                              resizeMode="cover"
+                            />
+                            <View style={s.expBody}>
+                              <Text style={s.expTitle} numberOfLines={1}>{exp.title}</Text>
+                              <Text style={s.expLoc} numberOfLines={1}>
+                                {exp.location?.city}, {exp.location?.country}
+                              </Text>
+                              <View style={s.expFooter}>
+                                <Text style={s.expPrice}>Rs. {exp.price}</Text>
+                                <Text style={s.expCta}>View</Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+
+            {loading && (
+              <View style={[s.msgRow, s.msgRowAssistant]}>
+                <View style={s.avatar}>
+                  <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
+                </View>
+                <View style={[s.bubble, s.bubbleAssistant, s.typingBubble]}>
+                  <ActivityIndicator size="small" color={C.primary} style={{ marginRight: 8 }} />
+                  <Text style={[s.bubbleText, s.bubbleTextAssistant, { fontStyle: 'italic' }]}>
+                    Planning your trip...
+                  </Text>
                 </View>
               </View>
-            );
-          })}
+            )}
 
-          {loading && (
-            <View style={[s.msgRow, s.msgRowAssistant]}>
-              <View style={s.avatar}>
-                <MaterialCommunityIcons name="robot-outline" size={16} color={C.primary} />
+            {error ? (
+              <View style={s.errorRow}>
+                <Ionicons name="alert-circle-outline" size={15} color="#b91c1c" style={{ marginRight: 6 }} />
+                <Text style={s.errorText}>{error}</Text>
               </View>
-              <View style={[s.bubble, s.bubbleAssistant, s.typingBubble]}>
-                <ActivityIndicator size="small" color={C.primary} style={{ marginRight: 8 }} />
-                <Text style={[s.bubbleText, s.bubbleTextAssistant, { fontStyle: 'italic' }]}>
-                  Planning your trip...
-                </Text>
-              </View>
-            </View>
+            ) : null}
+          </ScrollView>
+
+          {/* Suggestions — only shown before first user message */}
+          {messages.length === 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.suggestions}
+              style={s.suggestionsWrap}
+            >
+              {SUGGESTED.map((s_) => (
+                <TouchableOpacity key={s_} style={s.suggestion} onPress={() => send(s_)} activeOpacity={0.8}>
+                  <Text style={s.suggestionText}>{s_}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           )}
 
-          {error ? (
-            <View style={s.errorRow}>
-              <Ionicons name="alert-circle-outline" size={15} color="#b91c1c" style={{ marginRight: 6 }} />
-              <Text style={s.errorText}>{error}</Text>
+          {/* Input bar */}
+          <View style={[s.inputBar, { paddingBottom: insets.bottom + 12 }]}>
+            <TextInput
+              style={s.input}
+              placeholder="Tell me your dream adventure..."
+              placeholderTextColor={C.onSurfaceVariant + '80'}
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={() => send()}
+              returnKeyType="send"
+              editable={!loading}
+              multiline
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!input.trim() || loading) && s.sendBtnDisabled]}
+              onPress={() => send()}
+              disabled={!input.trim() || loading}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="send" size={18} color={C.white} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      ) : (
+        <ScrollView style={s.plannerScroll} contentContainerStyle={s.plannerScrollContent}>
+          <Text style={s.plannerTitle}>AI Trip Planner</Text>
+          <Text style={s.plannerSub}>Enter your trip preferences below, and we'll scan approved experiences in our database to craft your recommended plan.</Text>
+          
+          {/* Budget */}
+          <View style={s.formGroup}>
+            <Text style={s.formLabel}>Budget (₹)</Text>
+            <TextInput
+              style={s.formInput}
+              keyboardType="numeric"
+              placeholder="e.g. 5000"
+              placeholderTextColor="#9aafa5"
+              value={budget}
+              onChangeText={setBudget}
+            />
+          </View>
+
+          {/* Group Size */}
+          <View style={s.formGroup}>
+            <Text style={s.formLabel}>Group Size</Text>
+            <TextInput
+              style={s.formInput}
+              keyboardType="numeric"
+              placeholder="e.g. 4"
+              placeholderTextColor="#9aafa5"
+              value={groupSize}
+              onChangeText={setGroupSize}
+            />
+          </View>
+
+          {/* Duration */}
+          <View style={s.formGroup}>
+            <Text style={s.formLabel}>Duration (e.g. 3 days)</Text>
+            <TextInput
+              style={s.formInput}
+              placeholder="e.g. 3 days"
+              placeholderTextColor="#9aafa5"
+              value={duration}
+              onChangeText={setDuration}
+            />
+          </View>
+
+          {/* Adventure Level */}
+          <View style={s.formGroup}>
+            <Text style={s.formLabel}>Adventure Level</Text>
+            <View style={s.levelContainer}>
+              {['Easy', 'Moderate', 'Hard', 'Expert'].map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[s.levelBtn, adventureLevel === level && s.levelBtnActive]}
+                  onPress={() => setAdventureLevel(level)}
+                >
+                  <Text style={[s.levelBtnText, adventureLevel === level && s.levelBtnTextActive]}>
+                    {level}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {plannerError ? (
+            <View style={s.plannerErrorBox}>
+              <Text style={s.plannerErrorText}>{plannerError}</Text>
             </View>
           ) : null}
-        </ScrollView>
 
-        {/* Suggestions — only shown before first user message */}
-        {messages.length === 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.suggestions}
-            style={s.suggestionsWrap}
-          >
-            {SUGGESTED.map((s_) => (
-              <TouchableOpacity key={s_} style={s.suggestion} onPress={() => send(s_)} activeOpacity={0.8}>
-                <Text style={s.suggestionText}>{s_}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Input bar */}
-        <View style={[s.inputBar, { paddingBottom: insets.bottom + 12 }]}>
-          <TextInput
-            style={s.input}
-            placeholder="Tell me your dream adventure..."
-            placeholderTextColor={C.onSurfaceVariant + '80'}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => send()}
-            returnKeyType="send"
-            editable={!loading}
-            multiline
-          />
+          {/* Plan button */}
           <TouchableOpacity
-            style={[s.sendBtn, (!input.trim() || loading) && s.sendBtnDisabled]}
-            onPress={() => send()}
-            disabled={!input.trim() || loading}
-            activeOpacity={0.8}
+            style={s.planBtn}
+            onPress={handlePlanTrip}
+            disabled={plannerLoading}
           >
-            <MaterialCommunityIcons name="send" size={18} color={C.white} />
+            {plannerLoading ? (
+              <ActivityIndicator color={C.white} />
+            ) : (
+              <Text style={s.planBtnText}>Plan Trip</Text>
+            )}
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+
+          {/* Planner Result Showcase */}
+          {plannerResult && (
+            <View style={s.resultCard}>
+              <Text style={s.resultHeader}>Recommended Trip:</Text>
+              <Text style={s.resultTripName}>{plannerResult.recommendedTrip}</Text>
+
+              <View style={s.resultGrid}>
+                <View style={s.resultGridItem}>
+                  <Text style={s.resultItemLabel}>Cost</Text>
+                  <Text style={s.resultItemValue}>{plannerResult.cost}</Text>
+                </View>
+                <View style={s.resultGridItem}>
+                  <Text style={s.resultItemLabel}>Distance</Text>
+                  <Text style={s.resultItemValue}>{plannerResult.distance}</Text>
+                </View>
+                <View style={s.resultGridItem}>
+                  <Text style={s.resultItemLabel}>Difficulty</Text>
+                  <Text style={s.resultItemValue}>{plannerResult.difficulty}</Text>
+                </View>
+              </View>
+
+              {plannerResult.explanation ? (
+                <Text style={s.resultExplanation}>{plannerResult.explanation}</Text>
+              ) : null}
+
+              {/* Show matching experience cards if any */}
+              {plannerResult.experiences?.length > 0 && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={s.resultExpTitle}>Book matching adventures:</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={s.expScroll}
+                    contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+                    nestedScrollEnabled
+                  >
+                    {plannerResult.experiences.map((exp, idx) => (
+                      <TouchableOpacity
+                        key={exp._id || idx}
+                        style={s.expCard}
+                        onPress={() => navigation.navigate('ExperienceDetail', { experienceId: exp._id })}
+                        activeOpacity={0.9}
+                      >
+                        <Image
+                          source={{ uri: exp.coverImage || exp.images?.[0] || CARD_IMAGES[idx % CARD_IMAGES.length] }}
+                          style={s.expImg}
+                          resizeMode="cover"
+                        />
+                        <View style={s.expBody}>
+                          <Text style={s.expTitle} numberOfLines={1}>{exp.title}</Text>
+                          <Text style={s.expLoc} numberOfLines={1}>
+                            {exp.location?.city}, {exp.location?.country}
+                          </Text>
+                          <View style={s.expFooter}>
+                            <Text style={s.expPrice}>Rs. {exp.price}</Text>
+                            <Text style={s.expCta}>View</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -265,6 +482,196 @@ const s = StyleSheet.create({
   },
   headerLabel: { fontSize: 15, fontWeight: '700', color: C.onSurface },
   headerSub:   { fontSize: 11, color: C.onSurfaceVariant, marginTop: 1 },
+
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.outlineVariant + '30',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabButtonActive: {
+    borderBottomColor: C.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+  },
+  tabTextActive: {
+    color: C.primary,
+    fontWeight: '700',
+  },
+
+  plannerScroll: {
+    flex: 1,
+    backgroundColor: C.background,
+  },
+  plannerScrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  plannerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+  plannerSub: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+    marginTop: 4,
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.onSurface,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  formInput: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '80',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: C.onSurface,
+  },
+  levelContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  levelBtn: {
+    flex: 1,
+    minWidth: 70,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '80',
+    backgroundColor: C.surface,
+    alignItems: 'center',
+  },
+  levelBtnActive: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  levelBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+  },
+  levelBtnTextActive: {
+    color: C.white,
+    fontWeight: '700',
+  },
+  planBtn: {
+    backgroundColor: C.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  planBtnText: {
+    color: C.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  plannerErrorBox: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+  },
+  plannerErrorText: {
+    fontSize: 13,
+    color: '#b91c1c',
+    textAlign: 'center',
+  },
+  resultCard: {
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.outlineVariant + '80',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  resultHeader: {
+    fontSize: 11,
+    fontWeight: '850',
+    color: C.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  resultTripName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: C.onSurface,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  resultGrid: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: C.outlineVariant + '30',
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  resultGridItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  resultItemLabel: {
+    fontSize: 10,
+    color: C.onSurfaceVariant,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  resultItemValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: C.onSurface,
+    marginTop: 2,
+  },
+  resultExplanation: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+    lineHeight: 18,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  resultExpTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.onSurface,
+    marginBottom: 8,
+  },
 
   scroll:        { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
