@@ -370,7 +370,7 @@ export default function Hosts() {
             {filteredHosts.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-16 text-center text-gray-400">
-                  <div className="text-4xl mb-2">🔍</div>
+                  <svg className="w-10 h-10 text-gray-300 mb-2 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                   <p className="font-semibold text-gray-500">No hosts match your filters</p>
                   <p className="text-sm mt-1">Try adjusting your search or clearing the filters.</p>
                   <button

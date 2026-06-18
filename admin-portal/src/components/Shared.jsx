@@ -26,15 +26,16 @@ export function StatusBadge({ status }) {
     Disputed:  'bg-red-50 text-red-500 border border-red-200',
     Flagged:   'bg-orange-50 text-orange-500 border border-orange-200',
   }
-  const icons = {
-    Confirmed: '✓',
-    Pending:   '○',
-    Disputed:  '⚠',
-    Flagged:   '!',
+  const dots = {
+    Confirmed: 'bg-blue-500',
+    Pending:   'bg-gray-400',
+    Disputed:  'bg-red-500',
+    Flagged:   'bg-orange-500',
   }
   return (
-    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${styles[status] || 'bg-gray-100 text-gray-500'}`}>
-      <span>{icons[status]}</span> {status}
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${styles[status] || 'bg-gray-100 text-gray-500'}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dots[status] || 'bg-gray-400'}`} />
+      {status}
     </span>
   )
 }

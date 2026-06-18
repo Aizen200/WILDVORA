@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Alert from '../utils/alert';
 
 const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const LONG_MONTHS  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -114,6 +115,10 @@ export default function BookingScreen({ route, navigation }) {
   const grandTotal   = basePrice + serviceFee + taxes;
 
   const handleConfirm = async () => {
+    if (!checkInDate) {
+      Alert.alert('Select a date', 'Please select a start date for your trip.');
+      return;
+    }
     setLoading(true);
     try {
       await bookingAPI.create({
@@ -126,8 +131,9 @@ export default function BookingScreen({ route, navigation }) {
         totalPrice: grandTotal,
       });
       setViewDone(true);
-    } catch {
-      setViewDone(true);
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Something went wrong. Please try again.';
+      Alert.alert('Booking Failed', msg);
     } finally {
       setLoading(false);
     }

@@ -96,10 +96,6 @@ export default function ListingForm() {
   const advRef      = useRef(null);
   const videoRef    = useRef(null);
 
-  // Safety checklist & medical advisories (add-one-by-one)
-  const [safetyInput,   setSafetyInput]   = useState('');
-  const [medicalInput,  setMedicalInput]  = useState('');
-
   const [formData, setFormData] = useState({
     // Basic Info
     title: '', category: 'Trekking', description: '',
@@ -115,9 +111,6 @@ export default function ListingForm() {
     // Safety
     firstAidAvailable: false, emergencyContact: '', safetyBriefingIncluded: false,
     nearestFacility: '',
-    // Safety checklist & medical advisories (arrays)
-    safetyChecklist: [],
-    medicalAdvisories: [],
     // Requirements checklist
     requirements: [],
     // Inclusions / Exclusions
@@ -159,8 +152,6 @@ export default function ListingForm() {
           emergencyContact:        exp.safetyInfo?.emergencyContact        || '',
           safetyBriefingIncluded:  exp.safetyInfo?.safetyBriefingIncluded ?? false,
           nearestFacility:         exp.emergencyInfo?.nearestFacility      || '',
-          safetyChecklist:         exp.safetyChecklist    || [],
-          medicalAdvisories:       exp.medicalAdvisories  || [],
           requirements:            exp.requirements       || [],
           includes:            exp.includes?.join(', ')    || '',
           exclusions:          exp.exclusions?.join(', ')  || '',
@@ -261,26 +252,6 @@ export default function ListingForm() {
   const removeReq = (idx) =>
     setFormData(prev => ({ ...prev, requirements: prev.requirements.filter((_, i) => i !== idx) }));
 
-  // ── Safety Checklist ──
-  const addSafety = () => {
-    const val = safetyInput.trim();
-    if (!val) return;
-    setFormData(prev => ({ ...prev, safetyChecklist: [...prev.safetyChecklist, val] }));
-    setSafetyInput('');
-  };
-  const removeSafety = (idx) =>
-    setFormData(prev => ({ ...prev, safetyChecklist: prev.safetyChecklist.filter((_, i) => i !== idx) }));
-
-  // ── Medical Advisories ──
-  const addMedical = () => {
-    const val = medicalInput.trim();
-    if (!val) return;
-    setFormData(prev => ({ ...prev, medicalAdvisories: [...prev.medicalAdvisories, val] }));
-    setMedicalInput('');
-  };
-  const removeMedical = (idx) =>
-    setFormData(prev => ({ ...prev, medicalAdvisories: prev.medicalAdvisories.filter((_, i) => i !== idx) }));
-
   // ── Submit ──
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -334,8 +305,6 @@ export default function ListingForm() {
         contact:         formData.emergencyContact,
         nearestFacility: formData.nearestFacility,
       },
-      safetyChecklist:   formData.safetyChecklist,
-      medicalAdvisories: formData.medicalAdvisories,
       requirements: formData.requirements,
       includes:     formData.includes.split(',').map(s => s.trim()).filter(Boolean),
       exclusions:   formData.exclusions.split(',').map(s => s.trim()).filter(Boolean),
@@ -637,79 +606,41 @@ export default function ListingForm() {
               </div>
             </SectionCard>
 
-            {/* ── 6b. Safety Checklist ── */}
+            {/* ── 7. Requirements & Must-Carry Essentials ── */}
             <SectionCard>
-              <SectionHeader>Safety Checklist</SectionHeader>
-              <p className="text-xs text-gray-400 -mt-2">Pre-departure safety items shown as a checklist to customers (e.g. "Carry a whistle", "Wear sunscreen SPF 50+"). Add one item at a time.</p>
-              <div className="flex gap-2">
-                <input
-                  type="text" value={safetyInput} onChange={e => setSafetyInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSafety(); } }}
-                  placeholder="e.g. Carry a whistle at all times"
-                  disabled={isPending} className={`${inputCls} flex-1 ${dis}`}
-                />
-                <button type="button" onClick={addSafety} disabled={isPending || !safetyInput.trim()}
-                  className="px-4 py-2 text-sm font-bold bg-[#1A5F45] text-white rounded-xl disabled:opacity-40 hover:bg-[#145038] transition">
-                  Add
-                </button>
-              </div>
-              {formData.safetyChecklist.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  {formData.safetyChecklist.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm px-3 py-2 bg-green-50 text-green-800 rounded-lg border border-green-100">
-                      <span className="text-green-500 font-bold text-xs">✓</span>
-                      <span className="flex-1">{item}</span>
-                      {!isPending && (
-                        <button type="button" onClick={() => removeSafety(i)}
-                          className="text-gray-400 hover:text-red-500 transition font-bold text-lg leading-none">×</button>
-                      )}
-                    </div>
+              <SectionHeader>Requirements & Must-Carry Essentials</SectionHeader>
+              <p className="text-xs text-gray-400 -mt-2">
+                Items participants must bring. Shown as a prominent checklist to customers before they book.
+              </p>
+
+              {/* Quick-add presets */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Quick add common items:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Trekking Shoes', 'Water Bottle (2L)', 'Rain Jacket', 'Government ID',
+                    'Personal Medicines', 'Backpack', 'Power Bank', 'Warm Clothing',
+                    'Torch / Headlamp', 'Sunscreen', 'First Aid Kit', 'Trekking Pole',
+                  ].filter(preset => !formData.requirements.includes(preset)).map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => setFormData(prev => ({ ...prev, requirements: [...prev.requirements, preset] }))}
+                      className="text-xs px-2.5 py-1 rounded-full border border-dashed border-gray-300 text-gray-500 hover:border-[#1A5F45] hover:text-[#1A5F45] hover:bg-[#1A5F45]/5 transition disabled:opacity-40"
+                    >
+                      + {preset}
+                    </button>
                   ))}
                 </div>
-              )}
-            </SectionCard>
-
-            {/* ── 6c. Medical Advisories ── */}
-            <SectionCard>
-              <SectionHeader>Health &amp; Medical Advisories</SectionHeader>
-              <p className="text-xs text-gray-400 -mt-2">Important health warnings shown prominently to customers (e.g. "Not suitable for people with vertigo"). Add one advisory at a time.</p>
-              <div className="flex gap-2">
-                <input
-                  type="text" value={medicalInput} onChange={e => setMedicalInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMedical(); } }}
-                  placeholder="e.g. Not recommended for people with heart conditions"
-                  disabled={isPending} className={`${inputCls} flex-1 ${dis}`}
-                />
-                <button type="button" onClick={addMedical} disabled={isPending || !medicalInput.trim()}
-                  className="px-4 py-2 text-sm font-bold bg-[#1A5F45] text-white rounded-xl disabled:opacity-40 hover:bg-[#145038] transition">
-                  Add
-                </button>
               </div>
-              {formData.medicalAdvisories.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  {formData.medicalAdvisories.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm px-3 py-2 bg-red-50 text-red-800 rounded-lg border border-red-100">
-                      <span className="text-red-500 font-bold text-xs">⚠</span>
-                      <span className="flex-1">{item}</span>
-                      {!isPending && (
-                        <button type="button" onClick={() => removeMedical(i)}
-                          className="text-gray-400 hover:text-red-500 transition font-bold text-lg leading-none">×</button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
 
-            {/* ── 7. Adventure Requirements & Preparation ── */}
-            <SectionCard>
-              <SectionHeader>Adventure Requirements & Preparation</SectionHeader>
-              <p className="text-xs text-gray-400 -mt-2">What should participants bring? Displayed as a checklist in the customer app.</p>
+              {/* Custom item input */}
               <div className="flex gap-2">
                 <input
                   type="text" value={reqInput} onChange={e => setReqInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
-                  placeholder="e.g. Trekking Shoes, Water Bottle (2L), Rain Jacket..."
+                  placeholder="Add a custom item..."
                   disabled={isPending} className={`${inputCls} flex-1 ${dis}`}
                 />
                 <button type="button" onClick={addReq} disabled={isPending || !reqInput.trim()}
@@ -717,22 +648,27 @@ export default function ListingForm() {
                   Add
                 </button>
               </div>
+
+              {/* Added items */}
               {formData.requirements.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {formData.requirements.map((r, i) => (
                     <span key={i} className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-[#1A5F45]/8 text-[#1A5F45] rounded-full border border-[#1A5F45]/20 font-medium">
-                      ✓ {r}
+                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+                      {r}
                       {!isPending && (
                         <button type="button" onClick={() => removeReq(i)}
-                          className="ml-1 text-gray-400 hover:text-red-500 transition font-bold leading-none">×</button>
+                          className="ml-1 text-gray-400 hover:text-red-500 transition font-bold leading-none">&times;</button>
                       )}
                     </span>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-gray-300">
-                Suggestions: Trekking Shoes · Rain Jacket · Water Bottle (2L) · Government ID · Personal Medicines · Warm Clothing · Torch / Headlamp · Power Bank
-              </p>
+              {formData.requirements.length === 0 && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  No items added yet. Use quick-add or type a custom item above.
+                </p>
+              )}
             </SectionCard>
 
             {/* ── 8. Inclusions & Exclusions ── */}

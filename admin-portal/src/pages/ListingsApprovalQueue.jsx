@@ -2,38 +2,6 @@ import { useState, useEffect } from 'react';
 import { FilterIcon, CheckIcon, XCircleIcon, MapPinIcon, CalIcon, EyeIcon } from '../components/Shared.jsx';
 import api from '../api/axios';
 
-// Helper to generate safety guidelines dynamically for review if not stored on DB
-function getSafetyGuidelines(category, difficulty, location) {
-  const diff = difficulty || 'Moderate';
-  const cat = category || 'Trekking';
-  const city = location || 'the location';
-
-  let checklist = ['Comfortable outdoor shoes', 'Drinking water (1L+)', 'Sunscreen / Cap'];
-  let medicalAdvisories = ['Consult a doctor if you have knee/joint issues or balance conditions.'];
-  let emergencyContact = '+91 98765 43210';
-  let nearestFacility = `${city.split(',')[0]} Emergency Clinic (8 km)`;
-
-  if (cat === 'Trekking' || cat === 'Climbing') {
-    if (diff === 'Hard' || diff === 'Expert') {
-      checklist = ['Trekking boots with grip', 'Warm layers / windproof jacket', 'Headlamp / Flashlight', 'Hydration pack (2L+)', 'Energy snacks'];
-      medicalAdvisories = ['Not recommended for cardiovascular issues, severe asthma, or pregnant women.', 'High altitude acclimation warning.'];
-    } else {
-      checklist = ['Sturdy walking shoes', 'Backpack (15-20L)', 'Rain coat', 'Water bottle (1.5L)'];
-      medicalAdvisories = ['Be mindful of knee strain. Stay hydrated to avoid heat exhaustion.'];
-    }
-  } else if (cat === 'Water Sports') {
-    checklist = ['Swimwear / quick-dry clothes', 'Life jacket (certified)', 'Waterproof pouch for phone', 'Change of dry clothes'];
-    medicalAdvisories = ['Basic swimming ability required.', 'Avoid if you have history of seizures or recent shoulder/back injuries.'];
-  } else if (cat === 'Skiing') {
-    checklist = ['Thermal innerwear', 'Ski gloves and goggles', 'Waterproof snow suit', 'Helmets'];
-    medicalAdvisories = ['Not recommended for osteoporosis or severe joint instability.', 'Cold environment warning.'];
-  } else if (cat === 'Camping') {
-    checklist = ['Personal toiletries', 'Warm socks & jacket', 'Power bank', 'Flashlight', 'Personal medication'];
-    medicalAdvisories = ['Carry insect repellent. Keep warm layers handy for temperature drop at night.'];
-  }
-
-  return { checklist, medicalAdvisories, emergencyContact, nearestFacility };
-}
 
 function FeedbackModal({ listing, actionType, onConfirm, onCancel }) {
   const [reason, setReason] = useState('');
@@ -82,8 +50,6 @@ function FeedbackModal({ listing, actionType, onConfirm, onCancel }) {
 }
 
 function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }) {
-  const safety = getSafetyGuidelines(listing.category, listing.difficulty, listing.location);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -92,10 +58,10 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
             <img
               src={listing.img}
               alt={listing.name}
-              className="w-full h-52 object-cover"
+              className="w-full h-64 object-cover"
             />
           ) : (
-            <div className="w-full h-52 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
+            <div className="w-full h-64 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
               <svg className="w-14 h-14 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
               </svg>
@@ -105,7 +71,7 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
             onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center text-gray-600 hover:bg-white shadow cursor-pointer"
           >
-            ✕
+            &times;
           </button>
         </div>
 
@@ -130,7 +96,7 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
             <span className="flex items-center gap-1"><CalIcon /> Submitted {listing.date}</span>
             <span className="flex items-center gap-1"><MapPinIcon /> {listing.location}</span>
             {listing.duration && <span>⏱ {listing.duration}</span>}
-            {listing.difficulty && <span>📊 {listing.difficulty}</span>}
+            {listing.difficulty && <span>{listing.difficulty}</span>}
           </div>
 
           {listing.description && (
@@ -146,7 +112,7 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
               <div className="flex flex-wrap gap-1.5">
                 {listing.includes.map((inc, i) => (
                   <span key={i} className="bg-emerald-50 text-emerald-700 text-xs px-2.5 py-1 rounded-full border border-emerald-100">
-                    ✓ {inc}
+                    {inc}
                   </span>
                 ))}
               </div>
@@ -159,53 +125,38 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
               <div className="flex flex-wrap gap-1.5">
                 {listing.exclusions.map((exc, i) => (
                   <span key={i} className="bg-red-50 text-red-600 text-xs px-2.5 py-1 rounded-full border border-red-100">
-                    ✕ {exc}
+                    {exc}
                   </span>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Safety Review Panel */}
-          <div className="mb-5 border border-amber-200 rounded-xl p-4 bg-amber-50/15">
-            <h3 className="text-sm font-bold text-amber-900 mb-2.5 flex items-center gap-1.5">
-              🛡️ Safety & Compliance Review
-            </h3>
-            <div className="space-y-3.5 text-xs text-gray-700">
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Difficulty Rating:</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold text-[10px]">
-                  {listing.difficulty || 'Moderate'}
-                </span>
-              </div>
-              <div>
-                <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-1">Safety Checklist:</span>
-                <ul className="list-disc pl-4 space-y-1 text-gray-600">
-                  {safety.checklist.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-1">Medical Advisories:</span>
-                <ul className="list-disc pl-4 space-y-1 text-gray-600">
-                  {safety.medicalAdvisories.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-amber-200/50">
-                <div>
-                  <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-0.5">Emergency Contact:</span>
-                  <span className="text-gray-600 font-mono font-semibold">{safety.emergencyContact}</span>
-                </div>
-                <div>
-                  <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-0.5">Nearest Medical Facility:</span>
-                  <span className="text-gray-600 font-semibold">{safety.nearestFacility}</span>
-                </div>
+          {/* Must-Carry Essentials */}
+          {listing.requirements?.length > 0 ? (
+            <div className="mb-4 border border-blue-100 rounded-xl p-4 bg-blue-50/30">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2.5 flex items-center gap-1.5">
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Must-Carry Essentials
+                <span className="ml-1 text-[10px] font-medium bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">{listing.requirements.length} items</span>
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {listing.requirements.map((item, i) => (
+                  <span key={i} className="flex items-center gap-1 bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 font-medium">
+                    <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+                    {item}
+                  </span>
+                ))}
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="mb-4 border border-gray-100 rounded-xl p-3 bg-gray-50/50">
+              <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                No must-carry essentials listed by operator.
+              </p>
+            </div>
+          )}
 
           {listing.operatorEmail && (
             <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
@@ -234,7 +185,7 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
             onClick={onRequestChanges}
             className="flex-1 flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all cursor-pointer"
           >
-            ⚠️ Request Changes
+            Request Changes
           </button>
           <button
             onClick={onReject}
@@ -254,6 +205,7 @@ export default function ListingsApprovalQueue() {
   const [detailListing, setDetailListing] = useState(null);
   const [feedbackTarget, setFeedbackTarget] = useState(null);
   const [actionMsg, setActionMsg]         = useState('');
+  const [actionSuccess, setActionSuccess] = useState(true);
 
   // Search and Filter states
   const [searchText, setSearchText] = useState('');
@@ -282,6 +234,7 @@ export default function ListingsApprovalQueue() {
           description:    l.description,
           includes:       l.includes || [],
           exclusions:     l.exclusions || [],
+          requirements:   l.requirements || [],
           availableDates: l.availableDates || [],
         })));
       }
@@ -294,8 +247,9 @@ export default function ListingsApprovalQueue() {
 
   useEffect(() => { fetchPendingListings(); }, []);
 
-  const flash = (msg) => {
+  const flash = (msg, success = true) => {
     setActionMsg(msg);
+    setActionSuccess(success);
     setTimeout(() => setActionMsg(''), 3500);
   };
 
@@ -305,7 +259,7 @@ export default function ListingsApprovalQueue() {
       if (res.data?.success) {
         setListings(prev => prev.filter(l => l._id !== listing._id));
         setDetailListing(null);
-        flash(`✓ "${listing.name}" approved and is now live.`);
+        flash(`"${listing.name}" approved and is now live.`);
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to approve listing.');
@@ -319,7 +273,10 @@ export default function ListingsApprovalQueue() {
         setListings(prev => prev.filter(l => l._id !== listing._id));
         setFeedbackTarget(null);
         setDetailListing(null);
-        flash(status === 'rejected' ? `✕ "${listing.name}" rejected.` : `⚠️ Changes requested for "${listing.name}".`);
+        flash(
+          status === 'rejected' ? `"${listing.name}" rejected.` : `Changes requested for "${listing.name}".`,
+          false
+        );
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to submit feedback.');
@@ -457,7 +414,7 @@ export default function ListingsApprovalQueue() {
       {/* Flash message */}
       {actionMsg && (
         <div className={`mb-5 px-4 py-3 rounded-xl text-sm font-medium ${
-          actionMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+          actionSuccess ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
         }`}>
           {actionMsg}
         </div>
@@ -467,7 +424,7 @@ export default function ListingsApprovalQueue() {
         <div className="text-center py-16 text-gray-400">Loading pending listings...</div>
       ) : filteredListings.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
-          <div className="text-4xl mb-3">🔍</div>
+          <svg className="w-10 h-10 text-gray-300 mb-3 mx-auto" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <p className="text-gray-600 font-semibold text-lg">No Pending Reviews Match Your Criteria</p>
           <p className="text-gray-400 text-sm mt-1">Try adjusting your search query or filters.</p>
           <button

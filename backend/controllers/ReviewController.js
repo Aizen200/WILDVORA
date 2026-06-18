@@ -1,4 +1,5 @@
 const Review = require('../models/Review');
+const Booking = require('../models/Booking');
 
 // @route GET /api/reviews/experience/:id
 const getExperienceReviews = async (req, res) => {
@@ -16,6 +17,22 @@ const getExperienceReviews = async (req, res) => {
 const createReview = async (req, res) => {
   try {
     const { experienceId, rating, comment, bookingId } = req.body;
+
+    // Verify the booking exists, belongs to this user, and is marked completed
+    const booking = await Booking.findOne({
+      _id:        bookingId,
+      user:       req.user._id,
+      experience: experienceId,
+    });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+    if (booking.status !== 'completed') {
+      return res.status(403).json({
+        success: false,
+        message: 'Reviews can only be submitted after the trip has been marked as completed.',
+      });
+    }
 
     const existing = await Review.findOne({ user: req.user._id, experience: experienceId });
     if (existing) return res.status(400).json({ success: false, message: 'You already reviewed this experience' });

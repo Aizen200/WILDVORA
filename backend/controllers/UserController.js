@@ -1,10 +1,14 @@
-const User = require('../models/User');
+const User    = require('../models/User');
+const Booking = require('../models/Booking');
 
 // @route GET /api/users/profile
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('wishlist', 'title images price location rating');
-    res.json({ success: true, user });
+    const [user, completedTrips] = await Promise.all([
+      User.findById(req.user._id).populate('wishlist', 'title images price location rating'),
+      Booking.countDocuments({ user: req.user._id, status: 'completed' }),
+    ]);
+    res.json({ success: true, user, completedTrips });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -13,10 +17,14 @@ const getProfile = async (req, res) => {
 // @route PATCH /api/users/profile
 const updateProfile = async (req, res) => {
   try {
-    const { name, phone, bio, avatar } = req.body;
+    const {
+      name, phone, bio, avatar,
+      city, dateOfBirth, gender,
+      emergencyContactName, emergencyContactPhone,
+    } = req.body;
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { name, phone, bio, avatar },
+      { name, phone, bio, avatar, city, dateOfBirth, gender, emergencyContactName, emergencyContactPhone },
       { new: true, runValidators: true }
     );
     res.json({ success: true, user });

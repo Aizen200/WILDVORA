@@ -35,9 +35,21 @@ const bookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'cancelled', 'completed'],
+      enum: ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled', 'postponed'],
       default: 'confirmed',
     },
+    statusNote: {
+      type: String,
+      default: '',
+    },
+    statusHistory: [
+      {
+        status:    { type: String },
+        note:      { type: String, default: '' },
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        changedAt: { type: Date, default: Date.now },
+      },
+    ],
     paymentMethod: {
       type: String,
       enum: ['card', 'apple_pay', 'google_pay'],

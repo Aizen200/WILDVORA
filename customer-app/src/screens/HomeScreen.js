@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { experienceAPI } from '../services/api';
+import { experienceAPI, userAPI } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -48,15 +48,15 @@ function StarBadge({ rating }) {
   );
 }
 
-function FeaturedCard({ item, index, onPress, onWishlist }) {
-  const imgUri = item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+function FeaturedCard({ item, index, onPress, onWishlist, isWishlisted }) {
+  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
   return (
     <TouchableOpacity style={s.featCard} onPress={() => onPress(item)} activeOpacity={0.92}>
       <View style={s.featImgWrap}>
         <Image source={{ uri: imgUri }} style={s.featImg} resizeMode="cover" />
         <View style={s.featImgOverlay} />
         <TouchableOpacity style={s.wishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="heart-outline" size={18} color={C.white} />
+          <MaterialCommunityIcons name={isWishlisted ? 'heart' : 'heart-outline'} size={18} color={isWishlisted ? '#ff6b6b' : C.white} />
         </TouchableOpacity>
       </View>
       <View style={s.featBody}>
@@ -83,7 +83,7 @@ function FeaturedCard({ item, index, onPress, onWishlist }) {
 }
 
 function NewCard({ item, index, onPress }) {
-  const imgUri = item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
   return (
     <TouchableOpacity style={s.newCard} onPress={() => onPress(item)} activeOpacity={0.9}>
       <View style={{ position: 'relative' }}>
@@ -102,7 +102,7 @@ function NewCard({ item, index, onPress }) {
 }
 
 function TrendingItem({ item, index, onPress }) {
-  const imgUri = item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
   const isWater = item.category === 'Water Sports' || item.category === 'Cycling';
   const tagStyle = isWater
     ? { bg: '#d0ecf8', text: C.secondary }
@@ -126,12 +126,16 @@ function TrendingItem({ item, index, onPress }) {
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
-  const [search, setSearch]         = useState('');
-  const [category, setCategory]     = useState('All Destinations');
-  const [featured, setFeatured]         = useState([]);
+  const [search, setSearch]               = useState('');
+  const [category, setCategory]           = useState('All Destinations');
+  const [featured, setFeatured]           = useState([]);
   const [allExperiences, setAllExperiences] = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [refreshing, setRefreshing]       = useState(false);
+  const [wishlistIds, setWishlistIds]     = useState(() => {
+    const ids = user?.wishlist?.map(w => w._id || w) || [];
+    return new Set(ids);
+  });
 
 
   const fetchData = useCallback(async () => {
@@ -159,8 +163,18 @@ export default function HomeScreen({ navigation }) {
   const goToExperience = (item) =>
     navigation.navigate('ExperienceDetail', { experienceId: item._id });
 
-  const handleWishlist = (item) =>
-    navigation.navigate('ExperienceDetail', { experienceId: item._id });
+  const handleWishlist = async (item) => {
+    try {
+      await userAPI.toggleWishlist(item._id);
+      setWishlistIds(prev => {
+        const next = new Set(prev);
+        next.has(item._id) ? next.delete(item._id) : next.add(item._id);
+        return next;
+      });
+    } catch {
+      // silently fail — user can try again
+    }
+  };
 
   const filteredAll = category === 'All Destinations'
     ? allExperiences
@@ -226,23 +240,22 @@ export default function HomeScreen({ navigation }) {
         </ImageBackground>
 
         {/* Category chips */}
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.chips} style={s.chipsWrap}
-        >
-          {CATEGORIES.map((cat) => {
-            const active = category === cat;
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[s.chip, active ? s.chipActive : s.chipInactive]}
-                onPress={() => setCategory(cat)}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.chipText, active ? s.chipTextActive : s.chipTextInactive]}>{cat}</Text>
-              </TouchableOpacity>
-            );
-          })}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chipsWrap}>
+          <View style={s.chips}>
+            {CATEGORIES.map((cat) => {
+              const active = category === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.chip, active ? s.chipActive : s.chipInactive]}
+                  onPress={() => setCategory(cat)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[s.chipText, active ? s.chipTextActive : s.chipTextInactive]}>{cat}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
 
         {/* Empty state — no approved adventures yet */}
@@ -276,7 +289,7 @@ export default function HomeScreen({ navigation }) {
               data={featured}
               keyExtractor={(i) => i._id}
               renderItem={({ item, index }) => (
-                <FeaturedCard item={item} index={index} onPress={goToExperience} onWishlist={handleWishlist} />
+                <FeaturedCard item={item} index={index} onPress={goToExperience} onWishlist={handleWishlist} isWishlisted={wishlistIds.has(item._id)} />
               )}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={s.featList}
@@ -414,14 +427,14 @@ const s = StyleSheet.create({
   exploreBtn:     { backgroundColor: C.primary, borderRadius: 50, paddingHorizontal: 18, paddingVertical: 10, marginLeft: 4 },
   exploreBtnText: { color: C.white, fontWeight: '700', fontSize: 13 },
 
-  chipsWrap: { backgroundColor: C.background },
-  chips:     { paddingHorizontal: 20, paddingVertical: 14, gap: 10 },
-  chip:           { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 50 },
+  chipsWrap: { backgroundColor: C.background, height: 60 },
+  chips:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10 },
+  chip:           { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 50, marginRight: 10 },
   chipActive:     { backgroundColor: C.primary, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3 },
   chipInactive:   { backgroundColor: C.surfaceContainerLow, borderWidth: 1, borderColor: C.outlineVariant },
-  chipText:           { fontSize: 13, fontWeight: '600' },
-  chipTextActive:     { color: C.white },
-  chipTextInactive:   { color: C.onSurfaceVariant },
+  chipText:           { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
+  chipTextActive:     { color: '#ffffff' },
+  chipTextInactive:   { color: '#1a1a1a' },
 
   section:    { paddingHorizontal: 20, marginTop: 8, marginBottom: 4 },
   sectionHdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },

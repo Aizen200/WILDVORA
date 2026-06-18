@@ -93,7 +93,7 @@ const sl = StyleSheet.create({
 
 // ── Result Card ───────────────────────────────────────────────────────────────
 function ResultCard({ item, onPress }) {
-  const imgUri = item.images?.[0] || CAT_IMAGES[item.category] || FALLBACK_IMG;
+  const imgUri = item.coverImage || item.images?.[0] || CAT_IMAGES[item.category] || FALLBACK_IMG;
   const dc = DIFF_COLORS[item.difficulty];
   return (
     <TouchableOpacity style={s.card} onPress={() => onPress(item)} activeOpacity={0.88}>
@@ -279,25 +279,22 @@ export default function FilterScreen({ navigation, route }) {
       </View>
 
       {/* ── Activity Quick Pills ─────────────────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.pillsRow}
-        style={s.pillsScroll}
-      >
-        {ACTIVITY_TYPES.map((a) => {
-          const active = activity === a;
-          return (
-            <TouchableOpacity
-              key={a}
-              style={[s.pill, active && s.pillActive]}
-              onPress={() => setActivity(a)}
-              activeOpacity={0.8}
-            >
-              <Text style={[s.pillText, active && s.pillTextActive]}>{a}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pillsScroll}>
+        <View style={s.pillsRow}>
+          {ACTIVITY_TYPES.map((a) => {
+            const active = activity === a;
+            return (
+              <TouchableOpacity
+                key={a}
+                style={[s.pill, active && s.pillActive]}
+                onPress={() => setActivity(a)}
+                activeOpacity={0.8}
+              >
+                <Text style={[s.pillText, active && s.pillTextActive]}>{a}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
 
       {/* ── Advanced Filter Panel ───────────────────────────────────────────── */}
@@ -509,12 +506,13 @@ const s = StyleSheet.create({
   filterDotText: { fontSize: 9, fontWeight: '800', color: C.white },
 
   /* Activity quick pills */
-  pillsScroll: { flexGrow: 0 },
-  pillsRow:    { paddingHorizontal: 16, gap: 8, paddingBottom: 12 },
+  pillsScroll: { height: 54 },
+  pillsRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingRight: 16 },
   pill: {
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50,
+    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 50,
     backgroundColor: C.surface,
-    borderWidth: 1.5, borderColor: C.outlineVariant + '80',
+    borderWidth: 1.5, borderColor: C.outlineVariant,
+    marginRight: 8,
   },
   pillActive: {
     backgroundColor: C.primary, borderColor: C.primary,
@@ -523,8 +521,8 @@ const s = StyleSheet.create({
       android: { elevation: 3 },
     }),
   },
-  pillText:       { fontSize: 13, fontWeight: '600', color: C.onSurfaceVariant },
-  pillTextActive: { color: C.white, fontWeight: '700' },
+  pillText:       { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
+  pillTextActive: { color: '#ffffff', fontWeight: '700' },
 
   /* Filter panel */
   filterPanel: {

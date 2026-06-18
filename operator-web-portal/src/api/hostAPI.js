@@ -17,7 +17,7 @@ export const hostAPI = {
   updateBankAccount:   (data)       => api.patch('/operator/bank-account', data),
   getPayouts:          ()           => api.get('/operator/payouts'),
   getBookings:         (params)     => api.get('/operator/bookings', { params }),
-  updateBookingStatus: (id, status) => api.patch(`/operator/bookings/${id}/status`, { status }),
+  updateBookingStatus: (id, status, statusNote = '') => api.patch(`/operator/bookings/${id}/status`, { status, statusNote }),
   getReviews:          ()           => api.get('/operator/reviews'),
   respondToReview:     (id, text)   => api.patch(`/operator/reviews/${id}/reply`, { hostReply: text }),
 };
