@@ -54,7 +54,82 @@ export default function Analytics() {
   const weeklyBuckets = useMemo(() => getWeeklyBuckets(bookings), [bookings]);
   const maxBucket = Math.max(...weeklyBuckets, 1);
   const catDist = useMemo(() => getCategoryDist(listings), [listings]);
-  const revenue = stats?.revenueThisMonth || 0;
+
+  const displayedRevenue = useMemo(() => {
+    if (period === 'Last 30 Days') {
+      return stats?.revenueThisMonth || 0;
+    }
+    let monthsLimit = period === 'Quarterly' ? 3 : 12;
+    const now = new Date();
+    const startTime = new Date(now.getFullYear(), now.getMonth() - monthsLimit + 1, 1).getTime();
+    return bookings
+      .filter(b => b.paymentStatus === 'paid' && ['confirmed', 'completed'].includes(b.status) && new Date(b.startDate).getTime() >= startTime)
+      .reduce((sum, b) => sum + b.totalPrice, 0);
+  }, [period, bookings, stats]);
+
+  const displayedRevenueLabel = useMemo(() => {
+    if (period === 'Last 30 Days') return 'This Month';
+    if (period === 'Quarterly') return 'Last 3 Months';
+    return 'Last 12 Months';
+  }, [period]);
+
+  const chartData = useMemo(() => {
+    if (period === 'Last 30 Days') {
+      const maxVal = Math.max(...weeklyBuckets, 1);
+      const labels = ['Week 1', 'Week 2', 'Week 3', 'Current Week'];
+      return weeklyBuckets.map((count, i) => ({
+        label: labels[i],
+        value: count,
+        pct: Math.round((count / maxVal) * 80) + 15,
+        isActive: i === weeklyBuckets.indexOf(Math.max(...weeklyBuckets))
+      }));
+    } else if (period === 'Quarterly') {
+      const now = new Date();
+      const months = [];
+      const counts = [0, 0, 0];
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(d.toLocaleString('en-US', { month: 'short' }));
+      }
+      bookings.forEach(b => {
+        if (!b.startDate || b.status === 'cancelled') return;
+        const bDate = new Date(b.startDate);
+        const diffMonths = (now.getFullYear() - bDate.getFullYear()) * 12 + (now.getMonth() - bDate.getMonth());
+        if (diffMonths >= 0 && diffMonths < 3) {
+          counts[2 - diffMonths]++;
+        }
+      });
+      const maxVal = Math.max(...counts, 1);
+      return counts.map((count, i) => ({
+        label: months[i],
+        value: count,
+        pct: Math.round((count / maxVal) * 80) + 15,
+        isActive: i === counts.indexOf(Math.max(...counts))
+      }));
+    } else { // Yearly
+      const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+      const counts = [0, 0, 0, 0];
+      const now = new Date();
+      bookings.forEach(b => {
+        if (!b.startDate || b.status === 'cancelled') return;
+        const bDate = new Date(b.startDate);
+        const diffMonths = (now.getFullYear() - bDate.getFullYear()) * 12 + (now.getMonth() - bDate.getMonth());
+        if (diffMonths >= 0 && diffMonths < 12) {
+          const qIdx = 3 - Math.floor(diffMonths / 3);
+          if (qIdx >= 0 && qIdx < 4) {
+            counts[qIdx]++;
+          }
+        }
+      });
+      const maxVal = Math.max(...counts, 1);
+      return counts.map((count, i) => ({
+        label: quarters[i],
+        value: count,
+        pct: Math.round((count / maxVal) * 80) + 15,
+        isActive: i === counts.indexOf(Math.max(...counts))
+      }));
+    }
+  }, [period, bookings, weeklyBuckets]);
 
   return (
     <Layout>
@@ -148,39 +223,34 @@ export default function Analytics() {
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <h2 className="text-base font-bold text-gray-900">Revenue Growth</h2>
-                    <p className="text-xs text-gray-400 font-semibold mt-0.5">Earnings overview compared to previous period</p>
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">Earnings overview over the selected period</p>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-black text-gray-900">
-                      ₹{revenue.toLocaleString('en-IN')}
+                      ₹{displayedRevenue.toLocaleString('en-IN')}
                     </div>
                     <span className="text-[10px] font-bold text-emerald-600 flex items-center justify-end gap-0.5 mt-0.5">
-                      <span className="text-xs">&uarr;</span> This Month
+                      <span className="text-xs">&uarr;</span> {displayedRevenueLabel}
                     </span>
                   </div>
                 </div>
 
-                {/* Bars Chart — weekly booking buckets */}
+                {/* Bars Chart — dynamically computed based on selected period */}
                 <div className="flex justify-between items-end h-44 px-4 pt-4 border-b border-gray-100">
-                  {weeklyBuckets.map((count, i) => {
-                    const heightPct = Math.round((count / maxBucket) * 100);
-                    const isActive = i === weeklyBuckets.indexOf(Math.max(...weeklyBuckets));
-                    const labels = ['Week 1', 'Week 2', 'Week 3', 'Current Week'];
+                  {chartData.map((item, i) => {
                     return (
                       <div key={i} className="flex flex-col items-center flex-1 group relative">
-                        {count > 0 && (
-                          <span className="absolute -top-5 text-[9px] font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition">
-                            {count}
-                          </span>
-                        )}
+                        <span className="absolute -top-7 text-[9px] font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition whitespace-nowrap bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-100 z-10">
+                          {item.value} Booking{item.value !== 1 ? 's' : ''}
+                        </span>
                         <div
-                          style={{ height: `${Math.max(heightPct, 8)}%` }}
+                          style={{ height: `${item.pct}%` }}
                           className={`w-10 rounded-t-lg transition-all duration-500 hover:opacity-90 ${
-                            isActive ? 'bg-[#1A5F45]' : 'bg-[#EBF1FA]'
+                            item.isActive ? 'bg-[#1A5F45]' : 'bg-[#EBF1FA]'
                           }`}
                         />
                         <span className="text-[9px] font-bold text-gray-400 mt-2 h-4 text-center leading-none">
-                          {labels[i]}
+                          {item.label}
                         </span>
                       </div>
                     );

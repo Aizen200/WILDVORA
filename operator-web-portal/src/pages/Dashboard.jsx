@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { hostAPI } from '../api/hostAPI';
@@ -45,6 +45,8 @@ export default function Dashboard() {
   const [listings, setListings] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading,  setLoading]  = useState(true);
+  const [chartPeriod, setChartPeriod] = useState('6M');
+  const [allBookings, setAllBookings] = useState([]);
 
   const handleExportDashboard = () => {
     const csvContent = "data:text/csv;charset=utf-8,Month,Revenue,Bookings,Listings,Occupancy\nMay,₹14000,10,3,78%\nJun,₹22000,15,4,82%\nJul,₹18000,12,4,75%\nAug,₹28000,20,4,88%\nSep,₹26000,18,4,84%\nOct,₹36000,24,5,92%\n";
@@ -67,10 +69,51 @@ export default function Dashboard() {
         setStats(s.data.stats);
         setListings(l.data.experiences.slice(0, 3));
         setBookings(b.data.bookings.slice(0, 3));
+        setAllBookings(b.data.bookings || []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const revenueChartData = useMemo(() => {
+    const now = new Date();
+    let numMonths = 6;
+    if (chartPeriod === '1Y') numMonths = 12;
+    if (chartPeriod === 'All') numMonths = 24;
+
+    const months = [];
+    const revenueByMonth = {};
+
+    for (let i = numMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleString('en-US', { month: 'short' });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months.push({ label, key });
+      revenueByMonth[key] = 0;
+    }
+
+    allBookings.forEach(b => {
+      if (!b.startDate || b.status === 'cancelled') return;
+      const bDate = new Date(b.startDate);
+      const key = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}`;
+      if (revenueByMonth[key] !== undefined) {
+        revenueByMonth[key] += b.totalPrice || 0;
+      }
+    });
+
+    const rawData = months.map(m => revenueByMonth[m.key]);
+    const maxVal = Math.max(...rawData, 10000);
+
+    return months.map(m => {
+      const rev = revenueByMonth[m.key];
+      const pct = Math.round((rev / maxVal) * 80) + 15;
+      return {
+        label: m.label,
+        revenue: rev,
+        pct
+      };
+    });
+  }, [chartPeriod, allBookings]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
@@ -137,29 +180,44 @@ export default function Dashboard() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">Revenue Overview</h2>
-                <p className="text-xs text-gray-400">Performance analysis over the last 6 months</p>
+                <p className="text-xs text-gray-400">Performance analysis over the selected period</p>
               </div>
               <div className="flex gap-1">
-                {['6M', '1Y', 'All'].map((p, i) => (
-                  <button key={p} className={`px-3 py-1 text-xs font-medium rounded-full border transition ${
-                    i === 0 ? 'bg-[#1A5F45] text-white border-[#1A5F45]' : 'border-gray-200 text-gray-500 hover:border-gray-300'
-                  }`}>{p}</button>
+                {['6M', '1Y', 'All'].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setChartPeriod(p)}
+                    className={`px-3 py-1 text-xs font-medium rounded-full border transition ${
+                      chartPeriod === p
+                        ? 'bg-[#1A5F45] text-white border-[#1A5F45]'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    {p}
+                  </button>
                 ))}
               </div>
             </div>
             <div className="flex items-end gap-3 h-40">
-              {[35, 55, 45, 70, 65, 90].map((h, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              {revenueChartData.map((item, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                  <span className="absolute -top-7 text-[9px] font-bold text-gray-500 opacity-0 group-hover:opacity-100 transition whitespace-nowrap bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-100 z-10">
+                    ₹{item.revenue.toLocaleString('en-IN')}
+                  </span>
                   <div
-                    className={`w-full rounded-t-lg ${i === 5 ? 'bg-[#1A5F45]' : 'bg-[#C8E6D4]'}`}
-                    style={{ height: `${h}%` }}
+                    className={`w-full rounded-t-lg transition-all duration-300 hover:opacity-90 ${
+                      i === revenueChartData.length - 1 ? 'bg-[#1A5F45]' : 'bg-[#C8E6D4]'
+                    }`}
+                    style={{ height: `${item.pct}%` }}
                   />
                 </div>
               ))}
             </div>
             <div className="flex justify-between mt-2">
-              {['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'].map(m => (
-                <span key={m} className="flex-1 text-center text-[10px] text-gray-400 font-medium">{m}</span>
+              {revenueChartData.map((item, i) => (
+                <span key={i} className="flex-1 text-center text-[10px] text-gray-400 font-medium">
+                  {item.label}
+                </span>
               ))}
             </div>
           </div>
