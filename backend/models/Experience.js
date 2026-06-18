@@ -87,6 +87,13 @@ const experienceSchema = new mongoose.Schema(
       contact: { type: String, default: '' },
       nearestFacility: { type: String, default: '' }
     },
+    operatorInfo: {
+      businessRegistrationNumber: { type: String },
+      gstNumber:                  { type: String },
+      tourismRegistration:        { type: String },
+      yearsOfOperation:           { type: Number },
+      guideCertifications:        { type: String },
+    },
     status: {
       type: String,
       enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested'],

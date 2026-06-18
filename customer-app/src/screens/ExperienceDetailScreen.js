@@ -374,20 +374,112 @@ export default function ExperienceDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Bento highlights */}
-          <View style={styles.bentoGrid}>
-            {[
-              { icon: <MaterialCommunityIcons name="flag-outline"   size={24} color="#1A5F45" />, label: '12km Hike' },
-              { icon: <MaterialCommunityIcons name="elevation-rise" size={24} color="#1A5F45" />, label: '2,400m Peak' },
-              { icon: <Ionicons name="restaurant-outline"           size={24} color="#1A5F45" />, label: 'All Meals' },
-              { icon: <MaterialCommunityIcons name="tent"           size={24} color="#1A5F45" />, label: 'Gear Included' },
-            ].map(({ icon, label }) => (
-              <View key={label} style={styles.bentoItem}>
-                <View style={{ marginBottom: 6 }}>{icon}</View>
-                <Text style={styles.bentoText}>{label}</Text>
+          {/* Dynamic Quick Facts bento */}
+          {(() => {
+            const hasMeals = experience.includes?.some(i => /meal|food|breakfast|lunch|dinner/i.test(i));
+            const hasGear  = experience.includes?.some(i => /gear|equipment/i.test(i));
+            const items = [
+              experience.maxGroupSize && { icon: <Ionicons name="people-outline" size={24} color="#1A5F45" />, label: `Max ${experience.maxGroupSize} People` },
+              experience.safetyInfo?.firstAidAvailable && { icon: <MaterialIcons name="medical-services" size={24} color="#1A5F45" />, label: 'First Aid Kit' },
+              experience.safetyInfo?.safetyBriefingIncluded && { icon: <Ionicons name="shield-checkmark-outline" size={24} color="#1A5F45" />, label: 'Safety Briefing' },
+              experience.operatorInfo?.guideCertifications && { icon: <Ionicons name="ribbon-outline" size={24} color="#1A5F45" />, label: 'Certified Guide' },
+              hasMeals && { icon: <Ionicons name="restaurant-outline" size={24} color="#1A5F45" />, label: 'Meals Included' },
+              hasGear  && { icon: <MaterialCommunityIcons name="bag-personal-outline" size={24} color="#1A5F45" />, label: 'Gear Provided' },
+            ].filter(Boolean);
+            // Always ensure at least 2 fallback items
+            if (!items.find(i => i.label.includes('People')) && !items.find(i => i.label.includes('Group'))) {
+              items.unshift({ icon: <Ionicons name="people-outline" size={24} color="#1A5F45" />, label: experience.maxGroupSize ? `Max ${experience.maxGroupSize} People` : 'Small Groups' });
+            }
+            if (items.length < 2) {
+              items.push({ icon: <Ionicons name="calendar-outline" size={24} color="#1A5F45" />, label: experience.duration || 'Multi-day' });
+            }
+            return (
+              <View style={styles.bentoGrid}>
+                {items.slice(0, 4).map(({ icon, label }) => (
+                  <View key={label} style={styles.bentoItem}>
+                    <View style={{ marginBottom: 6 }}>{icon}</View>
+                    <Text style={styles.bentoText}>{label}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            );
+          })()}
+
+          {/* ══════════════════════════════════════════════ */}
+          {/* MEETING POINT & GETTING THERE                  */}
+          {/* ══════════════════════════════════════════════ */}
+          {(experience.location?.meetingPoint || experience.location?.googleMapsLink) && (
+            <View style={[styles.section, styles.borderTop]}>
+              <View style={styles.widgetHeaderLeft}>
+                <Ionicons name="location" size={20} color="#1A5F45" />
+                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Meeting Point</Text>
+              </View>
+              <View style={styles.meetingCard}>
+                {experience.location.meetingPoint ? (
+                  <View style={styles.meetingRow}>
+                    <Ionicons name="navigate-outline" size={16} color="#1A5F45" style={{ marginTop: 1 }} />
+                    <Text style={styles.meetingText}>{experience.location.meetingPoint}</Text>
+                  </View>
+                ) : null}
+                {experience.location?.state ? (
+                  <View style={[styles.meetingRow, { marginBottom: 0 }]}>
+                    <Ionicons name="map-outline" size={15} color="#6f7a73" style={{ marginTop: 1 }} />
+                    <Text style={[styles.meetingText, { color: '#6f7a73', fontSize: 13 }]}>
+                      {[experience.location.city, experience.location.state, experience.location.country].filter(Boolean).join(', ')}
+                    </Text>
+                  </View>
+                ) : null}
+                {experience.location.googleMapsLink ? (
+                  <TouchableOpacity
+                    style={styles.mapsBtn}
+                    onPress={() => Linking.openURL(experience.location.googleMapsLink)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="map" size={14} color="#fff" />
+                    <Text style={styles.mapsBtnText}>Open in Maps</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          {/* ══════════════════════════════════════════════ */}
+          {/* INCLUSIONS & EXCLUSIONS                        */}
+          {/* ══════════════════════════════════════════════ */}
+          {(experience.includes?.length > 0 || experience.exclusions?.length > 0) && (
+            <View style={[styles.section, styles.borderTop]}>
+              {experience.includes?.length > 0 && (
+                <>
+                  <Text style={styles.sectionTitle}>What's Included</Text>
+                  <View style={styles.inclExclList}>
+                    {experience.includes.map((item, idx) => (
+                      <View key={idx} style={styles.inclItem}>
+                        <View style={styles.inclIconGreen}>
+                          <Ionicons name="checkmark" size={12} color="#fff" />
+                        </View>
+                        <Text style={styles.inclText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+              {experience.exclusions?.length > 0 && (
+                <>
+                  <Text style={[styles.sectionSubtitle, { marginTop: experience.includes?.length > 0 ? 18 : 0 }]}>Not Included</Text>
+                  <View style={styles.inclExclList}>
+                    {experience.exclusions.map((item, idx) => (
+                      <View key={idx} style={styles.exclItem}>
+                        <View style={styles.inclIconRed}>
+                          <Ionicons name="close" size={12} color="#fff" />
+                        </View>
+                        <Text style={styles.exclText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          )}
 
           {/* ══════════════════════════════════════════════ */}
           {/* WEATHER & ADVENTURE SAFETY                    */}
@@ -563,6 +655,39 @@ export default function ExperienceDetailScreen({ route, navigation }) {
               </View>
             ) : null}
 
+            {/* Medical advisories array */}
+            {experience.medicalAdvisories?.length > 0 && (
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeader}>
+                  <View style={[styles.infoCardIcon, { backgroundColor: '#FFF7ED' }]}>
+                    <Ionicons name="warning-outline" size={14} color="#c2410c" />
+                  </View>
+                  <Text style={styles.infoCardTitle}>Health Advisories</Text>
+                </View>
+                {experience.medicalAdvisories.map((adv, idx) => (
+                  <Text key={idx} style={[styles.infoCardText, { marginTop: idx > 0 ? 4 : 2 }]}>• {adv}</Text>
+                ))}
+              </View>
+            )}
+
+            {/* Safety checklist */}
+            {experience.safetyChecklist?.length > 0 && (
+              <View style={styles.infoCard}>
+                <View style={styles.infoCardHeader}>
+                  <View style={[styles.infoCardIcon, { backgroundColor: '#DCFCE7' }]}>
+                    <Ionicons name="shield-checkmark-outline" size={14} color="#15803d" />
+                  </View>
+                  <Text style={styles.infoCardTitle}>Safety Checklist</Text>
+                </View>
+                {experience.safetyChecklist.map((item, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: idx > 0 ? 4 : 6 }}>
+                    <Ionicons name="checkmark-circle" size={14} color="#15803d" />
+                    <Text style={styles.infoCardText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {/* Emergency contacts + hospital */}
             <View style={styles.emergencyBox}>
               <Text style={styles.emergencyBoxTitle}>Emergency Contacts</Text>
@@ -653,6 +778,83 @@ export default function ExperienceDetailScreen({ route, navigation }) {
               ))}
             </ScrollView>
           </View>
+
+          {/* ══════════════════════════════════════════════ */}
+          {/* BOOKING INFORMATION                            */}
+          {/* ══════════════════════════════════════════════ */}
+          {(experience.cancellationPolicy || experience.bookingDeadline || experience.minGroupSize || experience.maxGroupSize) && (
+            <View style={[styles.section, styles.borderTop]}>
+              <View style={[styles.widgetHeaderLeft, { marginBottom: 14 }]}>
+                <Ionicons name="information-circle-outline" size={20} color="#1A5F45" />
+                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Booking Information</Text>
+              </View>
+              <View style={styles.bookingInfoCard}>
+                {(experience.minGroupSize || experience.maxGroupSize) && (
+                  <View style={styles.bookingRow}>
+                    <Ionicons name="people-outline" size={15} color="#1A5F45" />
+                    <Text style={styles.bookingLabel}>Group Size</Text>
+                    <Text style={styles.bookingValue}>
+                      {experience.minGroupSize && experience.maxGroupSize
+                        ? `${experience.minGroupSize}–${experience.maxGroupSize} people`
+                        : experience.maxGroupSize
+                        ? `Up to ${experience.maxGroupSize} people`
+                        : `From ${experience.minGroupSize} people`}
+                    </Text>
+                  </View>
+                )}
+                {experience.bookingDeadline ? (
+                  <View style={styles.bookingRow}>
+                    <Ionicons name="time-outline" size={15} color="#1A5F45" />
+                    <Text style={styles.bookingLabel}>Book By</Text>
+                    <Text style={styles.bookingValue}>
+                      {experience.bookingDeadline} day{experience.bookingDeadline !== 1 ? 's' : ''} before departure
+                    </Text>
+                  </View>
+                ) : null}
+                {experience.cancellationPolicy ? (
+                  <View style={[styles.bookingRow, { alignItems: 'flex-start', borderBottomWidth: 0 }]}>
+                    <Ionicons name="refresh-circle-outline" size={15} color="#1A5F45" style={{ marginTop: 2 }} />
+                    <Text style={styles.bookingLabel}>Cancellation</Text>
+                    <Text style={[styles.bookingValue, { flex: 1 }]}>{experience.cancellationPolicy}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          {/* ══════════════════════════════════════════════ */}
+          {/* SOCIAL MEDIA & CONNECT                         */}
+          {/* ══════════════════════════════════════════════ */}
+          {(experience.socialLinks?.instagram || experience.socialLinks?.website) && (
+            <View style={[styles.section, styles.borderTop]}>
+              <View style={[styles.widgetHeaderLeft, { marginBottom: 14 }]}>
+                <Ionicons name="share-social-outline" size={20} color="#1A5F45" />
+                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Connect with Operator</Text>
+              </View>
+              <View style={styles.socialRow}>
+                {experience.socialLinks.instagram ? (
+                  <TouchableOpacity
+                    style={[styles.socialBtn, { backgroundColor: '#E1306C' }]}
+                    onPress={() => Linking.openURL(experience.socialLinks.instagram)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-instagram" size={16} color="#fff" />
+                    <Text style={styles.socialBtnText}>Instagram</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {experience.socialLinks.website ? (
+                  <TouchableOpacity
+                    style={[styles.socialBtn, { backgroundColor: '#1A5F45' }]}
+                    onPress={() => Linking.openURL(experience.socialLinks.website)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="globe-outline" size={16} color="#fff" />
+                    <Text style={styles.socialBtnText}>Website</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          )}
 
           {/* Reviews */}
           <View style={[styles.section, styles.borderTop]}>
@@ -883,4 +1085,32 @@ const styles = StyleSheet.create({
   viewDatesText:   { fontSize: 12, color: '#1A5F45', fontWeight: '600' },
   bookBtn:         { backgroundColor: '#1A5F45', borderRadius: 50, paddingVertical: 14, paddingHorizontal: 32, ...Platform.select({ ios: { shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 8 }, android: { elevation: 4 } }) },
   bookBtnText:     { color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
+
+  /* Meeting Point */
+  meetingCard:     { backgroundColor: '#f3f8f5', borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 1, borderColor: 'rgba(26,95,69,0.12)' },
+  meetingRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  meetingText:     { fontSize: 14, color: '#2d3d36', fontWeight: '500', flex: 1, lineHeight: 20 },
+  mapsBtn:         { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1A5F45', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start', marginTop: 4 },
+  mapsBtnText:     { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  /* Inclusions / Exclusions */
+  inclExclList:    { gap: 8, marginTop: 10 },
+  inclItem:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: '#f0fdf4', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(21,128,61,0.14)' },
+  exclItem:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: '#fef2f2', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(185,28,28,0.1)' },
+  inclIconGreen:   { width: 20, height: 20, borderRadius: 10, backgroundColor: '#15803d', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  inclIconRed:     { width: 20, height: 20, borderRadius: 10, backgroundColor: '#b91c1c', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  inclText:        { fontSize: 13, color: '#166534', fontWeight: '500', flex: 1 },
+  exclText:        { fontSize: 13, color: '#991b1b', fontWeight: '500', flex: 1 },
+  sectionSubtitle: { fontSize: 15, fontWeight: '700', color: '#181d1a', marginBottom: 6 },
+
+  /* Booking Information */
+  bookingInfoCard: { backgroundColor: '#f9fafb', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)', overflow: 'hidden' },
+  bookingRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(190,201,193,0.18)' },
+  bookingLabel:    { fontSize: 12, color: '#6f7a73', fontWeight: '600', width: 90 },
+  bookingValue:    { fontSize: 13, color: '#181d1a', fontWeight: '500', flex: 1 },
+
+  /* Social Media */
+  socialRow:       { flexDirection: 'row', gap: 12 },
+  socialBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 25, flex: 1 },
+  socialBtnText:   { color: '#fff', fontSize: 14, fontWeight: '700' },
 });
