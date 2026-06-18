@@ -7,6 +7,7 @@ const {
   getListings,
   createListing,
   editListing,
+  pauseListing,
   resubmitListing,
   deleteListing,
   getBookings,
@@ -24,6 +25,7 @@ router.use(restrictTo('operator', 'admin'));
 router.get('/stats', getStats);
 router.get('/listings', getListings);
 router.post('/listings', createListing);
+router.patch('/listings/:id/pause', pauseListing);
 router.patch('/listings/:id/resubmit', resubmitListing);
 router.patch('/listings/:id', editListing);
 router.delete('/listings/:id', deleteListing);

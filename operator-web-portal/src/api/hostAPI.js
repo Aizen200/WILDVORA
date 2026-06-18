@@ -12,6 +12,7 @@ export const hostAPI = {
   getListing:          (id)         => api.get(`/experiences/${id}`),
   createListing:       (data)       => api.post('/operator/listings', data),
   editListing:         (id, data)   => api.patch(`/operator/listings/${id}`, data),
+  pauseListing:        (id)         => api.patch(`/operator/listings/${id}/pause`),
   resubmitListing:     (id)         => api.patch(`/operator/listings/${id}/resubmit`),
   deleteListing:       (id)         => api.delete(`/operator/listings/${id}`),
   updateBankAccount:   (data)       => api.patch('/operator/bank-account', data),

@@ -15,17 +15,18 @@ const FALLBACK_IMAGES = {
 };
 
 const CATEGORIES = ['All Categories', 'Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling', 'Climbing', 'Safari', 'Skiing'];
-const STATUSES   = ['All Status', 'live', 'pending', 'draft', 'paused', 'rejected', 'changes_requested', 'suspended'];
+const STATUSES   = ['All Status', 'live', 'pending', 'draft', 'paused', 'rejected', 'changes_requested', 'suspended', 'deleted'];
 const PER_PAGE   = 10;
 
 const STATUS_CONFIG = {
   live:               { label: 'Approved',            cls: 'bg-green-50 text-green-700 border border-green-200' },
   pending:            { label: 'Pending Review',       cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
   draft:              { label: 'Draft',                cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
-  paused:             { label: 'Paused',               cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  paused:             { label: 'Paused by Operator',   cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
   rejected:           { label: 'Rejected',             cls: 'bg-red-50 text-red-600 border border-red-200' },
   changes_requested:  { label: 'Changes Needed',       cls: 'bg-orange-50 text-orange-600 border border-orange-200' },
-  suspended:          { label: 'Suspended by Admin',   cls: 'bg-red-100 text-red-700 border border-red-300' },
+  suspended:          { label: 'Unlisted by Admin',    cls: 'bg-red-100 text-red-700 border border-red-300' },
+  deleted:            { label: 'Deleted',              cls: 'bg-gray-200 text-gray-500 border border-gray-300 line-through' },
 };
 
 const StatusBadge = ({ status }) => {
@@ -38,10 +39,12 @@ const StatusBadge = ({ status }) => {
 };
 
 // Icons
-const EditIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
-const TrashIcon  = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>;
+const EditIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+const TrashIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>;
 const RefreshIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>;
-const PlusIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>;
+const PlusIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>;
+const PauseIcon   = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>;
+const PlayIcon    = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
 
 export default function Listings() {
   const navigate = useNavigate();
@@ -85,16 +88,38 @@ export default function Listings() {
   const pendingCount   = listings.filter(l => l.status === 'pending').length;
   const rejectedCount  = listings.filter(l => ['rejected', 'changes_requested'].includes(l.status)).length;
   const suspendedCount = listings.filter(l => l.status === 'suspended').length;
+  const pausedCount    = listings.filter(l => l.status === 'paused').length;
+
+  const handlePause = async (exp) => {
+    const isPaused = exp.status === 'paused';
+    const msg = isPaused
+      ? `Resume "${exp.title}"? It will go live and be visible to customers again.`
+      : `Pause "${exp.title}"? It will be hidden from customers until you resume it.`;
+    if (!window.confirm(msg)) return;
+    setActionId(exp._id);
+    try {
+      const res = await hostAPI.pauseListing(exp._id);
+      const newStatus = res.data?.status ?? (isPaused ? 'live' : 'paused');
+      setListings(prev => prev.map(l => l._id === exp._id ? { ...l, status: newStatus } : l));
+      flash('success', isPaused ? `"${exp.title}" is now live.` : `"${exp.title}" paused — hidden from customers.`);
+    } catch (err) {
+      const msg = err.response?.data?.message
+        || (err.response ? `Server error (${err.response.status})` : 'Cannot reach server — make sure the backend is running.');
+      flash('error', msg);
+    } finally {
+      setActionId(null);
+    }
+  };
 
   const handleDelete = async (exp) => {
-    if (['live', 'suspended'].includes(exp.status)) {
-      flash('error', exp.status === 'live'
-        ? `Cannot delete "${exp.title}" — it's live. Pause it first.`
-        : `Cannot delete "${exp.title}" — it is suspended by admin. Request reactivation or contact support.`
-      );
+    if (exp.status === 'live') {
+      flash('error', `Cannot delete "${exp.title}" — it's live. Pause it first.`);
       return;
     }
-    if (!window.confirm(`Delete "${exp.title}"? This cannot be undone.`)) return;
+    const confirmMsg = exp.status === 'suspended'
+      ? `Delete "${exp.title}"? This listing was unlisted by admin. Deleting it is permanent.`
+      : `Delete "${exp.title}"? This cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
     setActionId(exp._id);
     try {
       await hostAPI.deleteListing(exp._id);
@@ -192,7 +217,17 @@ export default function Listings() {
               <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
             </svg>
             <span>
-              <strong>{suspendedCount} listing{suspendedCount > 1 ? 's have' : ' has'} been suspended by an admin.</strong> Review the reason, make necessary changes, and request reactivation.
+              <strong>{suspendedCount} listing{suspendedCount > 1 ? 's have' : ' has'} been unlisted by an admin.</strong> Review the reason below, address the issue, and click <strong>Request Reactivation</strong>. You may also delete an unlisted listing permanently.
+            </span>
+          </div>
+        )}
+        {pausedCount > 0 && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700">
+            <svg className="w-4 h-4 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            <span>
+              <strong>{pausedCount} listing{pausedCount > 1 ? 's are' : ' is'} paused by you</strong> and hidden from customers. Click the <strong>Resume</strong> button to make them live again.
             </span>
           </div>
         )}
@@ -261,8 +296,11 @@ export default function Listings() {
                     const isRejected  = ['rejected', 'changes_requested'].includes(exp.status);
                     const isSuspended = exp.status === 'suspended';
                     const isPending   = exp.status === 'pending';
+                    const isLive      = exp.status === 'live';
+                    const isPaused    = exp.status === 'paused';
+                    const isDeleted   = exp.status === 'deleted';
                     const busy        = actionId === exp._id;
-                    const rowBg       = isSuspended ? 'bg-red-50/60' : isRejected ? 'bg-red-50/30' : '';
+                    const rowBg       = isDeleted ? 'bg-gray-50/80 opacity-60' : isSuspended ? 'bg-red-50/60' : isRejected ? 'bg-red-50/30' : isPaused ? 'bg-slate-50/60' : '';
                     return (
                       <>
                         <tr key={exp._id} className={`hover:bg-gray-50/50 transition ${rowBg}`}>
@@ -305,7 +343,7 @@ export default function Listings() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-1.5">
                               {/* Resubmit — for rejected; Request Reactivation — for suspended */}
-                              {(isRejected || isSuspended) && (
+                              {!isDeleted && (isRejected || isSuspended) && (
                                 <button
                                   onClick={() => handleResubmit(exp)}
                                   disabled={busy}
@@ -318,12 +356,30 @@ export default function Listings() {
                                 </button>
                               )}
 
-                              {/* Edit — disabled while pending only */}
+                              {/* Pause / Resume — for live and paused listings */}
+                              {!isDeleted && (isLive || isPaused) && (
+                                <button
+                                  onClick={() => handlePause(exp)}
+                                  disabled={busy}
+                                  title={isPaused ? 'Resume — make visible to customers' : 'Pause — hide from customers temporarily'}
+                                  className={`p-2 rounded-lg transition disabled:opacity-40 ${
+                                    isPaused
+                                      ? 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50'
+                                      : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  {busy ? (
+                                    <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                  ) : isPaused ? <PlayIcon /> : <PauseIcon />}
+                                </button>
+                              )}
+
+                              {/* Edit — disabled while pending or deleted */}
                               <button
-                                onClick={() => !isPending && navigate(`/listings/${exp._id}/edit`)}
-                                title={isPending ? 'Cannot edit — awaiting review' : isSuspended ? 'Edit and request reactivation' : 'Edit'}
+                                onClick={() => !isPending && !isDeleted && navigate(`/listings/${exp._id}/edit`)}
+                                title={isDeleted ? 'Deleted listing cannot be edited' : isPending ? 'Cannot edit — awaiting review' : isSuspended ? 'Edit and request reactivation' : 'Edit'}
                                 className={`p-2 rounded-lg transition ${
-                                  isPending
+                                  isPending || isDeleted
                                     ? 'text-gray-200 cursor-not-allowed'
                                     : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
                                 }`}
@@ -331,12 +387,12 @@ export default function Listings() {
                                 <EditIcon />
                               </button>
 
-                              {/* Delete */}
+                              {/* Delete — blocked for live and already-deleted listings */}
                               <button
                                 onClick={() => handleDelete(exp)}
-                                disabled={busy}
-                                title={isSuspended ? 'Cannot delete suspended listings' : 'Delete'}
-                                className={`p-2 rounded-lg transition disabled:opacity-40 ${isSuspended ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
+                                disabled={busy || isLive || isDeleted}
+                                title={isDeleted ? 'Already deleted' : isLive ? 'Pause the listing before deleting' : 'Delete'}
+                                className={`p-2 rounded-lg transition disabled:opacity-40 ${isLive || isDeleted ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
                               >
                                 {busy ? (
                                   <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />

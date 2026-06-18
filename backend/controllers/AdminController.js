@@ -95,14 +95,17 @@ const getPendingListings = async (req, res) => {
 // Approve Experience
 const approveListing = async (req, res) => {
   try {
-    const experience = await Experience.findById(req.params.id);
-    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    const exists = await Experience.findById(req.params.id).select('_id');
+    if (!exists) return res.status(404).json({ success: false, message: 'Listing not found' });
 
-    experience.status = 'live';
-    experience.approvedAt = new Date();
-    experience.rejectionReason = '';
-    await experience.save();
-
+    const experience = await Experience.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set:  { status: 'live', approvedAt: new Date(), rejectionReason: '' },
+        $push: { auditLog: { action: 'approved', actorId: req.user._id, actorRole: 'admin', timestamp: new Date() } },
+      },
+      { new: true }
+    );
     res.json({ success: true, message: 'Experience listing approved and is now live', experience });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -121,13 +124,17 @@ const rejectListing = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A rejection reason is required' });
     }
 
-    const experience = await Experience.findById(req.params.id);
-    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    const exists = await Experience.findById(req.params.id).select('_id');
+    if (!exists) return res.status(404).json({ success: false, message: 'Listing not found' });
 
-    experience.status = status;
-    experience.rejectionReason = reason.trim();
-    await experience.save();
-
+    const experience = await Experience.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set:  { status, rejectionReason: reason.trim() },
+        $push: { auditLog: { action: status, actorId: req.user._id, actorRole: 'admin', reason: reason.trim(), timestamp: new Date() } },
+      },
+      { new: true }
+    );
     res.json({ success: true, message: `Listing status updated to ${status}`, experience });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -449,10 +456,10 @@ const suspendListing = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Listing is already suspended' });
     }
 
-    experience.status = 'suspended';
-    experience.suspensionReason = reason.trim();
-    experience.suspendedAt = new Date();
-    await experience.save();
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:  { status: 'suspended', suspensionReason: reason.trim(), suspendedAt: new Date() },
+      $push: { auditLog: { action: 'suspended', actorId: req.user._id, actorRole: 'admin', reason: reason.trim(), timestamp: new Date() } },
+    });
 
     // Notify the operator
     if (experience.host?._id) {
@@ -486,10 +493,11 @@ const reactivateListing = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Listing is not suspended' });
     }
 
-    experience.status = 'live';
-    experience.suspensionReason = '';
-    experience.suspendedAt = undefined;
-    await experience.save();
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:   { status: 'live', suspensionReason: '' },
+      $unset: { suspendedAt: '' },
+      $push:  { auditLog: { action: 'reactivated', actorId: req.user._id, actorRole: 'admin', timestamp: new Date() } },
+    });
 
     // Notify the operator
     if (experience.host?._id) {
@@ -514,9 +522,15 @@ const reactivateListing = async (req, res) => {
 };
 
 // @route GET /api/admin/listings/live
+// Accepts optional ?filter=live|suspended|paused|all (default: all post-approved)
 const getLiveListings = async (req, res) => {
   try {
-    const listings = await Experience.find({ status: 'live' })
+    const { filter } = req.query;
+    const VALID = ['live', 'suspended', 'paused'];
+    const statusQuery = filter && VALID.includes(filter)
+      ? filter
+      : { $in: VALID };
+    const listings = await Experience.find({ status: statusQuery })
       .populate('host', 'name email kyc')
       .sort({ createdAt: -1 });
     res.json({ success: true, count: listings.length, listings });
