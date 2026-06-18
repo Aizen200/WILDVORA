@@ -33,6 +33,27 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    city: {
+      type: String,
+      default: '',
+    },
+    dateOfBirth: {
+      type: String,
+      default: '',
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Non-binary', 'Prefer not to say', ''],
+      default: '',
+    },
+    emergencyContactName: {
+      type: String,
+      default: '',
+    },
+    emergencyContactPhone: {
+      type: String,
+      default: '',
+    },
     isPro: {
       type: Boolean,
       default: false,

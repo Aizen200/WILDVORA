@@ -9,8 +9,8 @@ const getPlatformOverview = async (req, res) => {
   try {
     const totalBookings = await Booking.countDocuments();
 
-    // GMV: sum of totalPrice of all paid / completed bookings
-    const paidBookings = await Booking.find({ paymentStatus: 'paid' });
+    // GMV: only trips explicitly marked completed count toward revenue
+    const paidBookings = await Booking.find({ paymentStatus: 'paid', status: 'completed' });
     const gmv = paidBookings.reduce((sum, b) => sum + b.totalPrice, 0);
 
     const activeHosts = await User.countDocuments({ role: 'operator', isActive: true });
@@ -38,9 +38,9 @@ const getPlatformOverview = async (req, res) => {
       createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }
     });
 
-    const paidThisWeek = await Booking.find({ paymentStatus: 'paid', createdAt: { $gte: sevenDaysAgo } });
+    const paidThisWeek = await Booking.find({ paymentStatus: 'paid', status: 'completed', createdAt: { $gte: sevenDaysAgo } });
     const paidLastWeek = await Booking.find({
-      paymentStatus: 'paid',
+      paymentStatus: 'paid', status: 'completed',
       createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo }
     });
 
@@ -517,6 +517,110 @@ const getGrowthMapData = async (req, res) => {
   }
 };
 
+// @route PATCH /api/admin/bookings/:id/status
+// Admin override — can force any booking to any valid status
+const overrideTripStatus = async (req, res) => {
+  try {
+    const { status, statusNote } = req.body;
+    const VALID = ['pending', 'confirmed', 'ongoing', 'completed', 'cancelled', 'postponed'];
+    if (!VALID.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${VALID.join(', ')}` });
+    }
+
+    const booking = await Booking.findById(req.params.id)
+      .populate('experience', 'title host')
+      .populate('user', 'name');
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    // Record previous state in history
+    booking.statusHistory.push({
+      status:    booking.status,
+      note:      booking.statusNote || '',
+      changedBy: req.user._id,
+      changedAt: new Date(),
+    });
+
+    const prevStatus    = booking.status;
+    booking.status      = status;
+    booking.statusNote  = statusNote || '';
+
+    if (status === 'cancelled') {
+      booking.paymentStatus = 'refunded';
+      booking.refundStatus  = 'approved';
+    }
+    await booking.save();
+
+    // Notify the customer of the admin override
+    if (booking.user?._id) {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient:   booking.user._id,
+        type:        'booking',
+        title:       'Trip Status Updated by Admin',
+        desc:        `Your booking for "${booking.experience?.title}" has been updated from "${prevStatus}" to "${status}" by the platform admin.${statusNote ? ` Note: ${statusNote}` : ''}`,
+        referenceId: booking._id,
+        badges: [
+          { text: 'Admin Override', color: 'bg-purple-50 text-purple-600 border border-purple-100' },
+          { text: status.charAt(0).toUpperCase() + status.slice(1), color: 'bg-gray-50 text-gray-600 border border-gray-200' },
+        ],
+      });
+    }
+
+    res.json({ success: true, message: `Booking status overridden to "${status}"`, booking });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route GET /api/admin/bookings/stale
+// Trips still in a non-terminal state 7+ days after their end date
+// Used to alert admins to chase operators for status updates
+const getStaleTrips = async (req, res) => {
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const cutoffStr = cutoff.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Find bookings where endDate is before 7 days ago AND status is still non-terminal
+    const stale = await Booking.find({
+      endDate: { $lte: cutoffStr },
+      status:  { $in: ['confirmed', 'ongoing', 'postponed', 'pending'] },
+    })
+      .populate('experience', 'title host hostName')
+      .populate('user', 'name email')
+      .sort({ endDate: 1 });
+
+    // Auto-create admin notification for each stale trip (deduplicated by not creating if one exists)
+    const Notification = require('../models/Notification');
+    const admins = await User.find({ role: 'admin' });
+    for (const booking of stale) {
+      const alreadyNotified = await Notification.findOne({
+        referenceId: booking._id,
+        title:       { $regex: 'Stale Trip Alert' },
+      });
+      if (!alreadyNotified) {
+        for (const admin of admins) {
+          await Notification.create({
+            recipient:   admin._id,
+            type:        'booking',
+            title:       'Stale Trip Alert',
+            desc:        `Booking #${booking._id.toString().slice(-6).toUpperCase()} for "${booking.experience?.title}" ended on ${booking.endDate} and is still marked as "${booking.status}". Please follow up with the operator.`,
+            referenceId: booking._id,
+            badges: [
+              { text: 'Stale', color: 'bg-amber-50 text-amber-600 border border-amber-100' },
+              { text: booking.status.charAt(0).toUpperCase() + booking.status.slice(1), color: 'bg-gray-50 text-gray-600 border border-gray-200' },
+            ],
+          });
+        }
+      }
+    }
+
+    res.json({ success: true, count: stale.length, bookings: stale });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getPlatformOverview,
   getPendingListings,
@@ -537,5 +641,7 @@ module.exports = {
   getPayoutLogs,
   getCustomerBookings,
   sendEmailToAllHosts,
-  getGrowthMapData
+  getGrowthMapData,
+  overrideTripStatus,
+  getStaleTrips
 };

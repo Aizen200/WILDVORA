@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Image, FlatList,
+  ScrollView, Image, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { reviewAPI } from '../services/api';
 
 const C = {
   primary:             '#1A5F45',
@@ -22,54 +23,7 @@ const C = {
   outlineVariant:      '#bec9c1',
 };
 
-const FILTERS = ['All', 'Experiences', 'Properties', 'Hosts'];
-
-const REVIEWS = [
-  {
-    id: '1',
-    title: 'Alpine Ridge Trail',
-    category: 'Experiences',
-    location: 'Aspen, CO',
-    rating: 5,
-    date: 'Oct 24, 2023',
-    text: 'The ascent was challenging but the sunrise views from the ridge were absolutely world-class. Our guide Julian knew every hidden lookout point.',
-    img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=200&h=200&fit=crop',
-    helpful: 12,
-  },
-  {
-    id: '2',
-    title: 'Mistwood Sanctuary',
-    category: 'Properties',
-    location: 'Tahoe, CA',
-    rating: 4,
-    text: 'Perfect for a weekend escape. Very quiet and the trails are well-marked. The cabin had everything we needed. Would definitely return in summer.',
-    date: 'Sep 15, 2023',
-    img: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=200&h=200&fit=crop',
-    helpful: 7,
-  },
-  {
-    id: '3',
-    title: 'Red Rock Canyon Tour',
-    category: 'Experiences',
-    location: 'Moab, UT',
-    rating: 5,
-    text: 'Marcus was an exceptional guide. The sunset hike through the canyon was nothing short of magical. Highly recommend booking the extended package.',
-    date: 'Aug 3, 2023',
-    img: 'https://images.unsplash.com/photo-1488415032361-b7e238421f1b?w=200&h=200&fit=crop',
-    helpful: 21,
-  },
-  {
-    id: '4',
-    title: 'Coastal Kayaking',
-    category: 'Experiences',
-    location: 'Big Sur, CA',
-    rating: 3,
-    text: 'Great experience overall but the equipment could use an upgrade. The route itself was stunning and worth the early wake-up.',
-    date: 'Jul 19, 2023',
-    img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=200&h=200&fit=crop',
-    helpful: 4,
-  },
-];
+const FILTERS = ['All'];
 
 function Stars({ count, size = 14 }) {
   return (
@@ -91,13 +45,22 @@ function ReviewCard({ item }) {
   return (
     <View style={s.card}>
       <View style={s.cardTop}>
-        <Image source={{ uri: item.img }} style={s.cardImg} resizeMode="cover" />
+        {item.img
+          ? <Image source={{ uri: item.img }} style={s.cardImg} resizeMode="cover" />
+          : (
+            <View style={[s.cardImg, { backgroundColor: C.surfaceContainer, justifyContent: 'center', alignItems: 'center' }]}>
+              <MaterialCommunityIcons name="image-outline" size={24} color={C.outlineVariant} />
+            </View>
+          )
+        }
         <View style={s.cardInfo}>
           <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-          <View style={s.cardMeta}>
-            <MaterialCommunityIcons name="map-marker-outline" size={12} color={C.outline} />
-            <Text style={s.cardLocation}>{item.location}</Text>
-          </View>
+          {item.location ? (
+            <View style={s.cardMeta}>
+              <MaterialCommunityIcons name="map-marker-outline" size={12} color={C.outline} />
+              <Text style={s.cardLocation}>{item.location}</Text>
+            </View>
+          ) : null}
           <View style={s.cardRatingRow}>
             <Stars count={item.rating} />
             <Text style={s.cardDate}>{item.date}</Text>
@@ -105,44 +68,38 @@ function ReviewCard({ item }) {
         </View>
       </View>
 
-      <Text
-        style={s.cardText}
-        numberOfLines={expanded ? undefined : 2}
-      >
-        {item.text}
-      </Text>
-      {item.text.length > 100 && (
-        <TouchableOpacity onPress={() => setExpanded(p => !p)}>
-          <Text style={s.readMore}>{expanded ? 'Show less' : 'Read more'}</Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={s.cardFooter}>
-        <View style={s.helpfulRow}>
-          <MaterialCommunityIcons name="thumb-up-outline" size={14} color={C.outline} />
-          <Text style={s.helpfulText}>{item.helpful} found helpful</Text>
-        </View>
-        <View style={s.cardActions}>
-          <TouchableOpacity style={s.actionBtn}>
-            <MaterialCommunityIcons name="pencil-outline" size={15} color={C.primary} />
-            <Text style={s.actionText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.actionBtn, s.actionBtnDanger]}>
-            <MaterialCommunityIcons name="delete-outline" size={15} color="#ba1a1a" />
-            <Text style={[s.actionText, { color: '#ba1a1a' }]}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      {item.text ? (
+        <>
+          <Text style={s.cardText} numberOfLines={expanded ? undefined : 2}>
+            {item.text}
+          </Text>
+          {item.text.length > 100 && (
+            <TouchableOpacity onPress={() => setExpanded(p => !p)}>
+              <Text style={s.readMore}>{expanded ? 'Show less' : 'Read more'}</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      ) : null}
     </View>
   );
 }
 
 export default function ReviewHistoryScreen({ navigation }) {
-  const [active, setActive] = useState('All');
+  const [active,  setActive]  = useState('All');
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = active === 'All' ? REVIEWS : REVIEWS.filter(r => r.category === active);
+  useEffect(() => {
+    reviewAPI.getMy()
+      .then(res => setReviews(res.data.reviews || []))
+      .catch(() => setReviews([]))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const avgRating = (REVIEWS.reduce((a, r) => a + r.rating, 0) / REVIEWS.length).toFixed(1);
+  const filtered  = reviews;
+  const avgRating = reviews.length
+    ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1)
+    : '—';
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -159,51 +116,61 @@ export default function ReviewHistoryScreen({ navigation }) {
         {/* Summary banner */}
         <View style={s.banner}>
           <View style={s.bannerStat}>
-            <Text style={s.bannerNum}>{REVIEWS.length}</Text>
+            <Text style={s.bannerNum}>{reviews.length}</Text>
             <Text style={s.bannerLabel}>TOTAL REVIEWS</Text>
           </View>
           <View style={s.bannerDivider} />
           <View style={s.bannerStat}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={s.bannerNum}>{avgRating}</Text>
-              <MaterialCommunityIcons name="star" size={20} color={C.onPrimaryContainer + 'CC'} />
+              {reviews.length > 0 && <MaterialCommunityIcons name="star" size={20} color={C.onPrimaryContainer + 'CC'} />}
             </View>
             <Text style={s.bannerLabel}>AVG RATING</Text>
-          </View>
-          <View style={s.bannerDivider} />
-          <View style={s.bannerStat}>
-            <Text style={s.bannerNum}>{REVIEWS.reduce((a, r) => a + r.helpful, 0)}</Text>
-            <Text style={s.bannerLabel}>HELPFUL VOTES</Text>
           </View>
         </View>
 
         {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filterRow}
-        >
-          {FILTERS.map(f => (
-            <TouchableOpacity
-              key={f}
-              style={[s.chip, active === f && s.chipActive]}
-              onPress={() => setActive(f)}
-              activeOpacity={0.75}
-            >
-              <Text style={[s.chipText, active === f && s.chipTextActive]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ height: 48 }}>
+          <View style={s.filterRow}>
+            {FILTERS.map(f => (
+              <TouchableOpacity
+                key={f}
+                style={[s.chip, active === f && s.chipActive]}
+                onPress={() => setActive(f)}
+                activeOpacity={0.75}
+              >
+                <Text style={[s.chipText, active === f && s.chipTextActive]}>{f}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </ScrollView>
 
         {/* Cards */}
         <View style={s.list}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 40 }} />
+          ) : filtered.length === 0 ? (
             <View style={s.empty}>
               <MaterialCommunityIcons name="star-off-outline" size={48} color={C.outlineVariant} />
-              <Text style={s.emptyText}>No reviews in this category yet</Text>
+              <Text style={s.emptyText}>You haven't written any reviews yet</Text>
             </View>
           ) : (
-            filtered.map(item => <ReviewCard key={item.id} item={item} />)
+            filtered.map(item => (
+              <ReviewCard
+                key={item._id}
+                item={{
+                  id:       item._id,
+                  title:    item.experience?.title || 'Experience',
+                  location: item.experience?.location
+                    ? `${item.experience.location.city || ''}, ${item.experience.location.country || ''}`.replace(/^, |, $/, '')
+                    : '',
+                  rating:   item.rating,
+                  date:     new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+                  text:     item.comment,
+                  img:      item.experience?.images?.[0] || '',
+                }}
+              />
+            ))
           )}
         </View>
 
@@ -225,11 +192,11 @@ const s = StyleSheet.create({
   bannerLabel: { fontSize: 10, fontWeight: '700', color: C.onPrimaryContainer + '99', letterSpacing: 0.8, marginTop: 2 },
   bannerDivider: { width: 1, height: 40, backgroundColor: C.onPrimaryContainer + '25' },
 
-  filterRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 4 },
-  chip:      { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50, backgroundColor: C.white, borderWidth: 1, borderColor: C.outlineVariant + '60' },
+  filterRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8 },
+  chip:      { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 50, backgroundColor: C.white, borderWidth: 1, borderColor: C.outlineVariant + '60', marginRight: 8 },
   chipActive:{ backgroundColor: C.primary, borderColor: C.primary },
-  chipText:  { fontSize: 13, fontWeight: '600', color: C.onSurfaceVariant },
-  chipTextActive: { color: C.white },
+  chipText:  { fontSize: 13, fontWeight: '600', color: '#1a1a1a' },
+  chipTextActive: { color: '#ffffff' },
 
   list: { paddingHorizontal: 20, paddingTop: 16, gap: 14 },
 
@@ -244,14 +211,6 @@ const s = StyleSheet.create({
   cardDate:   { fontSize: 11, color: C.outline },
   cardText:   { fontSize: 13, color: C.onSurfaceVariant, lineHeight: 20 },
   readMore:   { fontSize: 12, fontWeight: '700', color: C.primary, marginTop: 4 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderColor: C.outlineVariant + '30' },
-  helpfulRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  helpfulText:{ fontSize: 12, color: C.outline },
-  cardActions:{ flexDirection: 'row', gap: 8 },
-  actionBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, backgroundColor: C.primary + '12', borderWidth: 1, borderColor: C.primary + '25' },
-  actionBtnDanger: { backgroundColor: '#ba1a1a12', borderColor: '#ba1a1a25' },
-  actionText: { fontSize: 12, fontWeight: '600', color: C.primary },
-
   empty:     { alignItems: 'center', paddingVertical: 48, gap: 12 },
   emptyText: { fontSize: 15, color: C.outline, fontWeight: '500' },
 });

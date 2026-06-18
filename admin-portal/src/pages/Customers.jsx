@@ -310,8 +310,8 @@ export default function Customers() {
                           <div>
                             <div className="text-sm font-bold text-gray-900">{bk.experience?.title || 'Adventure Experience'}</div>
                             <div className="flex gap-3 mt-1.5 text-xs text-gray-500">
-                              <span>📅 {formatDate(bk.startDate)}</span>
-                              <span>💰 ₹{bk.totalPrice?.toLocaleString('en-IN') || '—'}</span>
+                              <span>{formatDate(bk.startDate)}</span>
+                              <span>&#8377;{bk.totalPrice?.toLocaleString('en-IN') || '—'}</span>
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -322,7 +322,7 @@ export default function Customers() {
                               'bg-amber-100 text-amber-800'
                             }`}>{bk.status}</span>
                             {bk.disputed && (
-                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700">⚠ Disputed</span>
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-700">Disputed</span>
                             )}
                             {bk.paymentStatus === 'refunded' && (
                               <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">Refunded</span>

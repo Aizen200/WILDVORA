@@ -5,67 +5,39 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../utils/alert';
 
-// ── OWM icon code → native icon ─────────────────────────────────────────────
-const getOWMWeatherIcon = (iconCode, size = 36) => {
+// ── OWM icon → native icon ───────────────────────────────────────────────────
+const getOWMWeatherIcon = (iconCode, size = 22) => {
   const code = iconCode?.slice(0, 2) || '01';
   const isNight = iconCode?.endsWith('n');
   const p = { size };
   switch (code) {
     case '01': return isNight
-      ? <MaterialCommunityIcons name="weather-night"          {...p} color="#4B5563" />
-      : <MaterialCommunityIcons name="weather-sunny"          {...p} color="#F59E0B" />;
-    case '02': return <MaterialCommunityIcons name="weather-partly-cloudy"  {...p} color="#64748B" />;
+      ? <MaterialCommunityIcons name="weather-night"            {...p} color="#4B5563" />
+      : <MaterialCommunityIcons name="weather-sunny"            {...p} color="#F59E0B" />;
+    case '02': return <MaterialCommunityIcons name="weather-partly-cloudy"   {...p} color="#64748B" />;
     case '03':
-    case '04': return <MaterialCommunityIcons name="weather-cloudy"         {...p} color="#78909C" />;
-    case '09': return <MaterialCommunityIcons name="weather-pouring"        {...p} color="#3B82F6" />;
-    case '10': return <MaterialCommunityIcons name="weather-rainy"          {...p} color="#2563EB" />;
-    case '11': return <MaterialCommunityIcons name="weather-lightning-rainy"{...p} color="#7C3AED" />;
-    case '13': return <MaterialCommunityIcons name="weather-snowy"          {...p} color="#60A5FA" />;
-    case '50': return <MaterialCommunityIcons name="weather-fog"            {...p} color="#9CA3AF" />;
-    default:   return <MaterialCommunityIcons name="weather-partly-cloudy"  {...p} color="#64748B" />;
+    case '04': return <MaterialCommunityIcons name="weather-cloudy"          {...p} color="#78909C" />;
+    case '09': return <MaterialCommunityIcons name="weather-pouring"         {...p} color="#3B82F6" />;
+    case '10': return <MaterialCommunityIcons name="weather-rainy"           {...p} color="#2563EB" />;
+    case '11': return <MaterialCommunityIcons name="weather-lightning-rainy" {...p} color="#7C3AED" />;
+    case '13': return <MaterialCommunityIcons name="weather-snowy"           {...p} color="#60A5FA" />;
+    case '50': return <MaterialCommunityIcons name="weather-fog"             {...p} color="#9CA3AF" />;
+    default:   return <MaterialCommunityIcons name="weather-partly-cloudy"   {...p} color="#64748B" />;
   }
 };
 
-// ── Subtle gradient per weather condition ────────────────────────────────────
-const getWeatherGradient = (iconCode) => {
-  const code = iconCode?.slice(0, 2) || '01';
-  switch (code) {
-    case '01': return ['#f0f9f4', '#dff2e9'];
-    case '02':
-    case '03':
-    case '04': return ['#eef2f6', '#dce6f0'];
-    case '09':
-    case '10': return ['#eef2fa', '#dce5f7'];
-    case '11': return ['#f3eefa', '#e6d9f5'];
-    case '13': return ['#edf7fd', '#d9eef9'];
-    case '50': return ['#f3f4f5', '#e5e7eb'];
-    default:   return ['#f3f8f5', '#e9f3ed'];
-  }
-};
-
-// ── Suitability styling ──────────────────────────────────────────────────────
-const getSuitabilityStyle = (s) => {
-  switch (s) {
-    case 'Good':
-      return { bg: '#eefcf3', border: '#b2f0c7', text: '#15803d', label: 'Great Conditions', desc: 'Weather looks perfect for your adventure today!' };
-    case 'Moderate':
-      return { bg: '#fffbeb', border: '#fde68a', text: '#b45309', label: 'Proceed with Caution', desc: 'Check conditions before departure. Carry extra gear.' };
-    default:
-      return { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c', label: 'Not Recommended Today', desc: 'Unsafe weather conditions. Consider rescheduling.' };
-  }
-};
+const SUITABILITY_COLOR = { Good: '#15803d', Moderate: '#b45309', 'Not Recommended': '#b91c1c' };
 
 const DIFFICULTY_CFG = {
-  Easy:     { color: '#15803d', bg: '#DCFCE7', border: '#86EFAC' },
-  Moderate: { color: '#b45309', bg: '#FEF3C7', border: '#FCD34D' },
-  Difficult:{ color: '#b91c1c', bg: '#FEE2E2', border: '#FCA5A5' },
-  Hard:     { color: '#b91c1c', bg: '#FEE2E2', border: '#FCA5A5' },
-  Expert:   { color: '#7C3AED', bg: '#EDE9FE', border: '#C4B5FD' },
+  Easy:     { color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
+  Moderate: { color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  Difficult:{ color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  Hard:     { color: '#b91c1c', bg: '#fef2f2', border: '#fecaca' },
+  Expert:   { color: '#7C3AED', bg: '#f5f3ff', border: '#ddd6fe' },
 };
 
 const getInitials = (name) => {
@@ -74,56 +46,57 @@ const getInitials = (name) => {
   return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
+// ── Accordion ────────────────────────────────────────────────────────────────
+function Accordion({ title, icon, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <View style={styles.accordion}>
+      <TouchableOpacity style={styles.accordionHeader} onPress={() => setOpen(o => !o)} activeOpacity={0.7}>
+        <View style={styles.accordionHeaderLeft}>
+          {icon}
+          <Text style={styles.accordionTitle}>{title}</Text>
+        </View>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color="#aaa" />
+      </TouchableOpacity>
+      {open && <View style={styles.accordionBody}>{children}</View>}
+    </View>
+  );
+}
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function ExperienceDetailScreen({ route, navigation }) {
   const { experienceId } = route.params;
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [experience,    setExperience]    = useState(null);
-  const [reviews,       setReviews]       = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [inWishlist,    setInWishlist]    = useState(false);
-  const [readMore,      setReadMore]      = useState(false);
+  const [experience,     setExperience]    = useState(null);
+  const [reviews,        setReviews]       = useState([]);
+  const [loading,        setLoading]       = useState(true);
+  const [inWishlist,     setInWishlist]    = useState(false);
+  const [readMore,       setReadMore]      = useState(false);
+  const [weatherData,    setWeatherData]   = useState(null);
+  const [weatherLoading, setWeatherLoading]= useState(true);
+  const [weatherError,   setWeatherError]  = useState(false);
 
-  const [weatherData,    setWeatherData]    = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(true);
-  const [weatherError,   setWeatherError]   = useState(false);
-
-  // ── Live weather + hospital fetch ──────────────────────────────────────────
   const fetchWeatherAndSafety = async (exp) => {
-    const city    = exp.location?.city    || '';
-    const state   = exp.location?.state   || '';
+    const city       = exp.location?.city    || '';
+    const state      = exp.location?.state   || '';
     const rawCountry = exp.location?.country || 'IN';
     const WEATHER_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY;
-
     const COUNTRY_CODES = {
-      'India': 'IN', 'Nepal': 'NP', 'Bhutan': 'BT',
-      'Sri Lanka': 'LK', 'Maldives': 'MV', 'Bangladesh': 'BD',
+      'India':'IN','Nepal':'NP','Bhutan':'BT','Sri Lanka':'LK','Maldives':'MV','Bangladesh':'BD',
     };
     const countryCode = COUNTRY_CODES[rawCountry] ?? (rawCountry.length <= 3 ? rawCountry.toUpperCase() : 'IN');
-
     try {
-      setWeatherLoading(true);
-      setWeatherError(false);
-
-      // Step 1: Geocode with Nominatim for a precise lat/lon.
-      // This avoids OWM's city-name matching picking the wrong station.
+      setWeatherLoading(true); setWeatherError(false);
       let geoLat = null, geoLon = null;
       try {
         const geoQ   = encodeURIComponent([city, state, rawCountry].filter(Boolean).join(', '));
-        const geoRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${geoQ}&format=json&limit=1`,
-          { headers: { 'User-Agent': 'WildvoraApp/1.0' } }
-        );
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${geoQ}&format=json&limit=1`, { headers: { 'User-Agent': 'WildvoraApp/1.0' } });
         const geoData = await geoRes.json();
-        if (geoData?.length > 0) {
-          geoLat = parseFloat(geoData[0].lat);
-          geoLon = parseFloat(geoData[0].lon);
-        }
-      } catch { /* fall through to city-name fallback */ }
+        if (geoData?.length > 0) { geoLat = parseFloat(geoData[0].lat); geoLon = parseFloat(geoData[0].lon); }
+      } catch { /* fallback */ }
 
-      // Step 2: Build OWM URLs — prefer precise coords, fall back to city name
       const owmBase = `https://api.openweathermap.org/data/2.5`;
       let weatherUrl, forecastUrl;
       if (geoLat !== null && geoLon !== null) {
@@ -138,7 +111,6 @@ export default function ExperienceDetailScreen({ route, navigation }) {
 
       const [wRes, fRes] = await Promise.all([fetch(weatherUrl), fetch(forecastUrl)]);
       const [w, f]       = await Promise.all([wRes.json(), fRes.json()]);
-
       if (w.cod !== 200) throw new Error('Weather API error');
 
       const windKmh  = Math.round((w.wind?.speed || 0) * 3.6);
@@ -149,71 +121,46 @@ export default function ExperienceDetailScreen({ route, navigation }) {
       const iconCode = w.weather?.[0]?.icon        || '01d';
       const condMain = w.weather?.[0]?.main        || 'Clear';
       const condDesc = w.weather?.[0]?.description || 'clear sky';
-
-      // f.list[0].pop is the forecast probability (0–1) for the NEXT 3-hour window,
-      // not the current moment. Use it as an upcoming-rain advisory only.
-      const forecastPop = f.list?.[0]?.pop ?? 0;
-      const rainPct     = Math.round(forecastPop * 100);
-      const isCurrentlyRainy = ['Rain', 'Drizzle', 'Thunderstorm', 'Snow'].includes(condMain);
-
+      const forecastPop    = f.list?.[0]?.pop ?? 0;
+      const rainPct        = Math.round(forecastPop * 100);
+      const isCurrentlyRainy = ['Rain','Drizzle','Thunderstorm','Snow'].includes(condMain);
       const fmtTime = (ts) => new Date(ts * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       const sunrise = w.sys?.sunrise ? fmtTime(w.sys.sunrise) : '--';
       const sunset  = w.sys?.sunset  ? fmtTime(w.sys.sunset)  : '--';
 
-      // Suitability is driven by CURRENT conditions first.
-      // Forecast pop is only escalated to "Not Recommended" when it's already raining.
-      let suitability = 'Good';
-      const alerts = [];
+      let suitability = 'Good'; const alerts = [];
       if (condMain === 'Thunderstorm') {
-        suitability = 'Not Recommended';
-        alerts.push('Thunderstorm warning: Outdoor activities strongly advised against.');
+        suitability = 'Not Recommended'; alerts.push('Thunderstorm warning. Outdoor activities strongly advised against.');
       } else if (windKmh > 50 || (isCurrentlyRainy && rainPct > 70)) {
         suitability = 'Not Recommended';
-        if (windKmh > 50) alerts.push(`High wind alert: ${windKmh} km/h winds. Extreme caution required.`);
-        if (isCurrentlyRainy && rainPct > 70) alerts.push(`Heavy rain continuing (${rainPct}%). Trail conditions may be hazardous.`);
-      } else if (['Rain', 'Drizzle'].includes(condMain) || windKmh > 30 || rainPct > 70 || parseFloat(visKm) < 3) {
+        if (windKmh > 50) alerts.push(`High wind alert: ${windKmh} km/h.`);
+        if (isCurrentlyRainy && rainPct > 70) alerts.push(`Heavy rain continuing (${rainPct}%).`);
+      } else if (['Rain','Drizzle'].includes(condMain) || windKmh > 30 || rainPct > 70 || parseFloat(visKm) < 3) {
         suitability = 'Moderate';
-        if (['Rain', 'Drizzle'].includes(condMain)) alerts.push('Rain expected. Carry waterproof gear and extra layers.');
-        else if (windKmh > 30) alerts.push(`Elevated winds at ${windKmh} km/h. Use caution in exposed areas.`);
-        else if (rainPct > 70) alerts.push(`Heavy rain forecast soon (${rainPct}%). Carry waterproof gear.`);
-        else if (parseFloat(visKm) < 3) alerts.push(`Reduced visibility (${visKm} km). Stay close to your guide.`);
+        if (['Rain','Drizzle'].includes(condMain)) alerts.push('Rain expected. Carry waterproof gear.');
+        else if (windKmh > 30) alerts.push(`Elevated winds at ${windKmh} km/h.`);
+        else if (rainPct > 70) alerts.push(`Heavy rain forecast (${rainPct}%).`);
+        else if (parseFloat(visKm) < 3) alerts.push(`Reduced visibility (${visKm} km).`);
       } else if (!isCurrentlyRainy && rainPct > 40) {
-        suitability = 'Moderate';
-        alerts.push(`Rain likely later (${rainPct}% forecast). Carry a rain jacket.`);
+        suitability = 'Moderate'; alerts.push(`Rain likely later (${rainPct}%). Carry a rain jacket.`);
       }
 
-      // Nearest hospital via Overpass — reuse coords from geocoding step above
       let hospital = null;
       try {
-        const hLat = geoLat, hLon = geoLon;
-        if (hLat !== null && hLon !== null) {
-          const overpassQ = encodeURIComponent(
-            `[out:json][timeout:10];node["amenity"="hospital"](around:20000,${hLat},${hLon});out body 3;`
-          );
+        if (geoLat !== null && geoLon !== null) {
+          const overpassQ = encodeURIComponent(`[out:json][timeout:10];node["amenity"="hospital"](around:20000,${geoLat},${geoLon});out body 3;`);
           const hRes  = await fetch(`https://overpass-api.de/api/interpreter?data=${overpassQ}`);
           const hData = await hRes.json();
           if (hData.elements?.length > 0) {
             const h = hData.elements[0];
-            const name     = h.tags?.name || h.tags?.['name:en'] || 'Nearby Hospital';
-            const vicinity = [h.tags?.['addr:street'], h.tags?.['addr:city'] || city].filter(Boolean).join(', ');
-            hospital = { name, vicinity };
+            hospital = { name: h.tags?.name || h.tags?.['name:en'] || 'Nearby Hospital', vicinity: [h.tags?.['addr:street'], h.tags?.['addr:city'] || city].filter(Boolean).join(', ') };
           }
         }
-      } catch { /* silent fallback */ }
+      } catch { /* silent */ }
 
-      setWeatherData({
-        temp: `${tempC}°C`, feelsLike: `${feelsC}°C`, humidity: `${humidity}%`,
-        condition: condDesc.charAt(0).toUpperCase() + condDesc.slice(1),
-        conditionMain: condMain, iconCode,
-        rainProb: `${rainPct}%`, windSpeed: `${windKmh} km/h`, visibility: `${visKm} km`,
-        sunrise, sunset, suitability, alerts, hospital,
-      });
-    } catch (err) {
-      console.warn('Weather fetch failed:', err.message);
-      setWeatherError(true);
-    } finally {
-      setWeatherLoading(false);
-    }
+      setWeatherData({ temp:`${tempC}°C`, feelsLike:`${feelsC}°C`, humidity:`${humidity}%`, condition: condDesc.charAt(0).toUpperCase()+condDesc.slice(1), conditionMain:condMain, iconCode, rainProb:`${rainPct}%`, windSpeed:`${windKmh} km/h`, visibility:`${visKm} km`, sunrise, sunset, suitability, alerts, hospital });
+    } catch (err) { console.warn('Weather fetch failed:', err.message); setWeatherError(true); }
+    finally { setWeatherLoading(false); }
   };
 
   useEffect(() => {
@@ -224,49 +171,38 @@ export default function ExperienceDetailScreen({ route, navigation }) {
           reviewAPI.getForExperience(experienceId),
         ]);
         const exp = expRes.data.experience;
-        setExperience(exp);
-        setReviews(revRes.data.reviews);
-        if (user?.wishlist) {
-          setInWishlist(user.wishlist.some((w) => w._id === experienceId || w === experienceId));
-        }
+        setExperience(exp); setReviews(revRes.data.reviews);
+        if (user?.wishlist) setInWishlist(user.wishlist.some(w => w._id === experienceId || w === experienceId));
         fetchWeatherAndSafety(exp);
       } catch {
-        Alert.alert('Error', 'Could not load experience');
-        navigation.goBack();
-      } finally {
-        setLoading(false);
-      }
+        Alert.alert('Error', 'Could not load experience'); navigation.goBack();
+      } finally { setLoading(false); }
     };
     fetchData();
   }, [experienceId]);
 
   const handleWishlist = async () => {
-    try {
-      await userAPI.toggleWishlist(experienceId);
-      setInWishlist((prev) => !prev);
-    } catch {
-      Alert.alert('Error', 'Could not update wishlist');
-    }
+    try { await userAPI.toggleWishlist(experienceId); setInWishlist(p => !p); }
+    catch { Alert.alert('Error', 'Could not update wishlist'); }
   };
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#1A5F45" /></View>;
-  }
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#1A5F45" /></View>;
   if (!experience) return null;
 
   const heroImage     = experience.coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWD971kShMZZtm1tqLB1M4tT3C06H-IIw4sAIM6q8Is0Z9f0vV3ghGpyKWw2nsI4RtbB5uFyLJ5KVbQBPqQZ6gfNwyC1lom8RMKstswmSXAi0R33J96h_T0nlJ7drHXfktm54c2af9pWrWq-mvNbCkov7u8y65OtgNfN26r9q0XApuM_gY2XgxZLsXXkdn9w-FJhi7TZIApYrX9KkoguY-CxCc-IZM5n1re5sZpl6C3J0RkedcQGyLBdqfw99XC6CuwtXrTw8BrHI';
   const hostAvatarUrl = experience.host?.avatar || null;
+  const diffCfg       = DIFFICULTY_CFG[experience.difficulty] || DIFFICULTY_CFG.Moderate;
+  const suitColor     = weatherData ? SUITABILITY_COLOR[weatherData.suitability] : '#15803d';
 
   const renderStars = (rating) =>
     Array.from({ length: 5 }).map((_, i) => (
-      <Ionicons key={i} name={i < Math.floor(rating) ? 'star' : 'star-outline'} size={14} color="#1A5F45" style={{ marginRight: 2 }} />
+      <Ionicons key={i} name={i < Math.floor(rating) ? 'star' : 'star-outline'} size={13} color="#1A5F45" style={{ marginRight: 1 }} />
     ));
 
-  const btnTop   = insets.top + 12;
-  const today    = new Date();
-  const months   = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const days     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const fmtDate  = (ds) => { const d = new Date(ds + 'T00:00:00'); return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`; };
+  const today     = new Date();
+  const months    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days      = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const fmtDate   = (ds) => { const d = new Date(ds + 'T00:00:00'); return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`; };
   const availDates = (() => {
     const fut = (experience.availableDates || []).filter(ds => new Date(ds + 'T00:00:00') >= today).slice(0, 6);
     if (fut.length) return fut;
@@ -275,76 +211,83 @@ export default function ExperienceDetailScreen({ route, navigation }) {
     return arr;
   })();
 
-  const diffCfg  = DIFFICULTY_CFG[experience.difficulty] || DIFFICULTY_CFG.Moderate;
-  const suitInfo = weatherData ? getSuitabilityStyle(weatherData.suitability) : null;
+  // Highlights: always-visible key facts (max 3)
+  const highlights = [
+    experience.duration     && { icon: 'time-outline',         label: 'Duration',   value: experience.duration },
+    experience.maxGroupSize && { icon: 'people-outline',       label: 'Group size', value: `Up to ${experience.maxGroupSize}` },
+    experience.difficulty   && { icon: 'bar-chart-outline',    label: 'Level',      value: experience.difficulty },
+  ].filter(Boolean).slice(0, 3);
+
+  const hasMeals = experience.includes?.some(i => /meal|food|breakfast|lunch|dinner/i.test(i));
+  const hasGear  = experience.includes?.some(i => /gear|equipment/i.test(i));
+
+  const btnTop = insets.top + 12;
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Floating header buttons */}
+      {/* Floating nav buttons */}
       <View style={[styles.headerControls, { top: btnTop }]}>
-        <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()} activeOpacity={0.85} hitSlop={{ top:8,bottom:8,left:8,right:8 }}>
           <Ionicons name="arrow-back" size={20} color="#1A5F45" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.circleBtn} onPress={handleWishlist} activeOpacity={0.85} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity style={styles.circleBtn} onPress={handleWishlist} activeOpacity={0.85} hitSlop={{ top:8,bottom:8,left:8,right:8 }}>
           <Ionicons name={inWishlist ? 'heart' : 'heart-outline'} size={20} color={inWishlist ? '#ba1a1a' : '#1A5F45'} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}>
-        {/* Hero */}
-        <View style={styles.heroContainer}>
-          <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
-          <LinearGradient
-            colors={['transparent', 'rgba(247,250,246,0.55)', '#f7faf6']}
-            style={styles.heroFade}
-          />
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}>
+
+        {/* ── Hero ── */}
+        <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
 
         <View style={styles.body}>
 
-          {/* Tags + title */}
-          <View style={styles.metaSection}>
-            <View style={styles.tagsRow}>
-              {experience.category && (
-                <View style={[styles.tag, styles.tagBlue]}>
-                  <Text style={styles.tagBlueText}>{experience.category}</Text>
-                </View>
-              )}
-              {experience.duration && (
-                <View style={[styles.tag, styles.tagTerracotta]}>
-                  <Text style={styles.tagTerracottaText}>{experience.duration}</Text>
-                </View>
-              )}
+          {/* Category tag */}
+          {experience.category && (
+            <View style={styles.categoryTag}>
+              <Text style={styles.categoryTagText}>{experience.category}</Text>
             </View>
-            <Text style={styles.title}>{experience.title}</Text>
-            <View style={styles.ratingRow}>
-              <View style={styles.ratingCol}>
-                <Ionicons name="star" size={16} color="#1A5F45" />
-                <Text style={styles.ratingNum}>{experience.rating || '4.9'}</Text>
-                <Text style={styles.reviewCount}>({experience.reviewCount || '0'} reviews)</Text>
-              </View>
-              <View style={styles.locationCol}>
-                <Ionicons name="location" size={16} color="#1A5F45" />
-                <Text style={styles.locationText}>{experience.location?.city}, {experience.location?.country}</Text>
-              </View>
-            </View>
+          )}
+
+          {/* Title */}
+          <Text style={styles.title}>{experience.title}</Text>
+
+          {/* Rating + location */}
+          <View style={styles.metaRow}>
+            <Ionicons name="star" size={14} color="#1A5F45" />
+            <Text style={styles.metaRating}>{experience.rating || '4.9'}</Text>
+            <Text style={styles.metaReviews}>({experience.reviewCount || '0'} reviews)</Text>
+            <View style={styles.metaSep} />
+            <Ionicons name="location-outline" size={14} color="#888" />
+            <Text style={styles.metaLocation}>{experience.location?.city}, {experience.location?.country}</Text>
           </View>
 
-          {/* Host card */}
-          <View style={styles.hostCard}>
-            <View style={styles.hostInfo}>
-              {hostAvatarUrl
-                ? <Image source={{ uri: hostAvatarUrl }} style={styles.avatar} />
-                : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarInitials}>{getInitials(experience.hostName)}</Text></View>
-              }
-              <View style={styles.hostMeta}>
-                <Text style={styles.hostName}>{experience.hostName || 'Wildvora Host'}</Text>
-                <View style={styles.verifiedRow}>
-                  <MaterialIcons name="verified" size={14} color="#1A5F45" />
-                  <Text style={styles.verifiedText}>Verified Host • 98% response</Text>
+          {/* ── Highlights strip (always visible) ── */}
+          {highlights.length > 0 && (
+            <View style={styles.highlightsRow}>
+              {highlights.map(({ icon, label, value }, idx) => (
+                <View key={idx} style={[styles.highlightCard, idx < highlights.length - 1 && { marginRight: 10 }]}>
+                  <Ionicons name={icon} size={20} color="#1A5F45" />
+                  <Text style={styles.highlightValue}>{value}</Text>
+                  <Text style={styles.highlightLabel}>{label}</Text>
                 </View>
+              ))}
+            </View>
+          )}
+
+          {/* ── Host row ── */}
+          <View style={styles.hostRow}>
+            {hostAvatarUrl
+              ? <Image source={{ uri: hostAvatarUrl }} style={styles.avatar} />
+              : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarInitials}>{getInitials(experience.hostName)}</Text></View>
+            }
+            <View style={{ flex: 1 }}>
+              <Text style={styles.hostName}>{experience.hostName || 'Wildvora Host'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <MaterialIcons name="verified" size={12} color="#1A5F45" />
+                <Text style={styles.hostVerifiedText}>Verified Host · 98% response</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8}>
@@ -352,548 +295,353 @@ export default function ExperienceDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Gallery */}
-          {(experience.adventureImages?.length > 0 || experience.images?.length > 1) && (
-            <View style={[styles.section, { marginBottom: 20 }]}>
-              <Text style={styles.sectionTitle}>Gallery</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-                {(experience.adventureImages?.length > 0 ? experience.adventureImages : experience.images.slice(1)).map((uri, idx) => (
-                  <Image key={idx} source={{ uri }} style={{ width: 200, height: 130, borderRadius: 12 }} resizeMode="cover" />
-                ))}
-              </ScrollView>
+          {/* ── Description ── */}
+          <Text style={styles.description} numberOfLines={readMore ? undefined : 3}>
+            {experience.description}
+          </Text>
+          <TouchableOpacity onPress={() => setReadMore(!readMore)} style={styles.readMoreBtn} activeOpacity={0.7}>
+            <Text style={styles.readMoreText}>{readMore ? 'Show less' : 'Show more'}</Text>
+            <Ionicons name={readMore ? 'chevron-up' : 'chevron-down'} size={13} color="#1A5F45" />
+          </TouchableOpacity>
+
+          {/* ── What's included (always visible) ── */}
+          {(experience.includes?.length > 0 || experience.exclusions?.length > 0) && (
+            <View style={styles.includedSection}>
+              <Text style={styles.sectionHeading}>What's included</Text>
+              {experience.includes?.map((item, idx) => (
+                <View key={idx} style={styles.inclRow}>
+                  <View style={styles.inclCheckCircle}>
+                    <Ionicons name="checkmark" size={11} color="#fff" />
+                  </View>
+                  <Text style={styles.inclText}>{item}</Text>
+                </View>
+              ))}
+              {experience.exclusions?.length > 0 && (
+                <>
+                  <Text style={[styles.inclSubLabel, { marginTop: 14 }]}>Not included</Text>
+                  {experience.exclusions.map((item, idx) => (
+                    <View key={idx} style={styles.inclRow}>
+                      <View style={styles.exclXCircle}>
+                        <Ionicons name="close" size={11} color="#fff" />
+                      </View>
+                      <Text style={[styles.inclText, { color: '#666' }]}>{item}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
             </View>
           )}
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>The Experience</Text>
-            <Text style={styles.description} numberOfLines={readMore ? undefined : 3}>{experience.description}</Text>
-            <TouchableOpacity onPress={() => setReadMore(!readMore)} style={styles.readMoreBtn} activeOpacity={0.7}>
-              <Text style={styles.readMoreText}>{readMore ? 'Read less' : 'Read more'}</Text>
-              <Ionicons name={readMore ? 'chevron-up' : 'chevron-down'} size={14} color="#1A5F45" style={{ marginLeft: 2 }} />
-            </TouchableOpacity>
+          {/* ── Must Carry Essentials (always visible, prominent) ── */}
+          {experience.requirements?.length > 0 && (
+            <View style={styles.essentialsCard}>
+              <View style={styles.essentialsTitleRow}>
+                <MaterialCommunityIcons name="bag-personal-outline" size={18} color="#1A5F45" />
+                <Text style={styles.essentialsTitle}>Must Carry Essentials</Text>
+                <View style={styles.essentialsBadge}>
+                  <Text style={styles.essentialsBadgeText}>{experience.requirements.length} items</Text>
+                </View>
+              </View>
+              <Text style={styles.essentialsSubtitle}>Pack these before heading out</Text>
+              <View style={styles.essentialsGrid}>
+                {experience.requirements.map((item, idx) => (
+                  <View key={idx} style={styles.essentialItem}>
+                    <View style={styles.essentialCheck}>
+                      <Ionicons name="checkmark" size={11} color="#1A5F45" />
+                    </View>
+                    <Text style={styles.essentialItemText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Available dates (always visible) ── */}
+          <View style={styles.datesSection}>
+            <Text style={styles.sectionHeading}>Available dates</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {availDates.map((ds, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.dateChip}
+                  onPress={() => navigation.navigate('Booking', { experience })}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.dateChipText}>{fmtDate(ds)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
-          {/* Dynamic Quick Facts bento */}
-          {(() => {
-            const hasMeals = experience.includes?.some(i => /meal|food|breakfast|lunch|dinner/i.test(i));
-            const hasGear  = experience.includes?.some(i => /gear|equipment/i.test(i));
-            const items = [
-              experience.maxGroupSize && { icon: <Ionicons name="people-outline" size={24} color="#1A5F45" />, label: `Max ${experience.maxGroupSize} People` },
-              experience.safetyInfo?.firstAidAvailable && { icon: <MaterialIcons name="medical-services" size={24} color="#1A5F45" />, label: 'First Aid Kit' },
-              experience.safetyInfo?.safetyBriefingIncluded && { icon: <Ionicons name="shield-checkmark-outline" size={24} color="#1A5F45" />, label: 'Safety Briefing' },
-              experience.operatorInfo?.guideCertifications && { icon: <Ionicons name="ribbon-outline" size={24} color="#1A5F45" />, label: 'Certified Guide' },
-              hasMeals && { icon: <Ionicons name="restaurant-outline" size={24} color="#1A5F45" />, label: 'Meals Included' },
-              hasGear  && { icon: <MaterialCommunityIcons name="bag-personal-outline" size={24} color="#1A5F45" />, label: 'Gear Provided' },
-            ].filter(Boolean);
-            // Always ensure at least 2 fallback items
-            if (!items.find(i => i.label.includes('People')) && !items.find(i => i.label.includes('Group'))) {
-              items.unshift({ icon: <Ionicons name="people-outline" size={24} color="#1A5F45" />, label: experience.maxGroupSize ? `Max ${experience.maxGroupSize} People` : 'Small Groups' });
-            }
-            if (items.length < 2) {
-              items.push({ icon: <Ionicons name="calendar-outline" size={24} color="#1A5F45" />, label: experience.duration || 'Multi-day' });
-            }
-            return (
-              <View style={styles.bentoGrid}>
-                {items.slice(0, 4).map(({ icon, label }) => (
-                  <View key={label} style={styles.bentoItem}>
-                    <View style={{ marginBottom: 6 }}>{icon}</View>
-                    <Text style={styles.bentoText}>{label}</Text>
-                  </View>
-                ))}
-              </View>
-            );
-          })()}
+          {/* ── Accordion sections ── */}
 
-          {/* ══════════════════════════════════════════════ */}
-          {/* MEETING POINT & GETTING THERE                  */}
-          {/* ══════════════════════════════════════════════ */}
-          {(experience.location?.meetingPoint || experience.location?.googleMapsLink) && (
-            <View style={[styles.section, styles.borderTop]}>
-              <View style={styles.widgetHeaderLeft}>
-                <Ionicons name="location" size={20} color="#1A5F45" />
-                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Meeting Point</Text>
-              </View>
-              <View style={styles.meetingCard}>
-                {experience.location.meetingPoint ? (
-                  <View style={styles.meetingRow}>
-                    <Ionicons name="navigate-outline" size={16} color="#1A5F45" style={{ marginTop: 1 }} />
-                    <Text style={styles.meetingText}>{experience.location.meetingPoint}</Text>
-                  </View>
-                ) : null}
-                {experience.location?.state ? (
-                  <View style={[styles.meetingRow, { marginBottom: 0 }]}>
-                    <Ionicons name="map-outline" size={15} color="#6f7a73" style={{ marginTop: 1 }} />
-                    <Text style={[styles.meetingText, { color: '#6f7a73', fontSize: 13 }]}>
-                      {[experience.location.city, experience.location.state, experience.location.country].filter(Boolean).join(', ')}
-                    </Text>
-                  </View>
-                ) : null}
-                {experience.location.googleMapsLink ? (
-                  <TouchableOpacity
-                    style={styles.mapsBtn}
-                    onPress={() => Linking.openURL(experience.location.googleMapsLink)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="map" size={14} color="#fff" />
-                    <Text style={styles.mapsBtnText}>Open in Maps</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
+          {/* Gallery */}
+          {(experience.adventureImages?.length > 0 || experience.images?.length > 1) && (
+            <Accordion title="Gallery" icon={<Ionicons name="images-outline" size={16} color="#1A5F45" />}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {(experience.adventureImages?.length > 0
+                  ? experience.adventureImages
+                  : experience.images.slice(1)
+                ).map((uri, idx) => (
+                  <Image key={idx} source={{ uri }} style={styles.galleryImage} resizeMode="cover" />
+                ))}
+              </ScrollView>
+            </Accordion>
           )}
 
-          {/* ══════════════════════════════════════════════ */}
-          {/* INCLUSIONS & EXCLUSIONS                        */}
-          {/* ══════════════════════════════════════════════ */}
-          {(experience.includes?.length > 0 || experience.exclusions?.length > 0) && (
-            <View style={[styles.section, styles.borderTop]}>
-              {experience.includes?.length > 0 && (
-                <>
-                  <Text style={styles.sectionTitle}>What's Included</Text>
-                  <View style={styles.inclExclList}>
-                    {experience.includes.map((item, idx) => (
-                      <View key={idx} style={styles.inclItem}>
-                        <View style={styles.inclIconGreen}>
-                          <Ionicons name="checkmark" size={12} color="#fff" />
-                        </View>
+          {/* Meeting Point */}
+          {(experience.location?.meetingPoint || experience.location?.googleMapsLink) && (
+            <Accordion title="Meeting point" icon={<Ionicons name="location-outline" size={16} color="#1A5F45" />}>
+              {experience.location.meetingPoint && (
+                <Text style={styles.bodyText}>{experience.location.meetingPoint}</Text>
+              )}
+              {experience.location?.state && (
+                <Text style={[styles.bodyText, { color: '#999', marginTop: 4 }]}>
+                  {[experience.location.city, experience.location.state, experience.location.country].filter(Boolean).join(', ')}
+                </Text>
+              )}
+              {experience.location?.googleMapsLink && (
+                <TouchableOpacity
+                  style={styles.mapsBtn}
+                  onPress={() => Linking.openURL(experience.location.googleMapsLink)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="map-outline" size={14} color="#1A5F45" />
+                  <Text style={styles.mapsBtnText}>Open in Maps</Text>
+                </TouchableOpacity>
+              )}
+            </Accordion>
+          )}
+
+          {/* Weather & Safety */}
+          <Accordion title="Weather & safety" icon={<MaterialCommunityIcons name="weather-partly-cloudy" size={16} color="#1A5F45" />}>
+            {weatherLoading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <ActivityIndicator size="small" color="#1A5F45" />
+                <Text style={styles.bodyText}>Fetching live weather…</Text>
+              </View>
+            ) : weatherError ? (
+              <Text style={[styles.bodyText, { color: '#aaa' }]}>Weather data unavailable.</Text>
+            ) : (
+              <>
+                {/* Weather summary row */}
+                <View style={styles.weatherRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    {getOWMWeatherIcon(weatherData?.iconCode, 30)}
+                    <View>
+                      <Text style={styles.weatherTemp}>{weatherData?.temp}</Text>
+                      <Text style={styles.weatherCond}>{weatherData?.condition}</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.suitBadge, { borderColor: suitColor }]}>
+                    <Text style={[styles.suitBadgeText, { color: suitColor }]}>
+                      {weatherData?.suitability === 'Good' ? 'Good conditions'
+                        : weatherData?.suitability === 'Moderate' ? 'Use caution'
+                        : 'Not recommended'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Stats */}
+                <View style={styles.weatherStats}>
+                  {[
+                    { label: 'Rain',     value: weatherData?.rainProb },
+                    { label: 'Wind',     value: weatherData?.windSpeed },
+                    { label: 'Humidity', value: weatherData?.humidity },
+                    { label: 'Sunrise',  value: weatherData?.sunrise },
+                    { label: 'Sunset',   value: weatherData?.sunset },
+                  ].map(({ label, value }) => (
+                    <View key={label} style={styles.weatherStatItem}>
+                      <Text style={styles.weatherStatLabel}>{label}</Text>
+                      <Text style={styles.weatherStatValue}>{value}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Alert */}
+                {weatherData?.alerts?.length > 0 && (
+                  <View style={styles.weatherAlert}>
+                    <Ionicons name="warning-outline" size={14} color="#b45309" />
+                    <Text style={styles.weatherAlertText}>{weatherData.alerts[0]}</Text>
+                  </View>
+                )}
+
+                <View style={styles.thinDivider} />
+
+                {/* Safety features */}
+                <Text style={styles.subSectionLabel}>Safety</Text>
+                <View style={[styles.diffRow, { backgroundColor: diffCfg.bg, borderColor: diffCfg.border }]}>
+                  <Text style={[styles.diffText, { color: diffCfg.color }]}>{experience.difficulty || 'Moderate'} difficulty</Text>
+                  {experience.ageRestriction && <Text style={styles.diffAge}>· Age {experience.ageRestriction}</Text>}
+                </View>
+
+                {(experience.safetyInfo?.firstAidAvailable || experience.safetyInfo?.safetyBriefingIncluded || experience.operatorInfo?.guideCertifications) && (
+                  <View style={styles.pillsRow}>
+                    {experience.safetyInfo?.firstAidAvailable && <View style={styles.pill}><Text style={styles.pillText}>First Aid Kit</Text></View>}
+                    {experience.safetyInfo?.safetyBriefingIncluded && <View style={styles.pill}><Text style={styles.pillText}>Safety Briefing</Text></View>}
+                    {experience.operatorInfo?.guideCertifications && <View style={styles.pill}><Text style={styles.pillText}>Certified Guide</Text></View>}
+                  </View>
+                )}
+
+                {experience.medicalRestrictions && <Text style={[styles.bodyText, { marginTop: 10 }]}>⚠ {experience.medicalRestrictions}</Text>}
+                {experience.medicalAdvisories?.map((adv, i) => <Text key={i} style={[styles.bodyText, { marginTop: 4 }]}>⚠ {adv}</Text>)}
+                {experience.safetyChecklist?.length > 0 && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.subSectionLabel}>Safety checklist</Text>
+                    {experience.safetyChecklist.map((item, idx) => (
+                      <View key={idx} style={styles.inclRow}>
+                        <Ionicons name="checkmark-circle-outline" size={14} color="#1A5F45" />
                         <Text style={styles.inclText}>{item}</Text>
                       </View>
                     ))}
                   </View>
-                </>
-              )}
-              {experience.exclusions?.length > 0 && (
-                <>
-                  <Text style={[styles.sectionSubtitle, { marginTop: experience.includes?.length > 0 ? 18 : 0 }]}>Not Included</Text>
-                  <View style={styles.inclExclList}>
-                    {experience.exclusions.map((item, idx) => (
-                      <View key={idx} style={styles.exclItem}>
-                        <View style={styles.inclIconRed}>
-                          <Ionicons name="close" size={12} color="#fff" />
-                        </View>
-                        <Text style={styles.exclText}>{item}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              )}
-            </View>
-          )}
-
-          {/* ══════════════════════════════════════════════ */}
-          {/* WEATHER & ADVENTURE SAFETY                    */}
-          {/* ══════════════════════════════════════════════ */}
-          <View style={[styles.section, styles.borderTop]}>
-
-            {/* Section header */}
-            <View style={styles.widgetHeader}>
-              <View style={styles.widgetHeaderLeft}>
-                <MaterialCommunityIcons name="weather-partly-cloudy" size={20} color="#1A5F45" />
-                <Text style={styles.sectionTitle}>Weather & Safety</Text>
-              </View>
-              <Text style={styles.widgetMeta}>{experience.location?.city}</Text>
-            </View>
-
-            {weatherLoading ? (
-              <View style={styles.weatherLoadingCard}>
-                <ActivityIndicator size="small" color="#1A5F45" />
-                <Text style={styles.weatherLoadingText}>Fetching live weather…</Text>
-              </View>
-            ) : weatherError ? (
-              <View style={styles.weatherErrorCard}>
-                <MaterialCommunityIcons name="weather-cloudy" size={34} color="#9ca3af" />
-                <Text style={styles.weatherErrorTitle}>Weather Unavailable</Text>
-                <Text style={styles.weatherErrorText}>Could not load live data. Check your connection.</Text>
-              </View>
-            ) : (
-              <>
-                {/* Alert banner */}
-                {weatherData?.alerts?.length > 0 && (
-                  <View style={styles.alertBanner}>
-                    <View style={styles.alertIconBg}>
-                      <Ionicons name="warning" size={15} color="#fff" />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.alertTitle}>Weather Alert</Text>
-                      <Text style={styles.alertText}>{weatherData.alerts[0]}</Text>
-                    </View>
-                  </View>
                 )}
 
-                {/* Main weather card */}
-                <LinearGradient
-                  colors={getWeatherGradient(weatherData?.iconCode)}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                  style={styles.weatherCard}
-                >
-                  {/* Hero: temp + icon */}
-                  <View style={styles.weatherHeroRow}>
+                <View style={styles.thinDivider} />
+
+                {/* Emergency contacts */}
+                <Text style={styles.subSectionLabel}>Emergency</Text>
+                {experience.safetyInfo?.emergencyContact ? (
+                  <TouchableOpacity
+                    style={styles.emergencyCard}
+                    onPress={() => Linking.openURL(`tel:${experience.safetyInfo.emergencyContact}`)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.emergencyIconBg}>
+                      <Ionicons name="call-outline" size={16} color="#1A5F45" />
+                    </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.weatherTemp}>{weatherData?.temp}</Text>
-                      <Text style={styles.weatherFeelsLike}>Feels like {weatherData?.feelsLike}</Text>
-                      <Text style={styles.weatherCondition}>{weatherData?.condition}</Text>
+                      <Text style={styles.emergencyLabel}>Operator emergency line</Text>
+                      <Text style={styles.emergencyNum}>{experience.safetyInfo.emergencyContact}</Text>
                     </View>
-                    <View style={styles.weatherIconBubble}>
-                      {getOWMWeatherIcon(weatherData?.iconCode, 46)}
+                    <View style={styles.callBtn}>
+                      <Text style={styles.callBtnText}>Call</Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={[styles.bodyText, { color: '#bbb', fontStyle: 'italic' }]}>No emergency contact provided</Text>
+                )}
 
-                  <View style={styles.weatherDivider} />
-
-                  {/* 2 × 2 metrics grid */}
-                  <View style={styles.weatherGrid}>
-                    {[
-                      { icon: 'umbrella-outline',   lib: 'Ionicons',                    color: '#3B82F6', label: 'Rain Chance', value: weatherData?.rainProb },
-                      { icon: 'weather-windy',      lib: 'MaterialCommunityIcons',      color: '#6B7280', label: 'Wind',        value: weatherData?.windSpeed },
-                      { icon: 'eye-outline',        lib: 'Ionicons',                    color: '#1A5F45', label: 'Visibility',  value: weatherData?.visibility },
-                      { icon: 'water-percent',      lib: 'MaterialCommunityIcons',      color: '#0EA5E9', label: 'Humidity',    value: weatherData?.humidity },
-                    ].map(({ icon, lib, color, label, value }) => (
-                      <View key={label} style={styles.weatherMetricTile}>
-                        {lib === 'Ionicons'
-                          ? <Ionicons name={icon} size={15} color={color} />
-                          : <MaterialCommunityIcons name={icon} size={15} color={color} />}
-                        <Text style={styles.weatherMetricLabel}>{label}</Text>
-                        <Text style={styles.weatherMetricValue}>{value}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Sun cycle */}
-                  <View style={styles.sunRow}>
-                    <View style={styles.sunItem}>
-                      <MaterialCommunityIcons name="weather-sunset-up"   size={15} color="#F59E0B" />
-                      <Text style={styles.sunLabel}>Sunrise</Text>
-                      <Text style={styles.sunValue}>{weatherData?.sunrise}</Text>
+                {!weatherLoading && weatherData?.hospital && (
+                  <View style={styles.emergencyCard}>
+                    <View style={styles.emergencyIconBg}>
+                      <Ionicons name="business-outline" size={16} color="#1A5F45" />
                     </View>
-                    <View style={styles.sunDivider} />
-                    <View style={styles.sunItem}>
-                      <MaterialCommunityIcons name="weather-sunset-down" size={15} color="#F97316" />
-                      <Text style={styles.sunLabel}>Sunset</Text>
-                      <Text style={styles.sunValue}>{weatherData?.sunset}</Text>
-                    </View>
-                  </View>
-                </LinearGradient>
-
-                {/* Suitability banner */}
-                {suitInfo && (
-                  <View style={[styles.suitBanner, { backgroundColor: suitInfo.bg, borderColor: suitInfo.border }]}>
-                    <View style={[styles.suitIconBg, { backgroundColor: suitInfo.text }]}>
-                      <Ionicons
-                        name={weatherData?.suitability === 'Good' ? 'checkmark' : weatherData?.suitability === 'Moderate' ? 'alert' : 'close'}
-                        size={14} color="#fff"
-                      />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={[styles.suitLabel, { color: suitInfo.text }]}>{suitInfo.label}</Text>
-                      <Text style={[styles.suitDesc,  { color: suitInfo.text }]}>{suitInfo.desc}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.emergencyLabel}>Nearest hospital</Text>
+                      <Text style={styles.emergencyNum}>{weatherData.hospital.name}</Text>
+                      {weatherData.hospital.vicinity ? <Text style={styles.emergencyAddr} numberOfLines={1}>{weatherData.hospital.vicinity}</Text> : null}
                     </View>
                   </View>
                 )}
               </>
             )}
-          </View>
-
-          {/* ══════════════════════════════════════════════ */}
-          {/* SAFETY & PREPAREDNESS                         */}
-          {/* ══════════════════════════════════════════════ */}
-          <View style={[styles.section, styles.borderTop]}>
-
-            <View style={styles.widgetHeader}>
-              <View style={styles.widgetHeaderLeft}>
-                <MaterialIcons name="security" size={20} color="#1A5F45" />
-                <Text style={styles.sectionTitle}>Safety & Preparedness</Text>
-              </View>
-            </View>
-
-            {/* Difficulty badge */}
-            <View style={[styles.diffBadge, { backgroundColor: diffCfg.bg, borderColor: diffCfg.border }]}>
-              <View style={[styles.diffDot, { backgroundColor: diffCfg.color }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.diffLabel, { color: diffCfg.color }]}>
-                  {experience.difficulty || 'Moderate'} Difficulty
-                </Text>
-                {experience.ageRestriction ? (
-                  <Text style={styles.diffAge}>Age: {experience.ageRestriction}</Text>
-                ) : null}
-              </View>
-              <Ionicons name="bar-chart-outline" size={16} color={diffCfg.color} />
-            </View>
-
-            {/* Feature pills */}
-            <View style={styles.pillsRow}>
-              {experience.safetyInfo?.firstAidAvailable && (
-                <View style={styles.pill}>
-                  <MaterialIcons name="medical-services" size={12} color="#15803d" />
-                  <Text style={styles.pillText}>First Aid</Text>
-                </View>
-              )}
-              {experience.safetyInfo?.safetyBriefingIncluded && (
-                <View style={styles.pill}>
-                  <Ionicons name="shield-checkmark-outline" size={12} color="#15803d" />
-                  <Text style={styles.pillText}>Safety Briefing</Text>
-                </View>
-              )}
-              {experience.operatorInfo?.guideCertifications ? (
-                <View style={styles.pill}>
-                  <Ionicons name="ribbon-outline" size={12} color="#15803d" />
-                  <Text style={styles.pillText}>Certified Guide</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Medical advisory */}
-            {experience.medicalRestrictions ? (
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardHeader}>
-                  <View style={[styles.infoCardIcon, { backgroundColor: '#FEE2E2' }]}>
-                    <MaterialIcons name="medical-services" size={14} color="#b91c1c" />
-                  </View>
-                  <Text style={styles.infoCardTitle}>Medical Advisory</Text>
-                </View>
-                <Text style={styles.infoCardText}>{experience.medicalRestrictions}</Text>
-              </View>
-            ) : null}
-
-            {/* Medical advisories array */}
-            {experience.medicalAdvisories?.length > 0 && (
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardHeader}>
-                  <View style={[styles.infoCardIcon, { backgroundColor: '#FFF7ED' }]}>
-                    <Ionicons name="warning-outline" size={14} color="#c2410c" />
-                  </View>
-                  <Text style={styles.infoCardTitle}>Health Advisories</Text>
-                </View>
-                {experience.medicalAdvisories.map((adv, idx) => (
-                  <Text key={idx} style={[styles.infoCardText, { marginTop: idx > 0 ? 4 : 2 }]}>• {adv}</Text>
-                ))}
-              </View>
-            )}
-
-            {/* Safety checklist */}
-            {experience.safetyChecklist?.length > 0 && (
-              <View style={styles.infoCard}>
-                <View style={styles.infoCardHeader}>
-                  <View style={[styles.infoCardIcon, { backgroundColor: '#DCFCE7' }]}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#15803d" />
-                  </View>
-                  <Text style={styles.infoCardTitle}>Safety Checklist</Text>
-                </View>
-                {experience.safetyChecklist.map((item, idx) => (
-                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: idx > 0 ? 4 : 6 }}>
-                    <Ionicons name="checkmark-circle" size={14} color="#15803d" />
-                    <Text style={styles.infoCardText}>{item}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Emergency contacts + hospital */}
-            <View style={styles.emergencyBox}>
-              <Text style={styles.emergencyBoxTitle}>Emergency Contacts</Text>
-
-              {experience.safetyInfo?.emergencyContact ? (
-                <TouchableOpacity
-                  style={styles.emergencyRow}
-                  onPress={() => Linking.openURL(`tel:${experience.safetyInfo.emergencyContact}`)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.emergencyLeft}>
-                    <View style={[styles.emergencyIcon, { backgroundColor: '#1A5F45' }]}>
-                      <Ionicons name="call" size={14} color="#fff" />
-                    </View>
-                    <View style={{ marginLeft: 10 }}>
-                      <Text style={styles.emergencyLabel}>Operator Emergency</Text>
-                      <Text style={styles.emergencyNum}>{experience.safetyInfo.emergencyContact}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.callBtn}>
-                    <Ionicons name="call" size={11} color="#fff" />
-                    <Text style={styles.callBtnText}>Call</Text>
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.noContactRow}>
-                  <Ionicons name="call-outline" size={15} color="#9ca3af" />
-                  <Text style={styles.noContactText}>No emergency contact provided</Text>
-                </View>
-              )}
-
-              {!weatherLoading && (
-                weatherData?.hospital ? (
-                  <View style={styles.hospitalRow}>
-                    <View style={[styles.emergencyIcon, { backgroundColor: '#2563EB' }]}>
-                      <Ionicons name="business" size={14} color="#fff" />
-                    </View>
-                    <View style={{ marginLeft: 10, flex: 1 }}>
-                      <Text style={styles.hospitalName}>{weatherData.hospital.name}</Text>
-                      <Text style={styles.hospitalAddr} numberOfLines={1}>{weatherData.hospital.vicinity}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={15} color="#9ca3af" />
-                  </View>
-                ) : (
-                  <View style={styles.hospitalRow}>
-                    <View style={[styles.emergencyIcon, { backgroundColor: '#9ca3af' }]}>
-                      <Ionicons name="business" size={14} color="#fff" />
-                    </View>
-                    <View style={{ marginLeft: 10, flex: 1 }}>
-                      <Text style={styles.hospitalName}>Nearest Hospital</Text>
-                      <Text style={styles.hospitalAddr}>Hospital data unavailable</Text>
-                    </View>
-                  </View>
-                )
-              )}
-            </View>
-          </View>
-
-          {/* What to Bring */}
-          {experience.requirements?.length > 0 && (
-            <View style={[styles.section, styles.borderTop]}>
-              <View style={styles.widgetHeaderLeft}>
-                <MaterialCommunityIcons name="bag-personal-outline" size={20} color="#1A5F45" />
-                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>What to Bring</Text>
-              </View>
-              <View style={[styles.requirementsList, { marginTop: 12 }]}>
-                {experience.requirements.map((item, idx) => (
-                  <View key={idx} style={styles.requirementItem}>
-                    <View style={styles.requirementBullet}>
-                      <Ionicons name="checkmark" size={12} color="#fff" />
-                    </View>
-                    <Text style={styles.requirementText}>{item}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Available Dates */}
-          <View style={[styles.section, styles.borderTop]}>
-            <Text style={styles.sectionTitle}>Available Dates</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-              {availDates.map((ds, i) => (
-                <View key={i} style={styles.dateChip}>
-                  <Ionicons name="calendar-outline" size={13} color="#11694b" style={{ marginRight: 4 }} />
-                  <Text style={styles.dateChipText}>{fmtDate(ds)}</Text>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* ══════════════════════════════════════════════ */}
-          {/* BOOKING INFORMATION                            */}
-          {/* ══════════════════════════════════════════════ */}
-          {(experience.cancellationPolicy || experience.bookingDeadline || experience.minGroupSize || experience.maxGroupSize) && (
-            <View style={[styles.section, styles.borderTop]}>
-              <View style={[styles.widgetHeaderLeft, { marginBottom: 14 }]}>
-                <Ionicons name="information-circle-outline" size={20} color="#1A5F45" />
-                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Booking Information</Text>
-              </View>
-              <View style={styles.bookingInfoCard}>
-                {(experience.minGroupSize || experience.maxGroupSize) && (
-                  <View style={styles.bookingRow}>
-                    <Ionicons name="people-outline" size={15} color="#1A5F45" />
-                    <Text style={styles.bookingLabel}>Group Size</Text>
-                    <Text style={styles.bookingValue}>
-                      {experience.minGroupSize && experience.maxGroupSize
-                        ? `${experience.minGroupSize}–${experience.maxGroupSize} people`
-                        : experience.maxGroupSize
-                        ? `Up to ${experience.maxGroupSize} people`
-                        : `From ${experience.minGroupSize} people`}
-                    </Text>
-                  </View>
-                )}
-                {experience.bookingDeadline ? (
-                  <View style={styles.bookingRow}>
-                    <Ionicons name="time-outline" size={15} color="#1A5F45" />
-                    <Text style={styles.bookingLabel}>Book By</Text>
-                    <Text style={styles.bookingValue}>
-                      {experience.bookingDeadline} day{experience.bookingDeadline !== 1 ? 's' : ''} before departure
-                    </Text>
-                  </View>
-                ) : null}
-                {experience.cancellationPolicy ? (
-                  <View style={[styles.bookingRow, { alignItems: 'flex-start', borderBottomWidth: 0 }]}>
-                    <Ionicons name="refresh-circle-outline" size={15} color="#1A5F45" style={{ marginTop: 2 }} />
-                    <Text style={styles.bookingLabel}>Cancellation</Text>
-                    <Text style={[styles.bookingValue, { flex: 1 }]}>{experience.cancellationPolicy}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          )}
-
-          {/* ══════════════════════════════════════════════ */}
-          {/* SOCIAL MEDIA & CONNECT                         */}
-          {/* ══════════════════════════════════════════════ */}
-          {(experience.socialLinks?.instagram || experience.socialLinks?.website) && (
-            <View style={[styles.section, styles.borderTop]}>
-              <View style={[styles.widgetHeaderLeft, { marginBottom: 14 }]}>
-                <Ionicons name="share-social-outline" size={20} color="#1A5F45" />
-                <Text style={[styles.sectionTitle, { marginLeft: 7, marginBottom: 0 }]}>Connect with Operator</Text>
-              </View>
-              <View style={styles.socialRow}>
-                {experience.socialLinks.instagram ? (
-                  <TouchableOpacity
-                    style={[styles.socialBtn, { backgroundColor: '#E1306C' }]}
-                    onPress={() => Linking.openURL(experience.socialLinks.instagram)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="logo-instagram" size={16} color="#fff" />
-                    <Text style={styles.socialBtnText}>Instagram</Text>
-                  </TouchableOpacity>
-                ) : null}
-                {experience.socialLinks.website ? (
-                  <TouchableOpacity
-                    style={[styles.socialBtn, { backgroundColor: '#1A5F45' }]}
-                    onPress={() => Linking.openURL(experience.socialLinks.website)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="globe-outline" size={16} color="#fff" />
-                    <Text style={styles.socialBtnText}>Website</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
-          )}
+          </Accordion>
 
           {/* Reviews */}
-          <View style={[styles.section, styles.borderTop]}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Adventurer Reviews</Text>
-              <TouchableOpacity><Text style={styles.viewAllText}>View all</Text></TouchableOpacity>
-            </View>
-            <View style={styles.reviewGrid}>
-              {(reviews.length > 0 ? reviews.slice(0, 2) : [
-                { _id: 'd1', rating: 5, comment: 'The sunrise was life-changing. The guide knows every rock on that mountain.', userName: 'Sarah M.', createdAt: '2 days ago' },
-                { _id: 'd2', rating: 5, comment: 'Expertly organized. The food was surprisingly good for being at 2000 meters.', userName: 'James L.', createdAt: '1 week ago' },
-              ]).map((r) => (
-                <View key={r._id} style={styles.reviewCard}>
-                  <View style={styles.reviewHeader}>
-                    <View style={{ flexDirection: 'row' }}>{renderStars(r.rating)}</View>
+          <Accordion title={`Reviews (${experience.reviewCount || reviews.length || 0})`} defaultOpen icon={<Ionicons name="star-outline" size={16} color="#1A5F45" />}>
+            {(reviews.length > 0 ? reviews.slice(0, 3) : [
+              { _id: 'd1', rating: 5, comment: 'The sunrise was life-changing. The guide knows every rock on that mountain.', userName: 'Sarah M.', createdAt: '2 days ago' },
+              { _id: 'd2', rating: 5, comment: 'Expertly organized. Food was surprisingly good for being at 2000 meters.', userName: 'James L.', createdAt: '1 week ago' },
+            ]).map((r, idx, arr) => (
+              <View key={r._id} style={[styles.reviewCard, idx === arr.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <View style={styles.reviewAvatar}>
+                    <Text style={styles.reviewAvatarText}>{getInitials(r.userName || r.user?.name)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.reviewAuthor}>{r.userName || r.user?.name || 'Anonymous'}</Text>
                     <Text style={styles.reviewDate}>{r.createdAt?.split('T')[0] || r.createdAt}</Text>
                   </View>
-                  <Text style={styles.reviewComment}>"{r.comment}"</Text>
-                  <Text style={styles.reviewAuthor}>— {r.userName || r.user?.name || 'Anonymous'}</Text>
+                  <View style={{ flexDirection: 'row' }}>{renderStars(r.rating)}</View>
                 </View>
-              ))}
-            </View>
-          </View>
+                <Text style={styles.reviewComment}>{r.comment}</Text>
+              </View>
+            ))}
+          </Accordion>
+
+          {/* ── Policies & Booking ── */}
+          {(experience.cancellationPolicy || experience.bookingDeadline || experience.minGroupSize || experience.maxGroupSize) && (
+            <Accordion title="Policies" icon={<Ionicons name="document-text-outline" size={16} color="#1A5F45" />}>
+
+              {experience.cancellationPolicy && (
+                <View style={styles.policyCard}>
+                  <View style={styles.policyIconWrap}>
+                    <Ionicons name="refresh-circle-outline" size={20} color="#1A5F45" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.policyTitle}>Cancellation</Text>
+                    <Text style={styles.policyDesc}>{experience.cancellationPolicy}</Text>
+                  </View>
+                </View>
+              )}
+
+              {(experience.minGroupSize || experience.maxGroupSize) && (
+                <View style={styles.policyCard}>
+                  <View style={styles.policyIconWrap}>
+                    <Ionicons name="people-outline" size={20} color="#1A5F45" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.policyTitle}>Group size</Text>
+                    <Text style={styles.policyDesc}>
+                      {experience.minGroupSize && experience.maxGroupSize
+                        ? `${experience.minGroupSize}–${experience.maxGroupSize} people per booking`
+                        : experience.maxGroupSize
+                        ? `Up to ${experience.maxGroupSize} people`
+                        : `Minimum ${experience.minGroupSize} people`}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {experience.bookingDeadline && (
+                <View style={[styles.policyCard, { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
+                  <View style={styles.policyIconWrap}>
+                    <Ionicons name="time-outline" size={20} color="#1A5F45" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.policyTitle}>Advance booking</Text>
+                    <Text style={styles.policyDesc}>
+                      Book at least {experience.bookingDeadline} day{experience.bookingDeadline !== 1 ? 's' : ''} before departure
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </Accordion>
+          )}
+
+          {/* Connect with Operator */}
+          {(experience.socialLinks?.instagram || experience.socialLinks?.website) && (
+            <Accordion title="Connect with operator" icon={<Ionicons name="share-social-outline" size={16} color="#1A5F45" />}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {experience.socialLinks?.instagram && (
+                  <TouchableOpacity style={styles.socialBtn} onPress={() => Linking.openURL(experience.socialLinks.instagram)} activeOpacity={0.8}>
+                    <Ionicons name="logo-instagram" size={15} color="#1A5F45" />
+                    <Text style={styles.socialBtnText}>Instagram</Text>
+                  </TouchableOpacity>
+                )}
+                {experience.socialLinks?.website && (
+                  <TouchableOpacity style={styles.socialBtn} onPress={() => Linking.openURL(experience.socialLinks.website)} activeOpacity={0.8}>
+                    <Ionicons name="globe-outline" size={15} color="#1A5F45" />
+                    <Text style={styles.socialBtnText}>Website</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Accordion>
+          )}
 
         </View>
       </ScrollView>
 
-      {/* Sticky footer */}
+      {/* ── Sticky footer ── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.footerLeft}>
-          <View style={styles.priceRow}>
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
             <Text style={styles.footerPrice}>₹{experience.price}</Text>
-            <Text style={styles.footerPriceSub}> / person</Text>
+            <Text style={styles.footerPriceSub}>/ person</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Booking', { experience })} activeOpacity={0.8}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={styles.viewDatesText}>View dates</Text>
-              <Ionicons name="calendar-outline" size={13} color="#1A5F45" />
-            </View>
+            <Text style={styles.viewDatesText}>View all dates →</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
@@ -910,207 +658,164 @@ export default function ExperienceDetailScreen({ route, navigation }) {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:            { flex: 1, backgroundColor: '#f7faf6' },
-  center:          { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7faf6' },
+  root:   { flex: 1, backgroundColor: '#fff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   /* Header */
-  headerControls:  { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 100 },
-  circleBtn:       { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.90)', justifyContent: 'center', alignItems: 'center', ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4 }, android: { elevation: 4 } }) },
+  headerControls: { position: 'absolute', left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', zIndex: 100 },
+  circleBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center', alignItems: 'center',
+    ...Platform.select({ ios: { shadowColor:'#000', shadowOffset:{width:0,height:1}, shadowOpacity:0.12, shadowRadius:4 }, android:{elevation:3} }),
+  },
 
   /* Hero */
-  heroContainer:   { height: 340, width: '100%' },
-  heroImage:       { width: '100%', height: '100%' },
-  heroFade:        { position: 'absolute', left: 0, right: 0, bottom: 0, height: 160 },
+  heroImage: { width: '100%', height: 290 },
 
   /* Body */
-  body:            {
-    paddingHorizontal: 16, marginTop: -44,
-    backgroundColor: '#f7faf6',
-    borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    paddingTop: 22,
-  },
-  section:         { marginBottom: 24 },
-  borderTop:       { borderTopWidth: 1, borderTopColor: 'rgba(190,201,193,0.3)', paddingTop: 20 },
+  body: { paddingHorizontal: 18, paddingTop: 18, backgroundColor: '#fff' },
 
-  /* Meta */
-  metaSection:     { marginBottom: 20 },
-  tagsRow:         { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  tag:             { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
-  tagBlue:         { backgroundColor: 'rgba(10,102,135,0.09)', borderWidth: 1, borderColor: 'rgba(10,102,135,0.18)' },
-  tagBlueText:     { color: '#005f7f', fontSize: 12, fontWeight: '700' },
-  tagTerracotta:   { backgroundColor: 'rgba(143,70,69,0.07)', borderWidth: 1, borderColor: 'rgba(143,70,69,0.18)' },
-  tagTerracottaText:{ color: '#753231', fontSize: 12, fontWeight: '700' },
-  title:           { fontSize: 25, fontWeight: '800', color: '#181d1a', lineHeight: 33, marginBottom: 10, letterSpacing: -0.3 },
-  ratingRow:       { flexDirection: 'row', gap: 16, alignItems: 'center', flexWrap: 'wrap' },
-  ratingCol:       { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#f1f4f0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  ratingNum:       { fontSize: 13, fontWeight: '700', color: '#181d1a' },
-  reviewCount:     { fontSize: 12, color: '#6f7a73' },
-  locationCol:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationText:    { fontSize: 13, color: '#3f4943', fontWeight: '500' },
+  /* Category tag */
+  categoryTag:     { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, backgroundColor: '#edf5f0', marginBottom: 10 },
+  categoryTagText: { fontSize: 11, fontWeight: '700', color: '#1A5F45', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  /* Title */
+  title: { fontSize: 23, fontWeight: '800', color: '#111', lineHeight: 31, marginBottom: 10, letterSpacing: -0.3 },
+
+  /* Meta row */
+  metaRow:      { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5, marginBottom: 20 },
+  metaRating:   { fontSize: 13, fontWeight: '700', color: '#111' },
+  metaReviews:  { fontSize: 13, color: '#888' },
+  metaSep:      { width: 1, height: 13, backgroundColor: '#ddd', marginHorizontal: 4 },
+  metaLocation: { fontSize: 13, color: '#555' },
+
+  /* Highlights strip */
+  highlightsRow: { flexDirection: 'row', marginBottom: 20 },
+  highlightCard: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12,
+    backgroundColor: '#f7faf8', borderWidth: 1, borderColor: '#e5ede9',
+  },
+  highlightValue: { fontSize: 13, fontWeight: '700', color: '#111', marginTop: 6 },
+  highlightLabel: { fontSize: 11, color: '#888', marginTop: 2 },
 
   /* Host */
-  hostCard:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(190,201,193,0.35)', marginBottom: 24, ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 }, android: { elevation: 1 } }) },
-  hostInfo:        { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar:          { width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(17,105,75,0.15)' },
-  avatarFallback:  { backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center' },
-  avatarInitials:  { color: '#fff', fontSize: 16, fontWeight: '700' },
-  hostMeta:        { gap: 3 },
-  hostName:        { fontSize: 15, fontWeight: '700', color: '#181d1a' },
-  verifiedRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  verifiedText:    { fontSize: 12, color: '#1A5F45', fontWeight: '600' },
-  contactBtn:      { backgroundColor: 'rgba(26,95,69,0.08)', borderWidth: 1, borderColor: 'rgba(26,95,69,0.2)', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  contactBtnText:  { fontSize: 13, color: '#1A5F45', fontWeight: '700' },
+  hostRow:          { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f2f2f2', marginBottom: 18 },
+  avatar:           { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: '#dde8e2' },
+  avatarFallback:   { backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center' },
+  avatarInitials:   { color: '#fff', fontSize: 15, fontWeight: '700' },
+  hostName:         { fontSize: 14, fontWeight: '700', color: '#111' },
+  hostVerifiedText: { fontSize: 11, color: '#1A5F45', fontWeight: '600' },
+  contactBtn:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: '#cce0d8' },
+  contactBtnText:   { fontSize: 12, color: '#1A5F45', fontWeight: '700' },
 
   /* Description */
-  sectionTitle:    { fontSize: 17, fontWeight: '700', color: '#181d1a', marginBottom: 10, letterSpacing: -0.2 },
-  description:     { fontSize: 14, color: '#3f4943', lineHeight: 22 },
-  readMoreBtn:     { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 2 },
-  readMoreText:    { fontSize: 13, color: '#1A5F45', fontWeight: '700' },
+  description:  { fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 8 },
+  readMoreBtn:  { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 24 },
+  readMoreText: { fontSize: 13, color: '#1A5F45', fontWeight: '700' },
 
-  /* Bento */
-  bentoGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 28 },
-  bentoItem:       { flex: 1, minWidth: '45%', backgroundColor: '#fff', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(190,201,193,0.3)', ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 }, android: { elevation: 1 } }) },
-  bentoText:       { fontSize: 12, fontWeight: '700', color: '#181d1a', marginTop: 2 },
+  /* What's included */
+  includedSection: { marginBottom: 24, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: '#f2f2f2' },
+  sectionHeading:  { fontSize: 17, fontWeight: '700', color: '#111', marginBottom: 14, letterSpacing: -0.2 },
+  inclRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  inclCheckCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 1 },
+  exclXCircle:     { width: 20, height: 20, borderRadius: 10, backgroundColor: '#d1d5db', justifyContent: 'center', alignItems: 'center', flexShrink: 0, marginTop: 1 },
+  inclText:        { fontSize: 14, color: '#333', flex: 1, lineHeight: 20 },
+  inclSubLabel:    { fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
 
-  /* Widget header */
-  widgetHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  widgetHeaderLeft:{ flexDirection: 'row', alignItems: 'center', gap: 7 },
-  widgetMeta:      { fontSize: 11, color: '#6f7a73', fontWeight: '500' },
+  /* Must Carry Essentials */
+  essentialsCard:      { marginBottom: 24, borderWidth: 1.5, borderColor: '#c8e0d6', borderRadius: 16, backgroundColor: '#f0faf5', padding: 18 },
+  essentialsTitleRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  essentialsTitle:     { fontSize: 16, fontWeight: '700', color: '#0f3d28', flex: 1 },
+  essentialsBadge:     { backgroundColor: '#1A5F45', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  essentialsBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.2 },
+  essentialsSubtitle:  { fontSize: 12, color: '#4a7c63', marginBottom: 14 },
+  essentialsGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  essentialItem:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderWidth: 1, borderColor: '#c8e0d6', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  essentialCheck:      { width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: '#1A5F45', justifyContent: 'center', alignItems: 'center' },
+  essentialItemText:   { fontSize: 13, fontWeight: '600', color: '#1A5F45' },
 
-  /* Weather loading / error */
-  weatherLoadingCard:{ backgroundColor: '#f3f8f5', borderRadius: 16, padding: 28, alignItems: 'center', gap: 10, borderWidth: 1, borderColor: 'rgba(190,201,193,0.3)' },
-  weatherLoadingText:{ fontSize: 13, color: '#6f7a73' },
-  weatherErrorCard:  { backgroundColor: '#f9fafb', borderRadius: 16, padding: 28, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb' },
-  weatherErrorTitle: { fontSize: 14, fontWeight: '700', color: '#374151' },
-  weatherErrorText:  { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
+  /* Available dates */
+  datesSection: { marginBottom: 8, paddingBottom: 4 },
+  dateChip:     { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10, backgroundColor: '#f7faf8', borderWidth: 1, borderColor: '#dde8e2' },
+  dateChipText: { fontSize: 13, color: '#1A5F45', fontWeight: '600' },
 
-  /* Alert */
-  alertBanner:     { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#fff1f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 14, padding: 14, marginBottom: 12 },
-  alertIconBg:     { width: 28, height: 28, borderRadius: 14, backgroundColor: '#ba1a1a', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  alertTitle:      { fontSize: 13, fontWeight: '700', color: '#991b1b', marginBottom: 2 },
-  alertText:       { fontSize: 12, color: '#b91c1c', lineHeight: 17 },
+  /* Accordion */
+  accordion:           { borderTopWidth: 1, borderTopColor: '#f2f2f2' },
+  accordionHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16 },
+  accordionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  accordionTitle:      { fontSize: 15, fontWeight: '700', color: '#111' },
+  accordionBody:       { paddingBottom: 20 },
 
-  /* Weather card */
-  weatherCard:     { borderRadius: 18, padding: 18, borderWidth: 1, borderColor: 'rgba(190,201,193,0.25)', marginBottom: 12 },
-  weatherHeroRow:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
-  weatherTemp:     { fontSize: 48, fontWeight: '800', color: '#181d1a', lineHeight: 52 },
-  weatherFeelsLike:{ fontSize: 12, color: '#6f7a73', marginTop: 2, marginBottom: 3 },
-  weatherCondition:{ fontSize: 15, fontWeight: '600', color: '#3f4943' },
-  weatherIconBubble:{ width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(255,255,255,0.65)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
-  weatherDivider:  { height: 1, backgroundColor: 'rgba(190,201,193,0.5)', marginBottom: 14 },
+  /* Gallery */
+  galleryImage: { width: 180, height: 120, borderRadius: 10 },
 
-  /* Metrics */
-  weatherGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
-  weatherMetricTile:{ flex: 1, minWidth: '45%', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)', gap: 3 },
-  weatherMetricLabel:{ fontSize: 10, color: '#6f7a73', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3 },
-  weatherMetricValue:{ fontSize: 16, fontWeight: '800', color: '#181d1a' },
+  bodyText:    { fontSize: 13, color: '#555', lineHeight: 20 },
+  thinDivider: { height: 1, backgroundColor: '#f0f0f0', marginVertical: 14 },
+  subSectionLabel: { fontSize: 12, fontWeight: '700', color: '#999', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
 
-  /* Sun cycle */
-  sunRow:          { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: 12, padding: 12 },
-  sunItem:         { flex: 1, alignItems: 'center', gap: 3 },
-  sunLabel:        { fontSize: 10, color: '#6f7a73', fontWeight: '600', textTransform: 'uppercase' },
-  sunValue:        { fontSize: 13, fontWeight: '700', color: '#181d1a' },
-  sunDivider:      { width: 1, height: 32, backgroundColor: 'rgba(190,201,193,0.5)', marginHorizontal: 12 },
+  mapsBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#cce0d8' },
+  mapsBtnText: { fontSize: 13, color: '#1A5F45', fontWeight: '700' },
 
-  /* Suitability banner */
-  suitBanner:      { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, borderWidth: 1 },
-  suitIconBg:      { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  suitLabel:       { fontSize: 14, fontWeight: '800', marginBottom: 2 },
-  suitDesc:        { fontSize: 12, opacity: 0.85, lineHeight: 17 },
+  /* Weather */
+  weatherRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  weatherTemp:      { fontSize: 20, fontWeight: '800', color: '#111' },
+  weatherCond:      { fontSize: 12, color: '#888', marginTop: 1 },
+  suitBadge:        { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1.5 },
+  suitBadgeText:    { fontSize: 11, fontWeight: '700' },
+  weatherStats:     { flexDirection: 'row', flexWrap: 'wrap', gap: 0, backgroundColor: '#f7faf8', borderRadius: 12, borderWidth: 1, borderColor: '#eee', marginBottom: 12, overflow: 'hidden' },
+  weatherStatItem:  { width: '33.33%', padding: 12, borderRightWidth: 1, borderRightColor: '#eee', borderBottomWidth: 1, borderBottomColor: '#eee' },
+  weatherStatLabel: { fontSize: 10, color: '#aaa', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3 },
+  weatherStatValue: { fontSize: 14, fontWeight: '700', color: '#111' },
+  weatherAlert:     { flexDirection: 'row', alignItems: 'flex-start', gap: 7, padding: 12, backgroundColor: '#fffbeb', borderRadius: 10, borderWidth: 1, borderColor: '#fde68a', marginBottom: 4 },
+  weatherAlertText: { fontSize: 12, color: '#b45309', flex: 1, lineHeight: 17 },
 
-  /* Difficulty */
-  diffBadge:       { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, borderWidth: 1, marginBottom: 14, gap: 10 },
-  diffDot:         { width: 10, height: 10, borderRadius: 5 },
-  diffLabel:       { fontSize: 14, fontWeight: '700' },
-  diffAge:         { fontSize: 11, color: '#6f7a73', marginTop: 2 },
+  /* Difficulty + pills */
+  diffRow:  { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  diffText: { fontSize: 13, fontWeight: '700' },
+  diffAge:  { fontSize: 13, color: '#888', marginLeft: 4 },
+  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill:     { paddingHorizontal: 12, paddingVertical: 5, backgroundColor: '#f0f4f2', borderRadius: 20, borderWidth: 1, borderColor: '#dde8e2' },
+  pillText: { fontSize: 12, color: '#1A5F45', fontWeight: '600' },
 
-  /* Feature pills */
-  pillsRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  pill:            { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#eefcf3', borderRadius: 20, borderWidth: 1, borderColor: '#b2f0c7' },
-  pillText:        { fontSize: 11, color: '#15803d', fontWeight: '700' },
-
-  /* Info card */
-  infoCard:        { backgroundColor: '#fafbfc', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)', marginBottom: 14 },
-  infoCardHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  infoCardIcon:    { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
-  infoCardTitle:   { fontSize: 13, fontWeight: '700', color: '#181d1a' },
-  infoCardText:    { fontSize: 12, color: '#3f4943', lineHeight: 18 },
-
-  /* Emergency box */
-  emergencyBox:    { backgroundColor: '#f9fafb', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(190,201,193,0.25)', gap: 10 },
-  emergencyBoxTitle:{ fontSize: 11, fontWeight: '800', color: '#6f7a73', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
-
-  emergencyRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)' },
-  emergencyLeft:   { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  emergencyIcon:   { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  emergencyLabel:  { fontSize: 11, color: '#6f7a73', fontWeight: '600' },
-  emergencyNum:    { fontSize: 14, fontWeight: '700', color: '#181d1a', marginTop: 1 },
-
-  callBtn:         { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1A5F45', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  /* Emergency */
+  emergencyCard:   { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, backgroundColor: '#f7faf8', borderWidth: 1, borderColor: '#eee', marginBottom: 10 },
+  emergencyIconBg: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#edf5f0', justifyContent: 'center', alignItems: 'center' },
+  emergencyLabel:  { fontSize: 11, color: '#999', fontWeight: '600', marginBottom: 2 },
+  emergencyNum:    { fontSize: 14, fontWeight: '700', color: '#111' },
+  emergencyAddr:   { fontSize: 11, color: '#aaa', marginTop: 2 },
+  callBtn:         { backgroundColor: '#1A5F45', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 7 },
   callBtnText:     { color: '#fff', fontSize: 12, fontWeight: '700' },
 
-  noContactRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)' },
-  noContactText:   { fontSize: 12, color: '#9ca3af', fontStyle: 'italic' },
-
-  hospitalRow:     { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)' },
-  hospitalName:    { fontSize: 13, fontWeight: '700', color: '#181d1a' },
-  hospitalAddr:    { fontSize: 11, color: '#6f7a73', marginTop: 2 },
-
-  /* Requirements */
-  requirementsList:{ gap: 10 },
-  requirementItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: '#f3f8f5', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(26,95,69,0.12)' },
-  requirementBullet:{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  requirementText: { fontSize: 14, color: '#2d3d36', fontWeight: '500', flex: 1 },
-
-  /* Dates */
-  dateChip:        { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(17,105,75,0.08)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(17,105,75,0.2)' },
-  dateChipText:    { fontSize: 13, color: '#11694b', fontWeight: '600' },
-
   /* Reviews */
-  sectionHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  viewAllText:     { fontSize: 14, color: '#1A5F45', fontWeight: '700' },
-  reviewGrid:      { gap: 12 },
-  reviewCard:      { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)', ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 }, android: { elevation: 1 } }) },
-  reviewHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  reviewDate:      { fontSize: 11, color: '#6f7a73' },
-  reviewComment:   { fontSize: 13, color: '#3f4943', fontStyle: 'italic', lineHeight: 18, marginBottom: 8 },
-  reviewAuthor:    { fontSize: 12, fontWeight: '600', color: '#181d1a' },
+  reviewCard:       { paddingBottom: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f2f2f2' },
+  reviewAvatar:     { width: 34, height: 34, borderRadius: 17, backgroundColor: '#1A5F45', justifyContent: 'center', alignItems: 'center' },
+  reviewAvatarText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  reviewAuthor:     { fontSize: 13, fontWeight: '700', color: '#111' },
+  reviewDate:       { fontSize: 11, color: '#bbb', marginTop: 1 },
+  reviewComment:    { fontSize: 13, color: '#555', lineHeight: 20, marginTop: 4 },
+
+  /* Policies */
+  policyCard:     { flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingBottom: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f2f2f2' },
+  policyIconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#edf5f0', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  policyTitle:    { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 4 },
+  policyDesc:     { fontSize: 13, color: '#666', lineHeight: 19 },
+
+  /* Social */
+  socialBtn:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 20, borderWidth: 1, borderColor: '#cce0d8' },
+  socialBtnText: { fontSize: 13, color: '#1A5F45', fontWeight: '700' },
 
   /* Footer */
-  footer:          { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: 'rgba(190,201,193,0.35)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 14, zIndex: 100, ...Platform.select({ ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8 }, android: { elevation: 6 } }) },
-  footerLeft:      { gap: 2 },
-  priceRow:        { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-  footerPrice:     { fontSize: 22, fontWeight: '800', color: '#181d1a', letterSpacing: -0.5 },
-  footerPriceSub:  { fontSize: 12, color: '#6f7a73' },
-  viewDatesText:   { fontSize: 12, color: '#1A5F45', fontWeight: '600' },
-  bookBtn:         { backgroundColor: '#1A5F45', borderRadius: 50, paddingVertical: 14, paddingHorizontal: 32, ...Platform.select({ ios: { shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 8 }, android: { elevation: 4 } }) },
-  bookBtnText:     { color: '#fff', fontWeight: '700', fontSize: 15, letterSpacing: 0.2 },
-
-  /* Meeting Point */
-  meetingCard:     { backgroundColor: '#f3f8f5', borderRadius: 14, padding: 16, marginTop: 12, borderWidth: 1, borderColor: 'rgba(26,95,69,0.12)' },
-  meetingRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
-  meetingText:     { fontSize: 14, color: '#2d3d36', fontWeight: '500', flex: 1, lineHeight: 20 },
-  mapsBtn:         { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1A5F45', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start', marginTop: 4 },
-  mapsBtnText:     { color: '#fff', fontSize: 13, fontWeight: '700' },
-
-  /* Inclusions / Exclusions */
-  inclExclList:    { gap: 8, marginTop: 10 },
-  inclItem:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: '#f0fdf4', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(21,128,61,0.14)' },
-  exclItem:        { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, paddingHorizontal: 12, backgroundColor: '#fef2f2', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(185,28,28,0.1)' },
-  inclIconGreen:   { width: 20, height: 20, borderRadius: 10, backgroundColor: '#15803d', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  inclIconRed:     { width: 20, height: 20, borderRadius: 10, backgroundColor: '#b91c1c', justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  inclText:        { fontSize: 13, color: '#166534', fontWeight: '500', flex: 1 },
-  exclText:        { fontSize: 13, color: '#991b1b', fontWeight: '500', flex: 1 },
-  sectionSubtitle: { fontSize: 15, fontWeight: '700', color: '#181d1a', marginBottom: 6 },
-
-  /* Booking Information */
-  bookingInfoCard: { backgroundColor: '#f9fafb', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(190,201,193,0.2)', overflow: 'hidden' },
-  bookingRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(190,201,193,0.18)' },
-  bookingLabel:    { fontSize: 12, color: '#6f7a73', fontWeight: '600', width: 90 },
-  bookingValue:    { fontSize: 13, color: '#181d1a', fontWeight: '500', flex: 1 },
-
-  /* Social Media */
-  socialRow:       { flexDirection: 'row', gap: 12 },
-  socialBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 13, borderRadius: 25, flex: 1 },
-  socialBtnText:   { color: '#fff', fontSize: 14, fontWeight: '700' },
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 14, zIndex: 100,
+    ...Platform.select({ ios:{shadowColor:'#000',shadowOffset:{width:0,height:-2},shadowOpacity:0.06,shadowRadius:8}, android:{elevation:6} }),
+  },
+  footerPrice:    { fontSize: 22, fontWeight: '800', color: '#111', letterSpacing: -0.5 },
+  footerPriceSub: { fontSize: 13, color: '#999' },
+  viewDatesText:  { fontSize: 12, color: '#1A5F45', fontWeight: '600', marginTop: 3 },
+  bookBtn:        { backgroundColor: '#1A5F45', borderRadius: 50, paddingVertical: 14, paddingHorizontal: 32, ...Platform.select({ ios:{shadowColor:'#1A5F45',shadowOffset:{width:0,height:3},shadowOpacity:0.2,shadowRadius:8}, android:{elevation:4} }) },
+  bookBtnText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

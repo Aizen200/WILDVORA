@@ -22,7 +22,9 @@ const {
   getPayoutLogs,
   getCustomerBookings,
   sendEmailToAllHosts,
-  getGrowthMapData
+  getGrowthMapData,
+  overrideTripStatus,
+  getStaleTrips
 } = require('../controllers/AdminController');
 
 // All admin routes require authentication and the admin role
@@ -37,6 +39,8 @@ router.patch('/listings/:id/approve', approveListing);
 router.patch('/listings/:id/reject', rejectListing);
 router.patch('/listings/:id/feature', toggleFeatured);
 router.get('/bookings', getAllBookings);
+router.get('/bookings/stale', getStaleTrips);
+router.patch('/bookings/:id/status', overrideTripStatus);
 router.patch('/bookings/:id/dispute', toggleDispute);
 router.post('/bookings/:id/refund', issueRefund);
 router.get('/hosts', getHosts);

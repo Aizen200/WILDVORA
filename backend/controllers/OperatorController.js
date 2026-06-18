@@ -209,27 +209,97 @@ const getBookings = async (req, res) => {
 };
 
 // @route PATCH /api/operator/bookings/:id/status
-// Confirm or decline booking
+// Operator manually updates trip status — operators may NOT auto-complete via date logic
 const updateBookingStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    if (!['confirmed', 'cancelled', 'completed'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
-    }
+    const { status, statusNote } = req.body;
 
-    const booking = await Booking.findById(req.params.id).populate('experience');
+    const ALLOWED_OPERATOR_TRANSITIONS = {
+      pending:   ['confirmed', 'cancelled'],
+      confirmed: ['ongoing', 'completed', 'postponed', 'cancelled'],
+      ongoing:   ['completed', 'postponed', 'cancelled'],
+      postponed: ['confirmed', 'ongoing', 'completed', 'cancelled'],
+    };
+
+    const booking = await Booking.findById(req.params.id)
+      .populate('experience')
+      .populate('user', 'name email');
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
     if (booking.experience.host.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: 'Unauthorized access to this booking' });
     }
 
-    booking.status = status;
+    const allowed = ALLOWED_OPERATOR_TRANSITIONS[booking.status] || [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot transition from "${booking.status}" to "${status}". Allowed: ${allowed.join(', ') || 'none'}.`,
+      });
+    }
+
+    // Push to history before changing
+    booking.statusHistory.push({
+      status: booking.status,
+      note:      booking.statusNote || '',
+      changedBy: req.user._id,
+      changedAt: new Date(),
+    });
+
+    booking.status     = status;
+    booking.statusNote = statusNote || '';
+
     if (status === 'cancelled') {
       booking.paymentStatus = 'refunded';
-      booking.refundStatus = 'approved';
+      booking.refundStatus  = 'approved';
     }
     await booking.save();
+
+    // Notify the customer
+    const titleMap = {
+      confirmed: 'Booking Confirmed',
+      ongoing:   'Your Trip Has Started',
+      completed: 'Trip Completed',
+      cancelled: 'Booking Cancelled',
+      postponed: 'Trip Postponed',
+    };
+    const descMap = {
+      confirmed: `Your booking for "${booking.experience.title}" on ${booking.startDate} has been confirmed by the operator.`,
+      ongoing:   `Your adventure "${booking.experience.title}" is now underway. Enjoy!`,
+      completed: `Your trip "${booking.experience.title}" has been marked as completed. We hope you had a great time!`,
+      cancelled: `Your booking for "${booking.experience.title}" has been cancelled by the operator.${statusNote ? ` Reason: ${statusNote}` : ''}`,
+      postponed: `Your trip "${booking.experience.title}" has been postponed.${statusNote ? ` Note: ${statusNote}` : ''}`,
+    };
+    if (booking.user?._id) {
+      await Notification.create({
+        recipient: booking.user._id,
+        type:      'booking',
+        title:     titleMap[status] || 'Trip Status Updated',
+        desc:      descMap[status]  || `Your trip status is now: ${status}.`,
+        referenceId: booking._id,
+        badges: [
+          { text: status.charAt(0).toUpperCase() + status.slice(1), color: status === 'completed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : status === 'cancelled' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-amber-50 text-amber-600 border border-amber-100' },
+        ],
+      });
+    }
+
+    // Notify admins when a trip is marked completed (payout eligibility)
+    if (status === 'completed') {
+      const admins = await User.find({ role: 'admin' });
+      for (const admin of admins) {
+        await Notification.create({
+          recipient: admin._id,
+          type:      'payout',
+          title:     `Trip Completed — Payout Eligible`,
+          desc:      `"${booking.experience.title}" (booking #${booking._id.toString().slice(-6).toUpperCase()}) has been marked completed by operator ${req.user.name}. It is now eligible for payout release.`,
+          referenceId: booking._id,
+          badges: [
+            { text: 'Completed', color: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
+            { text: 'Payout Due', color: 'bg-blue-50 text-blue-600 border border-blue-100' },
+          ],
+        });
+      }
+    }
 
     res.json({ success: true, booking });
   } catch (err) {
