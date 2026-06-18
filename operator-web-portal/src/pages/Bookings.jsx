@@ -63,6 +63,7 @@ const TABS = ['All Bookings', 'Pending', 'Active', 'Completed', 'Cancelled'];
 export default function Bookings() {
   const [bookings,  setBookings]  = useState([]);
   const [tab,       setTab]       = useState('All Bookings');
+  const [search,    setSearch]    = useState('');
   const [selected,  setSelected]  = useState(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
@@ -141,8 +142,21 @@ export default function Bookings() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  const paginated  = bookings.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const totalPages = Math.ceil(bookings.length / PER_PAGE);
+  // Client-side search on top of tab-filtered results from API
+  const searchFiltered = search.trim()
+    ? bookings.filter(b => {
+        const q = search.toLowerCase();
+        return (
+          b.user?.name?.toLowerCase().includes(q) ||
+          b.user?.email?.toLowerCase().includes(q) ||
+          b.experience?.title?.toLowerCase().includes(q) ||
+          b._id?.slice(-4).toLowerCase().includes(q)
+        );
+      })
+    : bookings;
+
+  const paginated  = searchFiltered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalPages = Math.ceil(searchFiltered.length / PER_PAGE);
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
   const ongoingCount = bookings.filter(b => b.status === 'ongoing').length;
 
@@ -190,12 +204,33 @@ export default function Bookings() {
 
           {/* Table */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Search Bar */}
+            <div className="px-6 pt-4 pb-3 border-b border-gray-50">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search by customer, experience, or booking ID…"
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1); }}
+                  className="flex-1 text-sm bg-transparent text-gray-700 placeholder-gray-400 outline-none"
+                />
+                {search && (
+                  <button onClick={() => { setSearch(''); setPage(1); }} className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Tabs */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
               <div className="flex gap-6">
                 {TABS.map(t => (
                   <button key={t}
-                    onClick={() => setTab(t)}
+                    onClick={() => { setTab(t); setPage(1); setSelected(null); setSearch(''); }}
                     className={`pb-1 text-sm font-semibold border-b-2 transition ${
                       tab === t ? 'border-[#1A5F45] text-[#1A5F45]' : 'border-transparent text-gray-400 hover:text-gray-600'
                     }`}
@@ -208,7 +243,7 @@ export default function Bookings() {
                 ))}
               </div>
               <span className="text-xs font-semibold text-gray-400">
-                {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
+                Showing {searchFiltered.length === 0 ? 0 : (page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, searchFiltered.length)} of {searchFiltered.length}
               </span>
             </div>
 
@@ -217,7 +252,9 @@ export default function Bookings() {
                 <div className="w-7 h-7 border-4 border-[#1A5F45] border-t-transparent rounded-full animate-spin mx-auto" />
               </div>
             ) : paginated.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">No bookings found.</div>
+              <div className="p-12 text-center text-gray-400 text-sm">
+                {search ? `No bookings match "${search}".` : 'No bookings found.'}
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left">

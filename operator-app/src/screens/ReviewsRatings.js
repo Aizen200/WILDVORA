@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Modal, TextInput, Alert,
+  Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { operatorAPI } from '../services/api';
 
 // ── Star row ─────────────────────────────────────────────
 const Stars = ({ rating, size = 16 }) => (
@@ -31,153 +32,279 @@ const RatingBar = ({ star, pct, color }) => (
   </View>
 );
 
-const MOCK_REVIEWS = [
-  {
-    id: 'R001', customerName: 'Alex Thompson', date: 'September 12, 2023',
-    rating: 5, trip: 'Alpine Trek',
-    comment: 'The multi-day hiking trip was absolutely spectacular. The guides were incredibly knowledgeable about the local flora and fauna. Everything from the logistics to the campsite food exceeded my expectations. Will definitely book again!',
-    replied: false, reply: '',
-  },
-  {
-    id: 'R002', customerName: 'Sarah Jenkins', date: 'September 10, 2023',
-    rating: 4, trip: 'Kayak Expedition',
-    comment: 'Great experience overall. The equipment provided was top-notch. Only reason for 4 stars is the slight delay at the meeting point, but the guide more than made up for it with their enthusiasm.',
-    replied: true,
-    reply: 'Hi Sarah, glad you enjoyed the equipment! We\'re addressing the timing issue with our transport team. Hope to see you again soon!',
-  },
-  {
-    id: 'R003', customerName: 'Michael R.', date: 'September 8, 2023',
-    rating: 5, trip: 'Mountain Biking',
-    comment: 'Wildvora never disappoints. This is my third time booking an outing through them. The attention to detail in the route planning is unmatched.',
-    replied: false, reply: '',
-  },
-];
-
 export default function ReviewsRatings() {
-  const [reviews, setReviews]     = useState(MOCK_REVIEWS);
-  const [replyModal, setReplyModal] = useState(null);
-  const [replyText,  setReplyText] = useState('');
-  const [editMode,   setEditMode]  = useState(false);
+  const [reviews, setReviews]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError]           = useState('');
+  const [filterRating, setFilterRating] = useState('All'); // 'All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
-  const handlePostReply = () => {
-    if (!replyText.trim()) return;
-    setReviews(prev => prev.map(r =>
-      r.id === replyModal.id ? { ...r, replied: true, reply: replyText } : r
-    ));
-    setReplyModal(null);
-    setReplyText('');
+  const [replyModal, setReplyModal] = useState(null);
+  const [replyText,  setReplyText]  = useState('');
+  const [editMode,   setEditMode]   = useState(false);
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  const fetchReviews = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError('');
+    try {
+      const res = await operatorAPI.getReviews();
+      if (res.data.success) {
+        setReviews(res.data.reviews || []);
+      } else {
+        setError('Failed to fetch reviews');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error loading reviews');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchReviews(true);
   };
+
+  const handlePostReply = async () => {
+    if (!replyText.trim() || !replyModal) return;
+    setSubmittingReply(true);
+    try {
+      const reviewId = replyModal._id;
+      const res = await operatorAPI.respondToReview(reviewId, { hostReply: replyText });
+      if (res.data.success) {
+        setReviews(prev => prev.map(r =>
+          r._id === reviewId ? { ...r, hostReply: replyText } : r
+        ));
+        setReplyModal(null);
+        setReplyText('');
+        Alert.alert('Success', 'Response posted successfully!');
+      } else {
+        Alert.alert('Error', 'Failed to submit response.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to submit response.');
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  // Compute stats
+  const totalReviewsCount = reviews.length;
+  const avgRating = totalReviewsCount > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviewsCount).toFixed(1)
+    : '0.0';
+
+  const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  reviews.forEach(r => {
+    const rounded = Math.round(r.rating);
+    if (counts[rounded] !== undefined) counts[rounded]++;
+  });
+
+  const getPct = (star) => {
+    if (totalReviewsCount === 0) return 0;
+    return Math.round((counts[star] / totalReviewsCount) * 100);
+  };
+
+  // Filter logic
+  const filteredReviews = reviews.filter(r => {
+    if (filterRating === 'All') return true;
+    const starMap = {
+      '5 Stars': 5,
+      '4 Stars': 4,
+      '3 Stars': 3,
+      '2 Stars': 2,
+      '1 Star': 1
+    };
+    return r.rating === starMap[filterRating];
+  });
 
   return (
     <ScrollView
       style={styles.screen}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 32 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} />
+      }
     >
       {/* Average Rating Card */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>AVERAGE RATING</Text>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-          <Text style={styles.avgNumber}>4.8</Text>
+          <Text style={styles.avgNumber}>{avgRating}</Text>
           <Text style={styles.avgDenom}>/ 5</Text>
         </View>
-        <Stars rating={5} size={20} />
-        <Text style={styles.reviewCount}>Based on 1,248 verified reviews</Text>
+        <Stars rating={Math.round(parseFloat(avgRating))} size={20} />
+        <Text style={styles.reviewCount}>Based on {totalReviewsCount} verified reviews</Text>
       </View>
 
       {/* Rating Distribution */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>RATING DISTRIBUTION</Text>
         <View style={{ marginTop: 16, gap: 12 }}>
-          <RatingBar star={5} pct={85} color={theme.primary} />
-          <RatingBar star={4} pct={10} color={theme.primary} />
-          <RatingBar star={3} pct={3}  color={theme.primaryFixedDim} />
-          <RatingBar star={2} pct={1}  color={theme.tertiary} />
-          <RatingBar star={1} pct={1}  color={theme.danger} />
+          <RatingBar star={5} pct={getPct(5)} color={theme.primary} />
+          <RatingBar star={4} pct={getPct(4)} color={theme.primary} />
+          <RatingBar star={3} pct={getPct(3)} color={theme.primaryFixedDim} />
+          <RatingBar star={2} pct={getPct(2)} color={theme.tertiary} />
+          <RatingBar star={1} pct={getPct(1)} color={theme.danger} />
         </View>
       </View>
 
-      {/* Performance Spike Banner */}
-      <View style={styles.performanceCard}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.performanceTitle}>Performance Spike</Text>
-          <Text style={styles.performanceText}>
-            Reviews increased by 15% this week. Keep up the responsiveness to maintain your Top Host badge.
-          </Text>
+      {/* Performance Banner */}
+      {totalReviewsCount > 0 && parseFloat(avgRating) >= 4.5 && (
+        <View style={styles.performanceCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.performanceTitle}>Top Host Status</Text>
+            <Text style={styles.performanceText}>
+              Your average rating is exceptional. Keep providing amazing experiences to your guests!
+            </Text>
+          </View>
+          <Feather name="trending-up" size={36} color="rgba(255,255,255,0.3)" />
         </View>
-        <Feather name="trending-up" size={36} color="rgba(255,255,255,0.3)" />
-      </View>
+      )}
 
       {/* Recent Reviews header */}
       <View style={[styles.rowBetween, { marginBottom: 12, marginTop: 4 }]}>
         <Text style={styles.recentTitle}>Recent Reviews</Text>
-        <TouchableOpacity style={styles.filterBtn}>
-          <Text style={styles.filterBtnText}>Filter: All</Text>
+        <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilterModal(true)}>
+          <Text style={styles.filterBtnText}>Filter: {filterRating}</Text>
           <Ionicons name="filter" size={13} color={theme.text} style={{ marginLeft: 4 }} />
         </TouchableOpacity>
       </View>
 
-      {/* Review cards */}
-      {reviews.map(r => (
-        <View key={r.id} style={styles.reviewCard}>
-          {/* Top: avatar + name + stars */}
-          <View style={styles.reviewTop}>
-            <View style={styles.reviewAvatarCol}>
-              <View style={styles.reviewAvatar}>
-                <Ionicons name="person" size={22} color={theme.textLight} />
-              </View>
-              <View>
-                <Text style={styles.reviewerName}>{r.customerName}</Text>
-                <Text style={styles.reviewDate}>{r.date}</Text>
-              </View>
-            </View>
-            <Stars rating={r.rating} size={16} />
-          </View>
+      {/* Error state */}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Ionicons name="alert-circle" size={20} color="#EF4444" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
 
-          {/* Comment */}
-          <Text style={styles.reviewComment}>{r.comment}</Text>
+      {/* Loading state */}
+      {loading && !refreshing ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={styles.loadingText}>Fetching reviews...</Text>
+        </View>
+      ) : (
+        <>
+          {/* Review cards */}
+          {filteredReviews.map(r => {
+            const hasReply = !!r.hostReply;
+            const reviewerName = r.user?.name || 'Anonymous Guest';
+            const reviewDate = r.createdAt ? new Date(r.createdAt).toLocaleDateString(undefined, {
+              year: 'numeric', month: 'long', day: 'numeric'
+            }) : 'Recent';
 
-          {/* Existing reply */}
-          {r.replied && (
-            <View style={styles.replyBox}>
-              <Text style={styles.replyBoxLabel}>Your Reply</Text>
-              <Text style={styles.replyBoxText}>"{r.reply}"</Text>
+            return (
+              <View key={r._id} style={styles.reviewCard}>
+                {/* Top: avatar + name + stars */}
+                <View style={styles.reviewTop}>
+                  <View style={styles.reviewAvatarCol}>
+                    <View style={styles.reviewAvatar}>
+                      <Ionicons name="person" size={22} color={theme.textLight} />
+                    </View>
+                    <View>
+                      <Text style={styles.reviewerName}>{reviewerName}</Text>
+                      <Text style={styles.reviewDate}>{reviewDate}</Text>
+                    </View>
+                  </View>
+                  <Stars rating={r.rating} size={16} />
+                </View>
+
+                {/* Comment */}
+                <Text style={styles.reviewComment}>{r.comment}</Text>
+
+                {/* Existing reply */}
+                {hasReply && (
+                  <View style={styles.replyBox}>
+                    <Text style={styles.replyBoxLabel}>Your Reply</Text>
+                    <Text style={styles.replyBoxText}>"{r.hostReply}"</Text>
+                  </View>
+                )}
+
+                {/* Footer: trip tag + action */}
+                <View style={styles.reviewFooter}>
+                  <View style={styles.tripTag}>
+                    <Text style={styles.tripTagText} numberOfLines={1}>
+                      Trip: {r.experience?.title || 'Unknown Experience'}
+                    </Text>
+                  </View>
+                  {hasReply ? (
+                    <TouchableOpacity onPress={() => { setReplyModal(r); setReplyText(r.hostReply); setEditMode(true); }}>
+                      <Text style={styles.editReplyText}>Edit Reply</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.replyBtn}
+                      onPress={() => { setReplyModal(r); setReplyText(''); setEditMode(false); }}
+                    >
+                      <Ionicons name="return-up-back-outline" size={14} color="#FFFFFF" />
+                      <Text style={styles.replyBtnText}> Reply</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+
+          {filteredReviews.length === 0 && (
+            <View style={styles.emptyState}>
+              <Feather name="inbox" size={36} color={theme.outlineVariant} />
+              <Text style={styles.emptyTitle}>No Reviews Found</Text>
+              <Text style={styles.emptySubtitle}>There are no reviews matching the selected filter.</Text>
             </View>
           )}
+        </>
+      )}
 
-          {/* Footer: trip tag + action */}
-          <View style={styles.reviewFooter}>
-            <View style={styles.tripTag}>
-              <Text style={styles.tripTagText}>Trip: {r.trip}</Text>
-            </View>
-            {r.replied ? (
-              <TouchableOpacity onPress={() => { setReplyModal(r); setReplyText(r.reply); setEditMode(true); }}>
-                <Text style={styles.editReplyText}>Edit Reply</Text>
-              </TouchableOpacity>
-            ) : (
+      {/* Filter Selection Modal */}
+      <Modal visible={showFilterModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFilterModal(false)}
+        >
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Filter by Rating</Text>
+            {['All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'].map(opt => (
               <TouchableOpacity
-                style={styles.replyBtn}
-                onPress={() => { setReplyModal(r); setReplyText(''); setEditMode(false); }}
+                key={opt}
+                style={[
+                  styles.filterOption,
+                  filterRating === opt && { backgroundColor: theme.primaryContainer + '28' }
+                ]}
+                onPress={() => {
+                  setFilterRating(opt);
+                  setShowFilterModal(false);
+                }}
               >
-                <Ionicons name="return-up-back-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.replyBtnText}> Reply</Text>
+                <Text style={[
+                  styles.filterOptionText,
+                  filterRating === opt && { color: theme.primary, fontWeight: '700' }
+                ]}>
+                  {opt}
+                </Text>
+                {filterRating === opt && <Ionicons name="checkmark" size={18} color={theme.primary} />}
               </TouchableOpacity>
-            )}
+            ))}
           </View>
-        </View>
-      ))}
-
-      {/* Load more */}
-      <TouchableOpacity style={styles.loadMoreBtn}>
-        <Text style={styles.loadMoreText}>Load More Reviews</Text>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Reply modal */}
       <Modal visible={!!replyModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              {editMode ? 'Edit Reply' : `Reply to ${replyModal?.customerName}`}
+              {editMode ? 'Edit Reply' : `Reply to ${replyModal?.user?.name || 'Guest'}`}
             </Text>
             <TextInput
               style={[styles.input, { height: 110, textAlignVertical: 'top', marginBottom: 12 }]}
@@ -187,8 +314,16 @@ export default function ReviewsRatings() {
               onChangeText={setReplyText}
               multiline
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={handlePostReply}>
-              <Text style={styles.sendBtnText}>{editMode ? 'Update Reply' : 'Post Reply'}</Text>
+            <TouchableOpacity
+              style={[styles.sendBtn, submittingReply && { opacity: 0.7 }]}
+              onPress={handlePostReply}
+              disabled={submittingReply}
+            >
+              {submittingReply ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.sendBtnText}>{editMode ? 'Update Reply' : 'Post Reply'}</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelLink} onPress={() => setReplyModal(null)}>
               <Text style={styles.cancelLinkText}>Cancel</Text>
@@ -196,7 +331,6 @@ export default function ReviewsRatings() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
   );
 }
 
@@ -258,7 +392,7 @@ const styles = StyleSheet.create({
   replyBoxText: { color: theme.textMuted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
 
   reviewFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  tripTag: { backgroundColor: theme.surfaceContainer, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5 },
+  tripTag: { backgroundColor: theme.surfaceContainer, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5, flexShrink: 1, marginRight: 8 },
   tripTagText: { color: theme.secondary, fontSize: 12, fontWeight: '600' },
   replyBtn: {
     flexDirection: 'row', alignItems: 'center',
@@ -268,11 +402,19 @@ const styles = StyleSheet.create({
   replyBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   editReplyText: { color: theme.primary, fontSize: 13, fontWeight: '600' },
 
-  loadMoreBtn: {
-    borderWidth: 2, borderStyle: 'dashed', borderColor: theme.outlineVariant,
-    borderRadius: 24, paddingVertical: 18, alignItems: 'center', marginBottom: 8,
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 12,
+    borderWidth: 1, borderColor: '#FECACA',
   },
-  loadMoreText: { color: theme.textLight, fontSize: 14, fontWeight: '600' },
+  errorText: { color: '#EF4444', fontSize: 13, flex: 1 },
+
+  loadingWrap: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  loadingText: { color: theme.textLight, fontSize: 14 },
+
+  emptyState: { alignItems: 'center', paddingVertical: 50, gap: 10 },
+  emptyTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
+  emptySubtitle: { color: theme.outlineVariant, fontSize: 14, textAlign: 'center' },
 
   modalOverlay: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: theme.card, borderRadius: 24, padding: 24, margin: 16 },
@@ -282,4 +424,10 @@ const styles = StyleSheet.create({
   sendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   cancelLink: { marginTop: 12, alignItems: 'center' },
   cancelLinkText: { color: theme.textLight, fontWeight: '600', fontSize: 14 },
+
+  filterOption: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 4,
+  },
+  filterOptionText: { color: theme.text, fontSize: 15, fontWeight: '500' },
 });
