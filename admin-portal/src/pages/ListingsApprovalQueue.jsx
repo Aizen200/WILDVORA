@@ -55,6 +55,47 @@ function FeedbackModal({ listing, actionType, onConfirm, onCancel }) {
   );
 }
 
+function UnliveModal({ listing, onConfirm, onCancel }) {
+  const [reason, setReason] = useState('');
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">Unlive Listing</h2>
+        <p className="text-gray-500 text-sm mb-4">
+          Provide a reason for taking{' '}
+          <span className="font-semibold text-gray-700">"{listing.name}"</span>{' '}
+          offline. The operator will be notified and can then delete or edit the listing.
+        </p>
+        <textarea
+          className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-800 resize-none focus:outline-none focus:border-slate-400"
+          rows={4}
+          placeholder="e.g. Operator requested removal, outdated content, safety concerns..."
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          autoFocus
+        />
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (!reason.trim()) { alert('Please provide a reason.'); return; }
+              onConfirm(reason.trim());
+            }}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            Unlive Listing
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -207,24 +248,27 @@ function DetailModal({ listing, onClose, onApprove, onRequestChanges, onReject }
 
 function mapListing(l) {
   return {
-    _id:            l._id,
-    name:           l.title,
-    category:       l.category,
-    host:           l.host?.name || l.hostName || 'Operator',
-    operatorEmail:  l.host?.email || '',
-    kycStatus:      l.host?.kyc || '',
-    date:           new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-    location:       l.location ? `${l.location.city || ''}, ${l.location.country || ''}` : '—',
-    img:            l.images?.[0] || null,
-    price:          l.price,
-    duration:       l.duration,
-    difficulty:     l.difficulty,
-    description:    l.description,
-    includes:       l.includes || [],
-    exclusions:     l.exclusions || [],
-    requirements:   l.requirements || [],
-    availableDates: l.availableDates || [],
-    isFeatured:     l.isFeatured || false,
+    _id:             l._id,
+    name:            l.title,
+    category:        l.category,
+    status:          l.status,
+    host:            l.host?.name || l.hostName || 'Operator',
+    operatorEmail:   l.host?.email || '',
+    kycStatus:       l.host?.kyc || '',
+    date:            new Date(l.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    location:        l.location ? `${l.location.city || ''}, ${l.location.country || ''}` : '—',
+    img:             l.images?.[0] || null,
+    price:           l.price,
+    duration:        l.duration,
+    difficulty:      l.difficulty,
+    description:     l.description,
+    includes:        l.includes || [],
+    exclusions:      l.exclusions || [],
+    requirements:    l.requirements || [],
+    availableDates:  l.availableDates || [],
+    isFeatured:      l.isFeatured || false,
+    suspensionReason: l.suspensionReason || '',
+    suspendedAt:     l.suspendedAt || null,
   };
 }
 
@@ -249,7 +293,10 @@ export default function ListingsApprovalQueue() {
   const [liveListings, setLiveListings]     = useState([]);
   const [liveLoading, setLiveLoading]       = useState(false);
   const [liveSearch, setLiveSearch]         = useState('');
+  const [liveStatusFilter, setLiveStatusFilter] = useState('all'); // 'all' | 'live' | 'suspended' | 'paused'
   const [featuringId, setFeaturingId]       = useState(null);
+  const [unliveTarget, setUnliveTarget]     = useState(null);
+  const [reactivatingId, setReactivatingId] = useState(null);
 
   const fetchPendingListings = async () => {
     setLoading(true);
@@ -279,6 +326,24 @@ export default function ListingsApprovalQueue() {
     }
   }, []);
 
+  const handleReactivate = async (listing) => {
+    if (!window.confirm(`Reactivate "${listing.name}"? It will go live again.`)) return;
+    setReactivatingId(listing._id);
+    try {
+      const res = await api.patch(`/admin/listings/${listing._id}/reactivate`);
+      if (res.data?.success) {
+        setLiveListings(prev =>
+          prev.map(l => l._id === listing._id ? { ...l, status: 'live', suspensionReason: '', suspendedAt: null } : l)
+        );
+        flash(`"${listing.name}" reactivated and is now live.`, true);
+      }
+    } catch (err) {
+      flash(err.response?.data?.message || 'Failed to reactivate listing.', false);
+    } finally {
+      setReactivatingId(null);
+    }
+  };
+
   const handleToggleFeatured = async (listing) => {
     setFeaturingId(listing._id);
     try {
@@ -298,6 +363,19 @@ export default function ListingsApprovalQueue() {
       flash(err.response?.data?.message || 'Failed to update featured status.', false);
     } finally {
       setFeaturingId(null);
+    }
+  };
+
+  const handleUnlive = async (listing, reason) => {
+    try {
+      const res = await api.patch(`/admin/listings/${listing._id}/suspend`, { reason });
+      if (res.data?.success) {
+        setLiveListings(prev => prev.filter(l => l._id !== listing._id));
+        setUnliveTarget(null);
+        flash(`"${listing.name}" has been taken offline. The operator has been notified.`, false);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to unlive listing.');
     }
   };
 
@@ -360,6 +438,8 @@ export default function ListingsApprovalQueue() {
   const activeFilterCount = (categoryFilter !== 'All' ? 1 : 0) + (difficultyFilter !== 'All' ? 1 : 0);
 
   const filteredLiveListings = liveListings.filter(l => {
+    const matchesStatus = liveStatusFilter === 'all' || l.status === liveStatusFilter;
+    if (!matchesStatus) return false;
     if (!liveSearch) return true;
     const q = liveSearch.toLowerCase();
     return (
@@ -369,7 +449,9 @@ export default function ListingsApprovalQueue() {
     );
   });
 
-  const featuredCount = liveListings.filter(l => l.isFeatured).length;
+  const featuredCount  = liveListings.filter(l => l.isFeatured && l.status === 'live').length;
+  const suspendedCount = liveListings.filter(l => l.status === 'suspended').length;
+  const pausedCount    = liveListings.filter(l => l.status === 'paused').length;
 
   return (
     <div className="flex-1 overflow-y-auto px-8 py-8" style={{ backgroundColor: '#f5f1ea' }}>
@@ -394,7 +476,12 @@ export default function ListingsApprovalQueue() {
           Live Listings
           {featuredCount > 0 && (
             <span className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-600">
-              <StarIcon filled /> {featuredCount} featured
+              <StarIcon filled /> {featuredCount}
+            </span>
+          )}
+          {suspendedCount > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+              {suspendedCount} unlisted
             </span>
           )}
         </button>
@@ -627,11 +714,11 @@ export default function ListingsApprovalQueue() {
       {/* ── Live Listings Tab ── */}
       {activeTab === 'live' && (
         <>
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <p className="text-gray-500 text-sm">
               {liveLoading
                 ? 'Loading...'
-                : `${filteredLiveListings.length} live listing${filteredLiveListings.length !== 1 ? 's' : ''}${featuredCount > 0 ? ` · ${featuredCount} featured` : ''}`}
+                : `${filteredLiveListings.length} listing${filteredLiveListings.length !== 1 ? 's' : ''}${featuredCount > 0 ? ` · ${featuredCount} featured` : ''}${suspendedCount > 0 ? ` · ${suspendedCount} unlisted` : ''}${pausedCount > 0 ? ` · ${pausedCount} paused` : ''}`}
             </p>
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -642,7 +729,7 @@ export default function ListingsApprovalQueue() {
                 </span>
                 <input
                   type="text"
-                  placeholder="Search live listings..."
+                  placeholder="Search listings..."
                   value={liveSearch}
                   onChange={e => setLiveSearch(e.target.value)}
                   className="pl-9 pr-3 py-2 text-sm border border-gray-350 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#052618] w-52 transition"
@@ -657,11 +744,41 @@ export default function ListingsApprovalQueue() {
             </div>
           </div>
 
-          {/* Featured callout */}
-          <div className="mb-5 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-            <span className="text-amber-500"><StarIcon filled /></span>
-            <span>Featured listings appear in the <span className="font-semibold">"Featured Experiences"</span> section on the customer app home screen. Toggle the star on any live listing to feature or unfeature it.</span>
+          {/* Status filter chips */}
+          <div className="flex items-center gap-2 mb-5">
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'live', label: 'Live' },
+              { key: 'paused', label: 'Paused by Operator' },
+              { key: 'suspended', label: 'Unlisted by Admin' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setLiveStatusFilter(key)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                  liveStatusFilter === key
+                    ? key === 'suspended' ? 'bg-red-700 text-white border-red-700' : 'bg-[#052618] text-white border-[#052618]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+                {key === 'suspended' && suspendedCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-200 text-red-800">{suspendedCount}</span>
+                )}
+                {key === 'paused' && pausedCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">{pausedCount}</span>
+                )}
+              </button>
+            ))}
           </div>
+
+          {/* Featured callout — only relevant for live tab */}
+          {(liveStatusFilter === 'all' || liveStatusFilter === 'live') && (
+            <div className="mb-5 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+              <span className="text-amber-500"><StarIcon filled /></span>
+              <span>Featured listings appear in the <span className="font-semibold">"Featured Experiences"</span> section on the customer app home screen. Toggle the star on any live listing to feature or unfeature it.</span>
+            </div>
+          )}
 
           {liveLoading ? (
             <div className="text-center py-16 text-gray-400">Loading live listings...</div>
@@ -673,68 +790,130 @@ export default function ListingsApprovalQueue() {
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-5">
-              {filteredLiveListings.map((l) => (
-                <div
-                  key={l._id}
-                  className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all ${
-                    l.isFeatured ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="relative">
-                    {l.img ? (
-                      <img src={l.img} alt={l.name} className="w-full h-44 object-cover" />
-                    ) : (
-                      <div className="w-full h-44 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
-                        <svg className="w-10 h-10 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
-                        </svg>
+              {filteredLiveListings.map((l) => {
+                const isSuspended = l.status === 'suspended';
+                const isPaused    = l.status === 'paused';
+                const isLive      = l.status === 'live';
+                return (
+                  <div
+                    key={l._id}
+                    className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all ${
+                      isSuspended ? 'border-red-300 ring-1 ring-red-100' :
+                      isPaused    ? 'border-slate-300 ring-1 ring-slate-100' :
+                      l.isFeatured ? 'border-amber-300 ring-1 ring-amber-200' :
+                      'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="relative">
+                      {l.img ? (
+                        <img src={l.img} alt={l.name} className={`w-full h-44 object-cover ${isSuspended || isPaused ? 'opacity-70' : ''}`} />
+                      ) : (
+                        <div className="w-full h-44 bg-gradient-to-br from-[#052618] to-[#0a4028] flex items-center justify-center">
+                          <svg className="w-10 h-10 text-white/20" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M6.75 10.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" />
+                          </svg>
+                        </div>
+                      )}
+                      {/* Status badge */}
+                      {isLive && (
+                        <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 tracking-wide">
+                          LIVE
+                        </span>
+                      )}
+                      {isSuspended && (
+                        <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 tracking-wide">
+                          UNLISTED
+                        </span>
+                      )}
+                      {isPaused && (
+                        <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-300 tracking-wide">
+                          PAUSED
+                        </span>
+                      )}
+                      {isLive && l.isFeatured && (
+                        <span className="absolute top-3 right-3 flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400 text-white tracking-wide">
+                          <StarIcon filled /> FEATURED
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="text-gray-900 font-bold text-sm mb-1 truncate">{l.name}</h3>
+                      <div className={`flex items-center gap-1.5 text-xs font-medium mb-1 ${isSuspended ? 'text-red-600' : isPaused ? 'text-slate-500' : 'text-emerald-600'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isSuspended ? 'bg-red-500' : isPaused ? 'bg-slate-400' : 'bg-emerald-500'}`} />
+                        {l.host}
                       </div>
-                    )}
-                    <span className="absolute top-3 left-3 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 tracking-wide">
-                      LIVE
-                    </span>
-                    {l.isFeatured && (
-                      <span className="absolute top-3 right-3 flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400 text-white tracking-wide">
-                        <StarIcon filled /> FEATURED
-                      </span>
-                    )}
-                  </div>
+                      <div className="flex items-center gap-3 text-gray-400 text-xs mb-3">
+                        <span className="flex items-center gap-1"><MapPinIcon /> {l.location}</span>
+                        {l.duration && <span>⏱ {l.duration}</span>}
+                      </div>
+                      {l.price && (
+                        <p className="text-gray-700 text-xs font-semibold mb-3">
+                          ₹{Number(l.price).toLocaleString()} per person
+                        </p>
+                      )}
 
-                  <div className="p-4">
-                    <h3 className="text-gray-900 font-bold text-sm mb-1 truncate">{l.name}</h3>
-                    <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-medium mb-1">
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                      {l.host}
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-400 text-xs mb-3">
-                      <span className="flex items-center gap-1"><MapPinIcon /> {l.location}</span>
-                      {l.duration && <span>⏱ {l.duration}</span>}
-                    </div>
-                    {l.price && (
-                      <p className="text-gray-700 text-xs font-semibold mb-3">
-                        ₹{Number(l.price).toLocaleString()} per person
-                      </p>
-                    )}
+                      {/* Suspension reason */}
+                      {isSuspended && l.suspensionReason && (
+                        <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
+                          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-0.5">Reason for unlisting</p>
+                          <p className="text-xs text-red-800">{l.suspensionReason}</p>
+                        </div>
+                      )}
 
-                    <button
-                      onClick={() => handleToggleFeatured(l)}
-                      disabled={featuringId === l._id}
-                      className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                        l.isFeatured
-                          ? 'bg-amber-400 text-white hover:bg-amber-500'
-                          : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300'
-                      }`}
-                    >
-                      <StarIcon filled={l.isFeatured} />
-                      {featuringId === l._id
-                        ? 'Updating...'
-                        : l.isFeatured
-                        ? 'Remove from Featured'
-                        : 'Mark as Featured'}
-                    </button>
+                      {/* Paused notice */}
+                      {isPaused && (
+                        <div className="mb-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                          <p className="text-xs text-slate-600">Operator paused this listing — hidden from customers.</p>
+                        </div>
+                      )}
+
+                      {/* Featured toggle — only for live */}
+                      {isLive && (
+                        <button
+                          onClick={() => handleToggleFeatured(l)}
+                          disabled={featuringId === l._id}
+                          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                            l.isFeatured
+                              ? 'bg-amber-400 text-white hover:bg-amber-500'
+                              : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-300'
+                          }`}
+                        >
+                          <StarIcon filled={l.isFeatured} />
+                          {featuringId === l._id ? 'Updating...' : l.isFeatured ? 'Remove from Featured' : 'Mark as Featured'}
+                        </button>
+                      )}
+
+                      {/* Reactivate — for suspended */}
+                      {isSuspended && (
+                        <button
+                          onClick={() => handleReactivate(l)}
+                          disabled={reactivatingId === l._id}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
+                          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
+                          </svg>
+                          {reactivatingId === l._id ? 'Reactivating...' : 'Reactivate Listing'}
+                        </button>
+                      )}
+
+                      {/* Unlive — only for live and paused */}
+                      {(isLive || isPaused) && (
+                        <button
+                          onClick={() => setUnliveTarget(l)}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer mt-2 bg-white text-slate-600 border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                        >
+                          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                            <path d="M18.364 5.636L5.636 18.364M12 2a10 10 0 100 20A10 10 0 0012 2z" />
+                          </svg>
+                          Unlist Listing
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
@@ -768,6 +947,15 @@ export default function ListingsApprovalQueue() {
           actionType={feedbackTarget.actionType}
           onConfirm={(reason) => handleActionConfirm(feedbackTarget.listing, feedbackTarget.actionType, reason)}
           onCancel={() => setFeedbackTarget(null)}
+        />
+      )}
+
+      {/* Unlive listing modal */}
+      {unliveTarget && (
+        <UnliveModal
+          listing={unliveTarget}
+          onConfirm={(reason) => handleUnlive(unliveTarget, reason)}
+          onCancel={() => setUnliveTarget(null)}
         />
       )}
     </div>

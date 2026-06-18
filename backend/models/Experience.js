@@ -96,7 +96,7 @@ const experienceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested', 'suspended'],
+      enum: ['draft', 'pending', 'live', 'paused', 'rejected', 'changes_requested', 'suspended', 'deleted'],
       default: 'pending',
     },
     rejectionReason:  { type: String, default: '' },
@@ -104,6 +104,15 @@ const experienceSchema = new mongoose.Schema(
     suspendedAt:      { type: Date },
     submittedAt:      { type: Date },
     approvedAt:       { type: Date },
+    auditLog: [
+      {
+        action:    { type: String }, // submitted, approved, rejected, changes_requested, suspended, reactivated, paused, resumed, deleted, resubmitted
+        actorId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        actorRole: { type: String }, // admin, operator
+        reason:    { type: String, default: '' },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

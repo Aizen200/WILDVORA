@@ -83,7 +83,7 @@ const getStats = async (req, res) => {
 // My Listings: All experiences listed by this host
 const getListings = async (req, res) => {
   try {
-    const experiences = await Experience.find({ host: req.user._id }).sort({ createdAt: -1 });
+    const experiences = await Experience.find({ host: req.user._id, isActive: { $ne: false } }).sort({ createdAt: -1 });
     res.json({ success: true, count: experiences.length, experiences });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -101,9 +101,9 @@ const createListing = async (req, res) => {
       hostVerified: req.user.kyc === 'approved',
       status:       'pending',
       submittedAt:  new Date(),
-      // clear any operator-supplied approval fields
       approvedAt:      undefined,
       rejectionReason: '',
+      auditLog: [{ action: 'submitted', actorId: req.user._id, actorRole: 'operator', timestamp: new Date() }],
     });
 
     // Notify all admin users
@@ -135,18 +135,16 @@ const editListing = async (req, res) => {
     const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
     if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
 
-    const updates = req.body;
+    // Strip status from body — status transitions are managed by dedicated endpoints and the logic below
+    const { status: _ignored, ...updates } = req.body;
     let becamePending = false;
 
     if (['rejected', 'changes_requested', 'suspended'].includes(exp.status)) {
-      // Editing a rejected/suspended listing resubmits it for review
       updates.status = 'pending';
       updates.submittedAt = new Date();
       updates.rejectionReason = '';
-      // Keep suspensionReason visible to admin during re-review
       becamePending = true;
     } else if (exp.status === 'live') {
-      // Only send back to pending if critical fields actually changed
       const titleChanged = updates.title !== undefined && updates.title !== exp.title;
       const priceChanged = updates.price !== undefined && Number(updates.price) !== exp.price;
       const descChanged  = updates.description !== undefined && updates.description !== exp.description;
@@ -157,9 +155,14 @@ const editListing = async (req, res) => {
       }
     }
 
+    const updateQuery = { $set: updates };
+    if (becamePending) {
+      updateQuery.$push = { auditLog: { action: 'resubmitted', actorId: req.user._id, actorRole: 'operator', timestamp: new Date() } };
+    }
+
     const experience = await Experience.findByIdAndUpdate(
       req.params.id,
-      updates,
+      updateQuery,
       { new: true, runValidators: true }
     );
 
@@ -418,11 +421,11 @@ const resubmitListing = async (req, res) => {
     }
 
     const wasSuspended = exp.status === 'suspended';
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:  { status: 'pending', submittedAt: new Date(), rejectionReason: '' },
+      $push: { auditLog: { action: 'resubmitted', actorId: req.user._id, actorRole: 'operator', timestamp: new Date() } },
+    });
     exp.status = 'pending';
-    exp.submittedAt = new Date();
-    exp.rejectionReason = '';
-    // Keep suspensionReason so admin has context during re-review
-    await exp.save();
 
     const admins = await User.find({ role: 'admin' });
     for (const admin of admins) {
@@ -449,21 +452,41 @@ const resubmitListing = async (req, res) => {
   }
 };
 
+// @route PATCH /api/operator/listings/:id/pause
+// Toggle a live listing to paused or a paused listing back to live
+const pauseListing = async (req, res) => {
+  try {
+    const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
+    if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
+    if (!['live', 'paused'].includes(exp.status)) {
+      return res.status(400).json({ success: false, message: 'Only live or paused listings can be paused or resumed.' });
+    }
+    const next = exp.status === 'live' ? 'paused' : 'live';
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:  { status: next },
+      $push: { auditLog: { action: next === 'paused' ? 'paused' : 'resumed', actorId: req.user._id, actorRole: 'operator', timestamp: new Date() } },
+    });
+    res.json({ success: true, status: next, message: next === 'paused' ? 'Listing paused — hidden from customers.' : 'Listing is now live.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // @route DELETE /api/operator/listings/:id
-// Delete a listing (only draft, pending, or rejected listings can be deleted)
+// Soft-delete a listing. Live listings must be paused first. Suspended listings can be deleted.
 const deleteListing = async (req, res) => {
   try {
     const exp = await Experience.findOne({ _id: req.params.id, host: req.user._id });
     if (!exp) return res.status(404).json({ success: false, message: 'Listing not found or unauthorized' });
 
-    if (['live', 'suspended'].includes(exp.status)) {
-      return res.status(400).json({ success: false, message: exp.status === 'live' ? 'Cannot delete a live listing. Pause it first.' : 'Cannot delete a suspended listing. Contact admin for reactivation.' });
+    if (exp.status === 'live') {
+      return res.status(400).json({ success: false, message: 'Cannot delete a live listing. Pause it first.' });
     }
 
-    // Soft-delete: mark as deleted rather than removing from DB
-    exp.status = 'draft';
-    exp.isActive = false;
-    await exp.save();
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:  { status: 'deleted', isActive: false },
+      $push: { auditLog: { action: 'deleted', actorId: req.user._id, actorRole: 'operator', timestamp: new Date() } },
+    });
     res.json({ success: true, message: 'Listing deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -475,6 +498,7 @@ module.exports = {
   getListings,
   createListing,
   editListing,
+  pauseListing,
   resubmitListing,
   deleteListing,
   getBookings,
