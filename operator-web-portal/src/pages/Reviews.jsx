@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { hostAPI } from '../api/hostAPI';
 import Layout from '../components/Layout';
 
@@ -10,6 +10,7 @@ export default function Reviews() {
   const [replyOpen, setReplyOpen] = useState({});
   const [sending, setSending]     = useState(null);
   const [page, setPage]           = useState(1);
+  const [sortBy, setSortBy]       = useState('Most Recent');
   const PER_PAGE = 5;
 
   useEffect(() => {
@@ -36,20 +37,41 @@ export default function Reviews() {
   };
 
   // Rating calculations
-  const totalCount = reviews.length || 248; // Use dynamic count or mock fallback matching design
+  const totalCount = reviews.length;
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-    : '4.8';
+    : '0.0';
 
-  const ratingBreakdown = [
-    { star: 5, pct: 82 },
-    { star: 4, pct: 12 },
-    { star: 3, pct: 4 },
-    { star: 2, pct: 1 },
-    { star: 1, pct: 1 }
-  ];
+  const ratingBreakdown = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    reviews.forEach(r => {
+      if (counts[r.rating] !== undefined) {
+        counts[r.rating]++;
+      }
+    });
+    const total = reviews.length || 1;
+    return [5, 4, 3, 2, 1].map(star => ({
+      star,
+      pct: reviews.length > 0 ? Math.round((counts[star] / total) * 100) : 0
+    }));
+  }, [reviews]);
 
-  const paginated   = reviews.slice((page-1)*PER_PAGE, page*PER_PAGE);
+  const sortedReviews = useMemo(() => {
+    const sorted = [...reviews];
+    if (sortBy === 'Most Recent') {
+      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortBy === 'Highest Rating') {
+      sorted.sort((a, b) => b.rating - a.rating);
+    } else if (sortBy === 'Lowest Rating') {
+      sorted.sort((a, b) => a.rating - b.rating);
+    }
+    return sorted;
+  }, [reviews, sortBy]);
+
+  const paginated = useMemo(() => {
+    return sortedReviews.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  }, [sortedReviews, page]);
+
   const totalPages  = Math.ceil(reviews.length / PER_PAGE);
 
   const getStars = (count) => {
@@ -131,10 +153,14 @@ export default function Reviews() {
           <h2 className="text-lg font-bold text-gray-900">Customer Reviews</h2>
           <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
             <span>Sort by:</span>
-            <select className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-700 outline-none cursor-pointer">
-              <option>Most Recent</option>
-              <option>Highest Rating</option>
-              <option>Lowest Rating</option>
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+              className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-700 outline-none cursor-pointer"
+            >
+              <option value="Most Recent">Most Recent</option>
+              <option value="Highest Rating">Highest Rating</option>
+              <option value="Lowest Rating">Lowest Rating</option>
             </select>
           </div>
         </div>
