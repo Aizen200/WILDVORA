@@ -55,14 +55,6 @@ export default function AdminSidebar() {
 
       {/* Bottom Section */}
       <div className="px-6 pb-6 flex flex-col">
-        {/* Support Ticket Button */}
-        <button className="w-full bg-[#AEDDF4] hover:bg-[#97D0EB] text-[#052618] text-[13px] font-bold rounded-xl py-3 px-4 flex items-center justify-center gap-2 mb-6 transition duration-150 cursor-pointer">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          New Support Ticket
-        </button>
-
         {/* Links */}
         <div className="space-y-1 pt-4 border-t border-[#073822]/60">
           <NavLink
