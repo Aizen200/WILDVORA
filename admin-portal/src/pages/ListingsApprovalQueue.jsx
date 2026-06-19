@@ -273,7 +273,7 @@ function mapListing(l) {
 }
 
 export default function ListingsApprovalQueue() {
-  const [activeTab, setActiveTab]         = useState('pending');
+  const [activeTab, setActiveTab]         = useState('live');
 
   // Pending tab state
   const [listings, setListings]           = useState([]);
@@ -379,7 +379,9 @@ export default function ListingsApprovalQueue() {
     }
   };
 
-  useEffect(() => { fetchPendingListings(); }, []);
+  useEffect(() => {
+    if (activeTab === 'pending') fetchPendingListings();
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'live') fetchLiveListings();
