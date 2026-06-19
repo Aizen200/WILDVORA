@@ -30,7 +30,7 @@ const C = {
 
 const CATEGORIES = ['All Destinations', 'Camping', 'Trekking', 'Water Sports', 'Jungle', 'Cycling'];
 
-const HERO_URI = 'https://lh3.googleusercontent.com/aida-public/AB6AXuAi3QcaG2bLnRuOY0N1ZO5UUTXljceSVPVabyxaU8dRHnMjCr_Yy-JhlgjUZS9oTUZok8uSoCZOFnWIZPC3QFI5xHtPczzdsJ2ubLwDOJdCVPruhB1-9pZ290GEwUF0x_cu0jw_Gbayg7DS5qS_MQDRsNwTZj6fopGMybNuukchuoer2IaNPdbhagRYviTmnLFemqljAx-iJEMnFaH8SdoeYHIYExqOnnykhsyQDZ2olfKC6cD6j6sIAnByfJ88_tl8SMxmyYc2H1w';
+const HERO_IMAGE = require('../../assets/heroimage.png');
 
 const CARD_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDMxqmVZiEOLbS8iPmgbb6yZs6DOT2ueMpEqfGJceQT5UKb-vk8NYWZoAt-1MkZLPkvjsFtOReCDsVaBRG2KY5KP5LdT49c2FNnkGdDbeshfCbeECqk1lyKhgWaKU2qqSQj1pSjg3VQvAPEhnvArYc-0kRxN-egqoRdUN60Zei6Lxkitme_X-kKfjWYdpZLwNE3UQasoTRlT0cziDoDMIxVfscnKB10ZHEogVN5cDmdIQ9fXIkS0iIBlFS-U5ymQ8eXcWCBSG9l6Fg',
@@ -49,11 +49,13 @@ function StarBadge({ rating }) {
 }
 
 function FeaturedCard({ item, index, onPress, onWishlist, isWishlisted }) {
-  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  const [imgError, setImgError] = useState(false);
+  const fallback = CARD_IMAGES[index % CARD_IMAGES.length];
+  const imgUri = (!imgError && (item.coverImage || item.images?.[0])) || fallback;
   return (
     <TouchableOpacity style={s.featCard} onPress={() => onPress(item)} activeOpacity={0.92}>
       <View style={s.featImgWrap}>
-        <Image source={{ uri: imgUri }} style={s.featImg} resizeMode="cover" />
+        <Image source={{ uri: imgUri }} style={s.featImg} resizeMode="cover" onError={() => setImgError(true)} />
         <View style={s.featImgOverlay} />
         <TouchableOpacity style={s.wishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
           <MaterialCommunityIcons name={isWishlisted ? 'heart' : 'heart-outline'} size={18} color={isWishlisted ? '#ff6b6b' : C.white} />
@@ -83,11 +85,13 @@ function FeaturedCard({ item, index, onPress, onWishlist, isWishlisted }) {
 }
 
 function NewCard({ item, index, onPress }) {
-  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  const [imgError, setImgError] = useState(false);
+  const fallback = CARD_IMAGES[index % CARD_IMAGES.length];
+  const imgUri = (!imgError && (item.coverImage || item.images?.[0])) || fallback;
   return (
     <TouchableOpacity style={s.newCard} onPress={() => onPress(item)} activeOpacity={0.9}>
       <View style={{ position: 'relative' }}>
-        <Image source={{ uri: imgUri }} style={s.newImg} resizeMode="cover" />
+        <Image source={{ uri: imgUri }} style={s.newImg} resizeMode="cover" onError={() => setImgError(true)} />
         <View style={s.newBadge}>
           <Text style={s.newBadgeText}>NEW</Text>
         </View>
@@ -102,14 +106,16 @@ function NewCard({ item, index, onPress }) {
 }
 
 function TrendingItem({ item, index, onPress }) {
-  const imgUri = item.coverImage || item.images?.[0] || CARD_IMAGES[index % CARD_IMAGES.length];
+  const [imgError, setImgError] = useState(false);
+  const fallback = CARD_IMAGES[index % CARD_IMAGES.length];
+  const imgUri = (!imgError && (item.coverImage || item.images?.[0])) || fallback;
   const isWater = item.category === 'Water Sports' || item.category === 'Cycling';
   const tagStyle = isWater
     ? { bg: '#d0ecf8', text: C.secondary }
     : { bg: '#fce8e6', text: C.tertiary };
   return (
     <TouchableOpacity style={s.trendItem} onPress={() => onPress(item)} activeOpacity={0.88}>
-      <Image source={{ uri: imgUri }} style={s.trendImg} resizeMode="cover" />
+      <Image source={{ uri: imgUri }} style={s.trendImg} resizeMode="cover" onError={() => setImgError(true)} />
       <View style={s.trendBody}>
         <View style={s.trendTopRow}>
           <View style={[s.trendTag, { backgroundColor: tagStyle.bg }]}>
@@ -217,7 +223,7 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* Hero */}
-        <ImageBackground source={{ uri: HERO_URI }} style={s.hero} resizeMode="cover">
+        <ImageBackground source={HERO_IMAGE} style={s.hero} resizeMode="cover">
           <View style={s.heroOverlay} />
           <View style={s.heroContent}>
             <Text style={s.heroTitle}>Find your next{'\n'}adventure</Text>

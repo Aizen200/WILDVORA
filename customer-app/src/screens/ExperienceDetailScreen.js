@@ -9,6 +9,8 @@ import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../utils/alert';
 
+const HERO_FALLBACK = require('../../assets/heroimage.png');
+
 // ── OWM icon → native icon ───────────────────────────────────────────────────
 const getOWMWeatherIcon = (iconCode, size = 22) => {
   const code = iconCode?.slice(0, 2) || '01';
@@ -77,6 +79,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   const [weatherData,    setWeatherData]   = useState(null);
   const [weatherLoading, setWeatherLoading]= useState(true);
   const [weatherError,   setWeatherError]  = useState(false);
+  const [heroImgError,   setHeroImgError]  = useState(false);
 
   const fetchWeatherAndSafety = async (exp) => {
     const city       = exp.location?.city    || '';
@@ -189,7 +192,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#1A5F45" /></View>;
   if (!experience) return null;
 
-  const heroImage     = experience.coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWD971kShMZZtm1tqLB1M4tT3C06H-IIw4sAIM6q8Is0Z9f0vV3ghGpyKWw2nsI4RtbB5uFyLJ5KVbQBPqQZ6gfNwyC1lom8RMKstswmSXAi0R33J96h_T0nlJ7drHXfktm54c2af9pWrWq-mvNbCkov7u8y65OtgNfN26r9q0XApuM_gY2XgxZLsXXkdn9w-FJhi7TZIApYrX9KkoguY-CxCc-IZM5n1re5sZpl6C3J0RkedcQGyLBdqfw99XC6CuwtXrTw8BrHI';
+  const actualImage   = experience.coverImage || experience.images?.[0];
   const hostAvatarUrl = experience.host?.avatar || null;
   const diffCfg       = DIFFICULTY_CFG[experience.difficulty] || DIFFICULTY_CFG.Moderate;
   const suitColor     = weatherData ? SUITABILITY_COLOR[weatherData.suitability] : '#15803d';
@@ -240,7 +243,12 @@ export default function ExperienceDetailScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}>
 
         {/* ── Hero ── */}
-        <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
+        <View style={styles.heroImage}>
+          <Image source={HERO_FALLBACK} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {!heroImgError && !!actualImage && (
+            <Image source={{ uri: actualImage }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setHeroImgError(true)} />
+          )}
+        </View>
 
         <View style={styles.body}>
 
