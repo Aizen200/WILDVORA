@@ -126,6 +126,7 @@ export default function ReviewsRatings() {
   });
 
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView
       style={styles.screen}
       showsVerticalScrollIndicator={false}
@@ -264,6 +265,7 @@ export default function ReviewsRatings() {
           )}
         </>
       )}
+    </ScrollView>
 
       {/* Filter Selection Modal */}
       <Modal visible={showFilterModal} transparent animationType="fade">
@@ -331,6 +333,7 @@ export default function ReviewsRatings() {
           </View>
         </View>
       </Modal>
+    </View>
   );
 }
 

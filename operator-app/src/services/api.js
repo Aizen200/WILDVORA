@@ -8,12 +8,12 @@ const getBaseUrl = () => {
     return 'http://localhost:3000/api';
   }
   // Configured to local IP (192.168.1.31) so physical devices, emulators, and simulators can all connect
-  return 'http://192.168.100.7:3000/api';
+  return 'http://192.168.100.10:3000/api';
 };
 
 export const BASE_URL = getBaseUrl();
 
-const api = axios.create({ baseURL: BASE_URL });
+const api = axios.create({ baseURL: BASE_URL, timeout: 10000 });
 
 // Attach JWT token to every request
 api.interceptors.request.use(async (config) => {

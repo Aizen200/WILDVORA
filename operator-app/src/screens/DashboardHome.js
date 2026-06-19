@@ -33,7 +33,7 @@ const StatusBadge = ({ status }) => {
 const BAR_DATA = [40, 60, 55, 80, 70, 90, 100];
 const BAR_MAX_HEIGHT = 80;
 
-export default function DashboardHome({ setActiveTab }) {
+export default function DashboardHome({ setActiveTab, goToCreate }) {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -107,7 +107,7 @@ export default function DashboardHome({ setActiveTab }) {
         <View style={styles.bannerActions}>
           <TouchableOpacity
             style={styles.bannerBtnWhite}
-            onPress={() => { setActiveTab('listings'); }}
+            onPress={() => goToCreate?.()}
           >
             <Ionicons name="add" size={16} color={theme.primary} />
             <Text style={styles.bannerBtnWhiteText}>  Add Listing</Text>
