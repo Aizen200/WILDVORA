@@ -94,10 +94,9 @@ const STATUS_BADGE_CFG = {
 };
 
 // ── Upcoming booking card ─────────────────────────────────────────────────────
-function UpcomingCard({ booking, index, onCancel, onPress }) {
+function UpcomingCard({ booking, index, onPress, onViewDetails }) {
   const imgUri   = booking.experience?.images?.[0] || TRIP_IMAGES[index % TRIP_IMAGES.length];
   const badgeCfg = STATUS_BADGE_CFG[booking.status] || STATUS_BADGE_CFG.confirmed;
-  const canCancel = booking.status === 'confirmed' || booking.status === 'pending' || booking.status === 'postponed';
 
   return (
     <TouchableOpacity style={s.upCard} onPress={onPress} activeOpacity={0.92}>
@@ -133,7 +132,15 @@ function UpcomingCard({ booking, index, onCancel, onPress }) {
               <MaterialCommunityIcons name="near-me" size={15} color={C.white} />
               <Text style={s.dirBtnText}>Get Directions</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.hostBtn} activeOpacity={0.85}>
+            <TouchableOpacity 
+              style={s.hostBtn} 
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Chat', {
+                bookingId: booking._id,
+                hostName: booking.experience?.hostName,
+                title: booking.experience?.title,
+              })}
+            >
               <MaterialCommunityIcons name="chat-outline" size={15} color={C.primary} />
               <Text style={s.hostBtnText}>Contact Host</Text>
             </TouchableOpacity>
@@ -147,19 +154,18 @@ function UpcomingCard({ booking, index, onCancel, onPress }) {
           </View>
         )}
 
-        {canCancel && (
-          <TouchableOpacity style={s.cancelLink} onPress={() => onCancel(booking._id)} activeOpacity={0.75}>
-            <MaterialCommunityIcons name="calendar-remove-outline" size={14} color={C.error} />
-            <Text style={s.cancelLinkText}>Cancel booking</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={s.detailsBtn} onPress={onViewDetails} activeOpacity={0.85}>
+          <MaterialCommunityIcons name="clipboard-text-outline" size={15} color={C.white} />
+          <Text style={s.detailsBtnText}>View Booking Details</Text>
+        </TouchableOpacity>
+
       </View>
     </TouchableOpacity>
   );
 }
 
 // ── Past booking card ─────────────────────────────────────────────────────────
-function PastCard({ booking, index, onPress, onReview, hasReviewed }) {
+function PastCard({ booking, index, onPress, onReview, hasReviewed, onViewDetails }) {
   const imgUri    = booking.experience?.images?.[0] || TRIP_IMAGES[index % TRIP_IMAGES.length];
   const completed = booking.status === 'completed';
   const cancelled = booking.status === 'cancelled';
@@ -201,6 +207,11 @@ function PastCard({ booking, index, onPress, onReview, hasReviewed }) {
             </TouchableOpacity>
           )
         )}
+
+        <TouchableOpacity style={s.pastDetailsBtn} onPress={onViewDetails} activeOpacity={0.82}>
+          <MaterialCommunityIcons name="clipboard-text-outline" size={14} color={C.primary} />
+          <Text style={s.pastDetailsBtnText}>View Booking Details</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -278,26 +289,6 @@ export default function MyTripsScreen({ navigation }) {
     return unsubscribe;
   }, [navigation, fetchBookings]);
 
-  const handleCancel = (id) => {
-    Alert.alert(
-      'Cancel Booking',
-      'Are you sure you want to cancel this booking?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel', style: 'destructive',
-          onPress: async () => {
-            try {
-              await bookingAPI.cancel(id);
-              fetchBookings();
-            } catch (err) {
-              Alert.alert('Error', err.response?.data?.message || 'Could not cancel booking');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const openReviewModal = (booking) => {
     setReviewRating(0);
@@ -346,7 +337,8 @@ export default function MyTripsScreen({ navigation }) {
   const pastBookings     = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
   // Countdown banner only for trips that haven't started yet
   const nextCountdownBooking = upcomingBookings.find(b => b.status === 'confirmed' || b.status === 'pending');
-  const goToExp = (b)    => navigation.navigate('ExperienceDetail', { experienceId: b.experience?._id });
+  const goToExp     = (b) => navigation.navigate('ExperienceDetail', { experienceId: b.experience?._id });
+  const goToDashboard = (b) => navigation.navigate('TripDashboard', { bookingId: b._id });
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -410,7 +402,7 @@ export default function MyTripsScreen({ navigation }) {
                 </View>
               ) : (
                 upcomingBookings.map((b, i) => (
-                  <UpcomingCard key={b._id} booking={b} index={i} onCancel={handleCancel} onPress={() => goToExp(b)} />
+                  <UpcomingCard key={b._id} booking={b} index={i} onPress={() => goToExp(b)} onViewDetails={() => goToDashboard(b)} />
                 ))
               )}
             </>
@@ -431,6 +423,7 @@ export default function MyTripsScreen({ navigation }) {
                     onPress={() => goToExp(b)}
                     hasReviewed={reviewedExpIds.has(b.experience?._id)}
                     onReview={() => openReviewModal(b)}
+                    onViewDetails={() => goToDashboard(b)}
                   />
                 ))
               )}
@@ -554,8 +547,8 @@ const s = StyleSheet.create({
   dirBtnText:    { color: C.white, fontWeight: '700', fontSize: 13 },
   hostBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.outline, borderRadius: 50, paddingVertical: 11 },
   hostBtnText:   { color: C.primary, fontWeight: '700', fontSize: 13 },
-  cancelLink:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: C.error + '35', borderRadius: 50, backgroundColor: 'rgba(186,26,26,0.04)', alignSelf: 'center' },
-  cancelLinkText:{ fontSize: 12, fontWeight: '600', color: C.error },
+  detailsBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.primary, borderRadius: 50, paddingVertical: 11, marginTop: 4, marginBottom: 4, shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 5, elevation: 3 },
+  detailsBtnText: { color: C.white, fontWeight: '700', fontSize: 13 },
 
   statusNoteRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#FFF8E1', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 4 },
   statusNoteText: { fontSize: 12, color: '#7C5800', flex: 1, lineHeight: 17 },
@@ -576,10 +569,12 @@ const s = StyleSheet.create({
   statusBadgeText:       { fontSize: 11, fontWeight: '700' },
 
   /* Review button / badge */
-  reviewBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 50, borderWidth: 1.5, borderColor: C.primary + '50', backgroundColor: C.primary + '08' },
+  reviewBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 11, borderRadius: 50, borderWidth: 1.5, borderColor: C.primary + '50', backgroundColor: C.primary + '08', marginBottom: 10 },
   reviewBtnText:{ fontSize: 13, fontWeight: '700', color: C.primary },
-  reviewedBadge:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 50, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
+  reviewedBadge:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 50, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 10 },
   reviewedText: { fontSize: 13, fontWeight: '600', color: '#15803d' },
+  pastDetailsBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 50, borderWidth: 1.5, borderColor: C.primary + '40', backgroundColor: C.primary + '08', marginTop: 2 },
+  pastDetailsBtnText: { fontSize: 13, fontWeight: '700', color: C.primary },
 
   /* Empty state */
   empty:          { alignItems: 'center', paddingTop: 50, paddingHorizontal: 24 },

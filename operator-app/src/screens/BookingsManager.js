@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme';
-import { operatorAPI } from '../services/api';
+import { operatorAPI, messageAPI } from '../services/api';
 
 // ── Status pill ──────────────────────────────────────────
 const STATUS_MAP = {
@@ -36,6 +36,62 @@ export default function BookingsManager() {
   const [messageModal, setMessageModal] = useState(null);
   const [msgText, setMsgText]           = useState('');
   const [updating, setUpdating]         = useState(null); // id of booking being updated
+  const [modalMessages, setModalMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sendingMsg, setSendingMsg]           = useState(false);
+
+  const openMessageModal = async (booking) => {
+    setMessageModal(booking);
+    setMsgText('');
+    setModalMessages([]);
+    setMessagesLoading(true);
+    try {
+      const res = await messageAPI.getByBooking(booking._id);
+      if (res.data.success) {
+        setModalMessages(res.data.messages || []);
+      }
+    } catch (err) {
+      console.error('Error fetching modal messages:', err);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!messageModal) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await messageAPI.getByBooking(messageModal._id);
+        if (res.data.success) {
+          setModalMessages(res.data.messages || []);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [messageModal]);
+
+  const handleSendMessage = async () => {
+    if (!msgText.trim() || sendingMsg) return;
+    setSendingMsg(true);
+    const textToSend = msgText.trim();
+    setMsgText('');
+    try {
+      const res = await messageAPI.sendMessage({
+        bookingId: messageModal._id,
+        text: textToSend,
+      });
+      if (res.data.success) {
+        setModalMessages(prev => [...prev, res.data.message]);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to send message.');
+      setMsgText(textToSend);
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   const fetchBookings = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -260,7 +316,7 @@ export default function BookingsManager() {
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     style={styles.messageBtn}
-                    onPress={() => { setMessageModal(b); setMsgText(''); }}
+                    onPress={() => openMessageModal(b)}
                   >
                     <MaterialCommunityIcons name="message-outline" size={16} color={theme.secondary} />
                     <Text style={styles.messageBtnText}>Message</Text>
@@ -276,29 +332,76 @@ export default function BookingsManager() {
       )}
 
       {/* Message modal */}
-      <Modal visible={!!messageModal} transparent animationType="slide">
+      <Modal visible={!!messageModal} transparent animationType="slide" onRequestClose={() => setMessageModal(null)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Message {messageModal?.user?.name}</Text>
+          <View style={[styles.modalCard, { height: '80%', margin: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={styles.modalTitle}>Message {messageModal?.user?.name}</Text>
+              <TouchableOpacity onPress={() => setMessageModal(null)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            {messagesLoading ? (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={{ marginTop: 8, color: theme.textLight }}>Loading chat history...</Text>
+              </View>
+            ) : (
+              <ScrollView 
+                style={{ flex: 1, marginBottom: 12, backgroundColor: theme.surfaceContainerLow, borderRadius: 12, padding: 10 }}
+                contentContainerStyle={{ gap: 8 }}
+                ref={ref => { if (ref) ref.scrollToEnd({ animated: false }); }}
+              >
+                {modalMessages.length === 0 ? (
+                  <Text style={{ textAlign: 'center', color: theme.textLight, marginTop: 40, fontStyle: 'italic' }}>
+                    No messages yet. Send a message to start conversation.
+                  </Text>
+                ) : (
+                  modalMessages.map(m => {
+                    const isOperator = m.sender?.role === 'operator';
+                    return (
+                      <View 
+                        key={m._id} 
+                        style={{ 
+                          alignSelf: isOperator ? 'flex-end' : 'flex-start',
+                          backgroundColor: isOperator ? theme.primary : '#E2E8F0',
+                          borderRadius: 12,
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          maxWidth: '85%'
+                        }}
+                      >
+                        <Text style={{ color: isOperator ? '#FFF' : '#1E293B', fontSize: 13 }}>{m.text}</Text>
+                        <Text style={{ color: isOperator ? '#FFF8' : '#64748B', fontSize: 9, alignSelf: 'flex-end', marginTop: 3 }}>
+                          {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
             <TextInput
-              style={styles.msgInput}
+              style={[styles.msgInput, { height: 60 }]}
               placeholder="Type your message..."
               placeholderTextColor={theme.outlineVariant}
               value={msgText}
               onChangeText={setMsgText}
               multiline
+              editable={!sendingMsg}
             />
             <TouchableOpacity
-              style={styles.sendBtn}
-              onPress={() => {
-                Alert.alert('Sent!', 'Message sent to ' + messageModal?.user?.name);
-                setMessageModal(null);
-              }}
+              style={[styles.sendBtn, (!msgText.trim() || sendingMsg) && { opacity: 0.6 }]}
+              onPress={handleSendMessage}
+              disabled={!msgText.trim() || sendingMsg}
             >
-              <Text style={styles.sendBtnText}>Send Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelLink} onPress={() => setMessageModal(null)}>
-              <Text style={styles.cancelLinkText}>Cancel</Text>
+              {sendingMsg ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.sendBtnText}>Send Message</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

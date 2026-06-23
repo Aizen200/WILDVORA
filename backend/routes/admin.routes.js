@@ -9,6 +9,9 @@ const {
   toggleFeatured,
   approveListing,
   rejectListing,
+  suspendListing,
+  reactivateListing,
+  getHostListings,
   getAllBookings,
   toggleDispute,
   issueRefund,
@@ -17,6 +20,7 @@ const {
   updateHostPayoutStatus,
   getCustomers,
   toggleUserStatus,
+  deleteHost,
   getPendingSettlements,
   releasePayout,
   getPayoutLogs,
@@ -37,6 +41,8 @@ router.get('/listings/pending', getPendingListings);
 router.get('/listings/live', getLiveListings);
 router.patch('/listings/:id/approve', approveListing);
 router.patch('/listings/:id/reject', rejectListing);
+router.patch('/listings/:id/suspend', suspendListing);
+router.patch('/listings/:id/reactivate', reactivateListing);
 router.patch('/listings/:id/feature', toggleFeatured);
 router.get('/bookings', getAllBookings);
 router.get('/bookings/stale', getStaleTrips);
@@ -44,11 +50,13 @@ router.patch('/bookings/:id/status', overrideTripStatus);
 router.patch('/bookings/:id/dispute', toggleDispute);
 router.post('/bookings/:id/refund', issueRefund);
 router.get('/hosts', getHosts);
+router.get('/hosts/:id/listings', getHostListings);
 router.post('/hosts/email', sendEmailToAllHosts);
 router.patch('/hosts/:id/kyc', updateHostKYC);
 router.patch('/hosts/:id/payout-status', updateHostPayoutStatus);
 router.get('/customers', getCustomers);
 router.patch('/users/:id/toggle-status', toggleUserStatus);
+router.delete('/hosts/:id', deleteHost);
 router.get('/payouts/pending', getPendingSettlements);
 router.post('/payouts/release', releasePayout);
 router.get('/payouts/logs', getPayoutLogs);

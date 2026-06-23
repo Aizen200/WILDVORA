@@ -95,14 +95,17 @@ const getPendingListings = async (req, res) => {
 // Approve Experience
 const approveListing = async (req, res) => {
   try {
-    const experience = await Experience.findById(req.params.id);
-    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    const exists = await Experience.findById(req.params.id).select('_id');
+    if (!exists) return res.status(404).json({ success: false, message: 'Listing not found' });
 
-    experience.status = 'live';
-    experience.approvedAt = new Date();
-    experience.rejectionReason = '';
-    await experience.save();
-
+    const experience = await Experience.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set:  { status: 'live', approvedAt: new Date(), rejectionReason: '' },
+        $push: { auditLog: { action: 'approved', actorId: req.user._id, actorRole: 'admin', timestamp: new Date() } },
+      },
+      { new: true }
+    );
     res.json({ success: true, message: 'Experience listing approved and is now live', experience });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -121,13 +124,17 @@ const rejectListing = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A rejection reason is required' });
     }
 
-    const experience = await Experience.findById(req.params.id);
-    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    const exists = await Experience.findById(req.params.id).select('_id');
+    if (!exists) return res.status(404).json({ success: false, message: 'Listing not found' });
 
-    experience.status = status;
-    experience.rejectionReason = reason.trim();
-    await experience.save();
-
+    const experience = await Experience.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set:  { status, rejectionReason: reason.trim() },
+        $push: { auditLog: { action: status, actorId: req.user._id, actorRole: 'admin', reason: reason.trim(), timestamp: new Date() } },
+      },
+      { new: true }
+    );
     res.json({ success: true, message: `Listing status updated to ${status}`, experience });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -282,6 +289,30 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+// @route DELETE /api/admin/hosts/:id
+// Permanently delete a suspended operator account and deactivate all their listings
+const deleteHost = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'Host not found' });
+    if (user.isActive) {
+      return res.status(400).json({ success: false, message: 'Only suspended host accounts can be deleted. Suspend the account first.' });
+    }
+
+    // Deactivate all their listings so they disappear from the platform
+    await Experience.updateMany(
+      { host: user._id },
+      { $set: { isActive: false, status: 'draft' } }
+    );
+
+    await User.findByIdAndDelete(user._id);
+
+    res.json({ success: true, message: `Host account "${user.name}" has been permanently deleted and all listings deactivated.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // @route GET /api/admin/payouts/pending
 // Payouts Control: Pending settlements
 const getPendingSettlements = async (req, res) => {
@@ -397,10 +428,109 @@ const getCustomerBookings = async (req, res) => {
   }
 };
 
+// @route GET /api/admin/hosts/:id/listings
+// All listings belonging to a specific operator
+const getHostListings = async (req, res) => {
+  try {
+    const listings = await Experience.find({ host: req.params.id })
+      .sort({ createdAt: -1 })
+      .select('title status category price location coverImage images suspensionReason rejectionReason createdAt');
+    res.json({ success: true, count: listings.length, listings });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/admin/listings/:id/suspend
+// Suspend a live listing — requires a reason
+const suspendListing = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'A suspension reason is required' });
+    }
+
+    const experience = await Experience.findById(req.params.id).populate('host', 'name _id');
+    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    if (experience.status === 'suspended') {
+      return res.status(400).json({ success: false, message: 'Listing is already suspended' });
+    }
+
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:  { status: 'suspended', suspensionReason: reason.trim(), suspendedAt: new Date() },
+      $push: { auditLog: { action: 'suspended', actorId: req.user._id, actorRole: 'admin', reason: reason.trim(), timestamp: new Date() } },
+    });
+
+    // Notify the operator
+    if (experience.host?._id) {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: experience.host._id,
+        type: 'listing',
+        title: `Listing Suspended – "${experience.title}"`,
+        desc: `Your listing "${experience.title}" has been suspended by an admin. Reason: ${reason.trim()}. Please review, make necessary changes, and request reactivation.`,
+        referenceId: experience._id,
+        badges: [
+          { text: 'Suspended', color: 'bg-red-50 text-red-600 border border-red-200' },
+          { text: `#${experience._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
+    res.json({ success: true, message: 'Listing suspended successfully', experience });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/admin/listings/:id/reactivate
+// Reactivate a suspended listing back to live
+const reactivateListing = async (req, res) => {
+  try {
+    const experience = await Experience.findById(req.params.id).populate('host', 'name _id');
+    if (!experience) return res.status(404).json({ success: false, message: 'Listing not found' });
+    if (experience.status !== 'suspended') {
+      return res.status(400).json({ success: false, message: 'Listing is not suspended' });
+    }
+
+    await Experience.findByIdAndUpdate(req.params.id, {
+      $set:   { status: 'live', suspensionReason: '' },
+      $unset: { suspendedAt: '' },
+      $push:  { auditLog: { action: 'reactivated', actorId: req.user._id, actorRole: 'admin', timestamp: new Date() } },
+    });
+
+    // Notify the operator
+    if (experience.host?._id) {
+      const Notification = require('../models/Notification');
+      await Notification.create({
+        recipient: experience.host._id,
+        type: 'listing',
+        title: `Listing Reactivated – "${experience.title}"`,
+        desc: `Your listing "${experience.title}" has been reactivated by an admin and is now live for customers.`,
+        referenceId: experience._id,
+        badges: [
+          { text: 'Reactivated', color: 'bg-green-50 text-green-700 border border-green-200' },
+          { text: `#${experience._id.toString().slice(-6).toUpperCase()}`, color: 'text-gray-500 border border-gray-200' }
+        ]
+      });
+    }
+
+    res.json({ success: true, message: 'Listing reactivated and is now live', experience });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // @route GET /api/admin/listings/live
+// Accepts optional ?filter=live|suspended|paused|all (default: all post-approved)
 const getLiveListings = async (req, res) => {
   try {
-    const listings = await Experience.find({ status: 'live' })
+    const { filter } = req.query;
+    const VALID = ['live', 'suspended', 'paused'];
+    const statusQuery = filter && VALID.includes(filter)
+      ? filter
+      : { $in: VALID };
+    const listings = await Experience.find({ status: statusQuery })
       .populate('host', 'name email kyc')
       .sort({ createdAt: -1 });
     res.json({ success: true, count: listings.length, listings });
@@ -628,6 +758,9 @@ module.exports = {
   toggleFeatured,
   approveListing,
   rejectListing,
+  suspendListing,
+  reactivateListing,
+  getHostListings,
   getAllBookings,
   toggleDispute,
   issueRefund,
@@ -636,6 +769,7 @@ module.exports = {
   updateHostPayoutStatus,
   getCustomers,
   toggleUserStatus,
+  deleteHost,
   getPendingSettlements,
   releasePayout,
   getPayoutLogs,

@@ -24,6 +24,8 @@ import SettingsScreen from '../screens/Settingsscreen';
 import ReviewHistoryScreen from '../screens/Reviewhistoryscreen';
 import HelpCenterScreen from '../screens/Helpcenterscreen';
 import AIChatScreen from '../screens/AIChatScreen';
+import TripDashboardScreen from '../screens/TripDashboardScreen';
+import ChatScreen from '../screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -89,6 +91,8 @@ function AppNavigator() {
       <Stack.Screen name="ReviewHistory"  component={ReviewHistoryScreen} />
       <Stack.Screen name="HelpCenter"     component={HelpCenterScreen} />
       <Stack.Screen name="AIChat"         component={AIChatScreen} />
+      <Stack.Screen name="TripDashboard"  component={TripDashboardScreen} />
+      <Stack.Screen name="Chat"           component={ChatScreen} />
     </Stack.Navigator>
   );
 }

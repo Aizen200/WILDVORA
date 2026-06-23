@@ -9,6 +9,8 @@ import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../utils/alert';
 
+const HERO_FALLBACK = require('../../assets/heroimage.png');
+
 // ── OWM icon → native icon ───────────────────────────────────────────────────
 const getOWMWeatherIcon = (iconCode, size = 22) => {
   const code = iconCode?.slice(0, 2) || '01';
@@ -77,6 +79,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   const [weatherData,    setWeatherData]   = useState(null);
   const [weatherLoading, setWeatherLoading]= useState(true);
   const [weatherError,   setWeatherError]  = useState(false);
+  const [heroImgError,   setHeroImgError]  = useState(false);
 
   const fetchWeatherAndSafety = async (exp) => {
     const city       = exp.location?.city    || '';
@@ -189,7 +192,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#1A5F45" /></View>;
   if (!experience) return null;
 
-  const heroImage     = experience.coverImage || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDWD971kShMZZtm1tqLB1M4tT3C06H-IIw4sAIM6q8Is0Z9f0vV3ghGpyKWw2nsI4RtbB5uFyLJ5KVbQBPqQZ6gfNwyC1lom8RMKstswmSXAi0R33J96h_T0nlJ7drHXfktm54c2af9pWrWq-mvNbCkov7u8y65OtgNfN26r9q0XApuM_gY2XgxZLsXXkdn9w-FJhi7TZIApYrX9KkoguY-CxCc-IZM5n1re5sZpl6C3J0RkedcQGyLBdqfw99XC6CuwtXrTw8BrHI';
+  const actualImage   = experience.coverImage || experience.images?.[0];
   const hostAvatarUrl = experience.host?.avatar || null;
   const diffCfg       = DIFFICULTY_CFG[experience.difficulty] || DIFFICULTY_CFG.Moderate;
   const suitColor     = weatherData ? SUITABILITY_COLOR[weatherData.suitability] : '#15803d';
@@ -240,7 +243,12 @@ export default function ExperienceDetailScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 + insets.bottom }}>
 
         {/* ── Hero ── */}
-        <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
+        <View style={styles.heroImage}>
+          <Image source={HERO_FALLBACK} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {!heroImgError && !!actualImage && (
+            <Image source={{ uri: actualImage }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setHeroImgError(true)} />
+          )}
+        </View>
 
         <View style={styles.body}>
 
@@ -540,10 +548,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
 
           {/* Reviews */}
           <Accordion title={`Reviews (${experience.reviewCount || reviews.length || 0})`} defaultOpen icon={<Ionicons name="star-outline" size={16} color="#1A5F45" />}>
-            {(reviews.length > 0 ? reviews.slice(0, 3) : [
-              { _id: 'd1', rating: 5, comment: 'The sunrise was life-changing. The guide knows every rock on that mountain.', userName: 'Sarah M.', createdAt: '2 days ago' },
-              { _id: 'd2', rating: 5, comment: 'Expertly organized. Food was surprisingly good for being at 2000 meters.', userName: 'James L.', createdAt: '1 week ago' },
-            ]).map((r, idx, arr) => (
+            {reviews.length > 0 ? reviews.slice(0, 3).map((r, idx, arr) => (
               <View key={r._id} style={[styles.reviewCard, idx === arr.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <View style={styles.reviewAvatar}>
@@ -557,7 +562,13 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 </View>
                 <Text style={styles.reviewComment}>{r.comment}</Text>
               </View>
-            ))}
+            )) : (
+              <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                <Ionicons name="chatbubble-outline" size={32} color="#D1D5DB" />
+                <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>No reviews yet</Text>
+                <Text style={{ color: '#C4C9D4', fontSize: 12, marginTop: 4 }}>Be the first to share your experience</Text>
+              </View>
+            )}
           </Accordion>
 
           {/* ── Policies & Booking ── */}

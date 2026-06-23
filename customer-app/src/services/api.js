@@ -8,7 +8,7 @@ const getBaseUrl = () => {
     return 'http://localhost:3000/api';
   }
   // Configured to local IP so physical devices, emulators, and simulators can all connect
-  return 'http://192.168.100.10:3000/api';
+  return 'http://0.0.0.0:3000/api';
 };
 
 export const BASE_URL = getBaseUrl();
@@ -62,6 +62,12 @@ export const userAPI = {
 export const aiAPI = {
   getTripPlan: (data) => api.post('/ai/plan-trip', data),
   getGuidedTripPlan: (data) => api.post('/ai/plan-trip-guided', data),
+};
+
+// ─── Messages ────────────────────────────────────────────────
+export const messageAPI = {
+  getByBooking: (bookingId) => api.get(`/messages/booking/${bookingId}`),
+  sendMessage:  (data)      => api.post('/messages', data),
 };
 
 export default api;

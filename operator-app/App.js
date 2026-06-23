@@ -87,6 +87,11 @@ function MainApp() {
     setActiveTab('listings');
   };
 
+  const goToCreate = () => {
+    setEditListing(null);
+    setActiveTab('create');
+  };
+
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -97,7 +102,7 @@ function MainApp() {
   const renderScreen = () => {
     switch (activeTab) {
       case 'home':
-        return <DashboardHome setActiveTab={setActiveTab} />;
+        return <DashboardHome setActiveTab={setActiveTab} goToCreate={goToCreate} />;
       case 'listings':
         return (
           <MyListings
