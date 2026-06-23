@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Platform, StatusBar,
-  ActivityIndicator, Alert, Image
+  ActivityIndicator, Alert, Image, ScrollView, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,7 +18,7 @@ import LoginScreen       from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { operatorAPI } from './src/services/api';
+import { operatorAPI, notificationAPI } from './src/services/api';
 
 const TABS = [
   { id: 'home',     label: 'Home',     icon: 'home-outline',      activeIcon: 'home'           },
@@ -41,6 +41,37 @@ function MainApp() {
   const [editListing,  setEditListing]  = useState(null);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [authScreen,   setAuthScreen]   = useState('login');
+  
+  const [notifications, setNotifications] = useState([]);
+  const [notifModalVisible, setNotifModalVisible] = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await notificationAPI.getAll();
+      if (res.data.success) {
+        setNotifications(res.data.notifications || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user, fetchNotifications]);
+
+  const handleMarkNotifRead = async (id) => {
+    try {
+      await notificationAPI.markRead(id);
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
 
   const fetchListings = useCallback(async () => {
     setListingsLoading(true);
@@ -163,11 +194,74 @@ function MainApp() {
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color={theme.danger || '#EF4444'} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.notifBtn}>
+          <TouchableOpacity style={styles.notifBtn} onPress={() => setNotifModalVisible(true)}>
             <Ionicons name="notifications-outline" size={22} color={theme.text} />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <View style={styles.notifBadge} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Notifications Modal */}
+      <Modal visible={notifModalVisible} transparent animationType="slide" onRequestClose={() => setNotifModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { height: '80%', margin: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={styles.modalTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ gap: 10 }}>
+              {notifications.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: theme.textLight, marginTop: 40, fontStyle: 'italic' }}>
+                  No notifications yet.
+                </Text>
+              ) : (
+                notifications.map(n => (
+                  <TouchableOpacity
+                    key={n._id}
+                    style={{
+                      backgroundColor: n.read ? '#fff' : theme.primaryContainer + '10',
+                      padding: 12,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: n.read ? '#E2E8F0' : theme.primary + '30',
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                    }}
+                    onPress={() => {
+                      handleMarkNotifRead(n._id);
+                      setNotifModalVisible(false);
+                      if (n.referenceId) {
+                        setActiveTab('bookings');
+                      }
+                    }}
+                  >
+                    <View style={{
+                      backgroundColor: n.read ? '#E2E8F0' : theme.primary,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      marginTop: 6,
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontWeight: n.read ? '600' : '700', color: theme.text, fontSize: 14 }}>{n.title}</Text>
+                      <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 2 }}>{n.desc}</Text>
+                      <Text style={{ color: theme.textLight, fontSize: 10, marginTop: 4 }}>
+                        {new Date(n.createdAt).toLocaleDateString()} at {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Screen ── */}
       <View style={{ flex: 1 }}>
@@ -238,7 +332,11 @@ const styles = StyleSheet.create({
   logoutBtn: { padding: 8 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
   backText: { color: theme.primary, fontSize: 16, fontWeight: '600' },
-  notifBtn: { padding: 8 },
+  notifBtn: { padding: 8, position: 'relative' },
+  notifBadge: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+  modalOverlay: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: theme.card, borderRadius: 24, padding: 24, margin: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 8 },
+  modalTitle: { color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 14 },
 
   tabBar: {
     flexDirection: 'row', backgroundColor: theme.navBg,

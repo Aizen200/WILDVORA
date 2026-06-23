@@ -61,7 +61,7 @@ const getMyBookings = async (req, res) => {
     if (status) query.status = status;
 
     const bookings = await Booking.find(query)
-      .populate('experience', 'title images location price duration category')
+      .populate('experience', 'title images location price duration category host hostName')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: bookings.length, bookings });

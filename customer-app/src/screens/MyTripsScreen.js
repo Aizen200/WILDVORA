@@ -94,7 +94,7 @@ const STATUS_BADGE_CFG = {
 };
 
 // ── Upcoming booking card ─────────────────────────────────────────────────────
-function UpcomingCard({ booking, index, onPress, onViewDetails }) {
+function UpcomingCard({ booking, index, onPress, onViewDetails, onContactHost }) {
   const imgUri   = booking.experience?.images?.[0] || TRIP_IMAGES[index % TRIP_IMAGES.length];
   const badgeCfg = STATUS_BADGE_CFG[booking.status] || STATUS_BADGE_CFG.confirmed;
 
@@ -135,11 +135,7 @@ function UpcomingCard({ booking, index, onPress, onViewDetails }) {
             <TouchableOpacity 
               style={s.hostBtn} 
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('Chat', {
-                bookingId: booking._id,
-                hostName: booking.experience?.hostName,
-                title: booking.experience?.title,
-              })}
+              onPress={onContactHost}
             >
               <MaterialCommunityIcons name="chat-outline" size={15} color={C.primary} />
               <Text style={s.hostBtnText}>Contact Host</Text>
@@ -402,7 +398,18 @@ export default function MyTripsScreen({ navigation }) {
                 </View>
               ) : (
                 upcomingBookings.map((b, i) => (
-                  <UpcomingCard key={b._id} booking={b} index={i} onPress={() => goToExp(b)} onViewDetails={() => goToDashboard(b)} />
+                  <UpcomingCard 
+                    key={b._id} 
+                    booking={b} 
+                    index={i} 
+                    onPress={() => goToExp(b)} 
+                    onViewDetails={() => goToDashboard(b)} 
+                    onContactHost={() => navigation.navigate('Chat', {
+                      bookingId: b._id,
+                      hostName: b.experience?.hostName,
+                      title: b.experience?.title,
+                    })}
+                  />
                 ))
               )}
             </>

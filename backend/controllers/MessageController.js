@@ -1,6 +1,8 @@
 const Message = require('../models/Message');
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
+const Experience = require('../models/Experience'); // Register Experience model in mongoose
+const User = require('../models/User'); // Register User model in mongoose
 
 // @route GET /api/messages/booking/:bookingId
 const getMessagesForBooking = async (req, res) => {
@@ -14,8 +16,9 @@ const getMessagesForBooking = async (req, res) => {
 
     const isCustomer = booking.user.toString() === req.user._id.toString();
     const isHost = booking.experience?.host && booking.experience.host.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
 
-    if (!isCustomer && !isHost) {
+    if (!isCustomer && !isHost && !isAdmin) {
       return res.status(403).json({ success: false, message: 'Not authorized to view messages for this booking' });
     }
 
@@ -44,18 +47,26 @@ const sendMessage = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
+    if (!booking.experience) {
+      return res.status(400).json({ success: false, message: 'Experience associated with this booking no longer exists' });
+    }
+
     const isCustomer = booking.user.toString() === req.user._id.toString();
     const isHost = booking.experience?.host && booking.experience.host.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin';
 
-    if (!isCustomer && !isHost) {
+    if (!isCustomer && !isHost && !isAdmin) {
       return res.status(403).json({ success: false, message: 'Not authorized to message on this booking' });
     }
 
     let recipientId;
     if (isCustomer) {
       recipientId = booking.experience.host;
-    } else {
+    } else if (isHost) {
       recipientId = booking.user;
+    } else if (isAdmin) {
+      // If admin is sending, route to host if they are the customer, or customer if they are the host
+      recipientId = booking.user.toString() === req.user._id.toString() ? booking.experience.host : booking.user;
     }
 
     if (!recipientId) {
