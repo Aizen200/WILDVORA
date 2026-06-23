@@ -15,7 +15,9 @@ const {
   getPayouts,
   updateBankAccount,
   getReviews,
-  respondToReview
+  respondToReview,
+  getInquiries,
+  getMessageThreads,
 } = require('../controllers/OperatorController');
 
 // All operator routes are protected and restricted to operators/hosts
@@ -35,5 +37,7 @@ router.get('/payouts', getPayouts);
 router.patch('/bank-account', updateBankAccount);
 router.get('/reviews', getReviews);
 router.patch('/reviews/:id/reply', respondToReview);
+router.get('/inquiries', getInquiries);
+router.get('/message-threads', getMessageThreads);
 
 module.exports = router;

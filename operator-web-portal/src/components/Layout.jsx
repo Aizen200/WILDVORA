@@ -2,7 +2,7 @@ import Sidebar from './Sidebar';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-export default function Layout({ children }) {
+export default function Layout({ children, compact = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -40,7 +40,7 @@ export default function Layout({ children }) {
         </header>
 
         {/* Page Content */}
-        <main id="main-content" className="flex-1 overflow-y-auto p-6 animate-fade-in-up">
+        <main id="main-content" className={`flex-1 animate-fade-in-up ${compact ? 'overflow-hidden flex flex-col' : 'overflow-y-auto p-6'}`}>
           {children}
         </main>
       </div>

@@ -1,5 +1,16 @@
 import api from './axios';
 
+export const inquiryAPI = {
+  getInquiries: ()                  => api.get('/operator/inquiries'),
+  sendReply:    (inquiryId, text)   => api.post(`/inquiries/${inquiryId}/messages`, { text }),
+};
+
+export const messageAPI = {
+  getByBooking: (bookingId)         => api.get(`/messages/booking/${bookingId}`),
+  send:         (bookingId, text)   => api.post('/messages', { bookingId, text }),
+  getThreads:   ()                  => api.get('/operator/message-threads'),
+};
+
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),

@@ -4,6 +4,8 @@ const Review = require('../models/Review');
 const User = require('../models/User');
 const Payout = require('../models/Payout');
 const Notification = require('../models/Notification');
+const Inquiry = require('../models/Inquiry');
+const Message = require('../models/Message');
 
 // Helper to get operator experience IDs
 const getOperatorExperienceIds = async (operatorId) => {
@@ -493,6 +495,78 @@ const deleteListing = async (req, res) => {
   }
 };
 
+// @route GET /api/operator/message-threads
+// Returns all booking conversations (grouped by booking) that have at least one message,
+// with the latest message preview — used by the unified Messages page.
+const getMessageThreads = async (req, res) => {
+  try {
+    const expIds = await getOperatorExperienceIds(req.user._id);
+    const bookings = await Booking.find({ experience: { $in: expIds } })
+      .populate('user', 'name email')
+      .populate('experience', 'title')
+      .lean();
+
+    if (bookings.length === 0) return res.json({ success: true, threads: [] });
+
+    const bookingIds = bookings.map(b => b._id);
+    const bookingMap = Object.fromEntries(bookings.map(b => [b._id.toString(), b]));
+
+    // One aggregation: latest message text + time + senderId per booking
+    const latestMsgs = await Message.aggregate([
+      { $match: { booking: { $in: bookingIds } } },
+      { $sort: { createdAt: 1 } },
+      { $group: {
+        _id: '$booking',
+        lastText:      { $last: '$text' },
+        lastCreatedAt: { $last: '$createdAt' },
+        lastSenderId:  { $last: '$sender' },
+      }},
+      { $sort: { lastCreatedAt: -1 } },
+    ]);
+
+    // Fetch roles of the last-message senders
+    const senderIds = latestMsgs.map(m => m.lastSenderId).filter(Boolean);
+    const senders   = await User.find({ _id: { $in: senderIds } }).select('role').lean();
+    const senderMap = Object.fromEntries(senders.map(s => [s._id.toString(), s]));
+
+    const threads = latestMsgs.map(msg => {
+      const booking = bookingMap[msg._id.toString()];
+      if (!booking) return null;
+      const senderRole = senderMap[msg.lastSenderId?.toString()]?.role || 'customer';
+      return {
+        _id:        booking._id,
+        customer:   booking.user,
+        experience: booking.experience,
+        lastMessage: {
+          text:       msg.lastText,
+          createdAt:  msg.lastCreatedAt,
+          senderRole,
+        },
+        updatedAt: msg.lastCreatedAt,
+      };
+    }).filter(Boolean);
+
+    res.json({ success: true, threads });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route GET /api/operator/inquiries
+// List all inquiry threads for the authenticated operator's experiences
+const getInquiries = async (req, res) => {
+  try {
+    const expIds = await getOperatorExperienceIds(req.user._id);
+    const inquiries = await Inquiry.find({ experience: { $in: expIds } })
+      .populate('customer', 'name email')
+      .populate('experience', 'title')
+      .sort({ updatedAt: -1 });
+    res.json({ success: true, inquiries });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getStats,
   getListings,
@@ -506,5 +580,7 @@ module.exports = {
   getPayouts,
   updateBankAccount,
   getReviews,
-  respondToReview
+  respondToReview,
+  getInquiries,
+  getMessageThreads,
 };

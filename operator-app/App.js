@@ -13,6 +13,7 @@ import CreateEditListing from './src/screens/CreateEditListing';
 import BookingsManager   from './src/screens/BookingsManager';
 import Payouts           from './src/screens/Payouts';
 import ReviewsRatings    from './src/screens/ReviewsRatings';
+import InquiriesScreen   from './src/screens/InquiriesScreen';
 import RegisterScreen    from './src/screens/RegisterScreen';
 import LoginScreen       from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
@@ -21,11 +22,11 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { operatorAPI, notificationAPI } from './src/services/api';
 
 const TABS = [
-  { id: 'home',     label: 'Home',     icon: 'home-outline',      activeIcon: 'home'           },
-  { id: 'listings', label: 'Listings', icon: 'list-outline',      activeIcon: 'list'           },
-  { id: 'bookings', label: 'Bookings', icon: 'calendar-outline',  activeIcon: 'calendar'       },
-  { id: 'payouts',  label: 'Earnings', icon: 'card-outline',      activeIcon: 'card'           },
-  { id: 'reviews',  label: 'More',     icon: 'menu-outline',      activeIcon: 'menu'           },
+  { id: 'home',      label: 'Home',     icon: 'home-outline',         activeIcon: 'home'           },
+  { id: 'listings',  label: 'Listings', icon: 'list-outline',         activeIcon: 'list'           },
+  { id: 'bookings',  label: 'Bookings', icon: 'calendar-outline',     activeIcon: 'calendar'       },
+  { id: 'inbox',     label: 'Inbox',    icon: 'chatbubble-outline',   activeIcon: 'chatbubble'     },
+  { id: 'reviews',   label: 'More',     icon: 'menu-outline',         activeIcon: 'menu'           },
 ];
 
 function TabIcon({ tab, isActive }) {
@@ -154,6 +155,8 @@ function MainApp() {
         );
       case 'bookings':
         return <BookingsManager />;
+      case 'inbox':
+        return <InquiriesScreen />;
       case 'payouts':
         return <Payouts />;
       case 'reviews':
@@ -237,7 +240,8 @@ function MainApp() {
                       handleMarkNotifRead(n._id);
                       setNotifModalVisible(false);
                       if (n.referenceId) {
-                        setActiveTab('bookings');
+                        const isInquiry = n.badges?.some(b => b.text === 'Inquiry');
+                        setActiveTab(isInquiry ? 'inbox' : 'bookings');
                       }
                     }}
                   >

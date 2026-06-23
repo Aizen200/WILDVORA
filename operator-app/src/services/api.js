@@ -51,6 +51,12 @@ export const messageAPI = {
   sendMessage:  (data)      => api.post('/messages', data),
 };
 
+// Inquiry API endpoints (pre-booking Ask Host threads)
+export const inquiryAPI = {
+  getInquiries: ()                => api.get('/operator/inquiries'),
+  sendReply:    (inquiryId, text) => api.post(`/inquiries/${inquiryId}/messages`, { text }),
+};
+
 // Notification API endpoints
 export const notificationAPI = {
   getAll:   ()   => api.get('/notifications'),

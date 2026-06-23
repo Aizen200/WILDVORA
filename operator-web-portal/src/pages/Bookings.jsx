@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { hostAPI } from '../api/hostAPI';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { hostAPI, messageAPI } from '../api/hostAPI';
 import Layout from '../components/Layout';
 
 // Status → visual config
@@ -74,6 +74,60 @@ export default function Bookings() {
   const [noteModal, setNoteModal] = useState(null); // { bookingId, targetStatus }
   const [note,      setNote]      = useState('');
 
+  // Drawer tab: 'details' | 'messages'
+  const [drawerTab,   setDrawerTab]   = useState('details');
+  const [chatMsgs,    setChatMsgs]    = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatText,    setChatText]    = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatEndRef  = useRef(null);
+  const chatPollRef = useRef(null);
+
+  const loadMessages = useCallback(async (bookingId, silent = false) => {
+    if (!silent) setChatLoading(true);
+    try {
+      const res = await messageAPI.getByBooking(bookingId);
+      if (res.data.success) setChatMsgs(res.data.messages || []);
+    } catch (_) {}
+    finally { if (!silent) setChatLoading(false); }
+  }, []);
+
+  // Load messages + start polling whenever the Messages tab is open for a booking
+  useEffect(() => {
+    clearInterval(chatPollRef.current);
+    if (selected && drawerTab === 'messages') {
+      loadMessages(selected._id);
+      chatPollRef.current = setInterval(() => loadMessages(selected._id, true), 5000);
+    }
+    return () => clearInterval(chatPollRef.current);
+  }, [selected?._id, drawerTab, loadMessages]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (drawerTab === 'messages') {
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
+  }, [chatMsgs.length, drawerTab]);
+
+  const handleChatSend = async () => {
+    if (!chatText.trim() || chatSending || !selected) return;
+    const text = chatText.trim();
+    setChatText('');
+    setChatSending(true);
+    try {
+      const res = await messageAPI.send(selected._id, text);
+      if (res.data.success) {
+        setChatMsgs(prev => [...prev, res.data.message]);
+        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not send message. Please try again.');
+      setChatText(text);
+    } finally {
+      setChatSending(false);
+    }
+  };
+
   const PER_PAGE = 10;
 
   const fetchBookings = async (currentTab) => {
@@ -94,7 +148,7 @@ export default function Bookings() {
     }
   };
 
-  useEffect(() => { fetchBookings(tab); setPage(1); setSelected(null); }, [tab]);
+  useEffect(() => { fetchBookings(tab); setPage(1); setSelected(null); setDrawerTab('details'); }, [tab]);
 
   const applyStatusChange = async (bookingId, targetStatus, statusNote) => {
     setUpdating(true);
@@ -341,134 +395,211 @@ export default function Bookings() {
 
         {/* Detail Drawer */}
         {selected && (
-          <div className="w-[380px] ml-4 flex-shrink-0 bg-white border border-gray-100 rounded-2xl shadow-lg flex flex-col p-6 max-h-[calc(100vh-120px)] overflow-y-auto sticky top-4">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-base font-bold text-gray-900">Booking Details</h2>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 transition">
+          <div className="w-[380px] ml-4 flex-shrink-0 bg-white border border-gray-100 rounded-2xl shadow-lg flex flex-col sticky top-4" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+            {/* Drawer header + tab switcher */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-0 flex-shrink-0">
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => setDrawerTab('details')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${drawerTab === 'details' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Details
+                </button>
+                <button
+                  onClick={() => setDrawerTab('messages')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${drawerTab === 'messages' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  Messages
+                </button>
+              </div>
+              <button onClick={() => { setSelected(null); setDrawerTab('details'); }} className="text-gray-400 hover:text-gray-600 transition">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
 
-            {/* Current status */}
-            <div className="mb-4">
-              <StatusBadge status={selected.status} />
-              {selected.statusNote && (
-                <p className="text-xs text-gray-500 mt-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                  {selected.statusNote}
-                </p>
-              )}
-            </div>
-
-            {/* Customer */}
-            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-100">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${getAvatarCls(selected.user?.name)}`}>
-                {selected.user?.name?.[0]?.toUpperCase() || '?'}
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">{selected.user?.name || 'Customer'}</h3>
-                <p className="text-xs text-gray-400">{selected.user?.email || ''}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  {(selected.adults || 1)} adult{(selected.adults || 1) > 1 ? 's' : ''}
-                  {selected.children > 0 ? `, ${selected.children} child${selected.children > 1 ? 'ren' : ''}` : ''}
-                </p>
-              </div>
-            </div>
-
-            {/* Fields */}
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              <div>
-                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Booking ID</span>
-                <strong className="text-xs text-gray-800">#WV-{selected._id.slice(-6).toUpperCase()}</strong>
-              </div>
-              <div>
-                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</span>
-                <strong className="text-xs text-gray-800">{selected.startDate || '—'}</strong>
-              </div>
-              <div>
-                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">End Date</span>
-                <strong className="text-xs text-gray-800">{selected.endDate || '—'}</strong>
-              </div>
-              <div>
-                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Amount Paid</span>
-                <strong className="text-xs text-gray-800">&#8377;{(selected.totalPrice || 0).toLocaleString()}</strong>
-              </div>
-            </div>
-
-            {/* Experience */}
-            <div className="mb-5">
-              <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Experience</span>
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                {selected.experience?.images?.[0] && (
-                  <img src={selected.experience.images[0]} alt="" className="w-full h-28 object-cover rounded-lg mb-2" />
-                )}
-                <h4 className="text-xs font-bold text-gray-800">{selected.experience?.title || '—'}</h4>
-                {selected.experience?.location?.city && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">{selected.experience.location.city}, {selected.experience.location.country}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Status history */}
-            {selected.statusHistory?.length > 0 && (
-              <div className="mb-5">
-                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Status History</span>
-                <div className="space-y-2">
-                  {[...selected.statusHistory].reverse().map((h, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${STATUS_CFG[h.status]?.dot || 'bg-gray-400'}`} />
-                      <div>
-                        <span className="text-[11px] font-semibold text-gray-700">
-                          {STATUS_CFG[h.status]?.label || h.status}
-                        </span>
-                        <span className="text-[10px] text-gray-400 ml-2">
-                          {new Date(h.changedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {h.note && <p className="text-[10px] text-gray-400 mt-0.5">{h.note}</p>}
-                      </div>
-                    </div>
-                  ))}
+            {/* ── DETAILS TAB ── */}
+            {drawerTab === 'details' && (
+              <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4 flex flex-col">
+                <div className="mb-4">
+                  <StatusBadge status={selected.status} />
+                  {selected.statusNote && (
+                    <p className="text-xs text-gray-500 mt-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      {selected.statusNote}
+                    </p>
+                  )}
                 </div>
+
+                <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-100">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${getAvatarCls(selected.user?.name)}`}>
+                    {selected.user?.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">{selected.user?.name || 'Customer'}</h3>
+                    <p className="text-xs text-gray-400">{selected.user?.email || ''}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {(selected.adults || 1)} adult{(selected.adults || 1) > 1 ? 's' : ''}
+                      {selected.children > 0 ? `, ${selected.children} child${selected.children > 1 ? 'ren' : ''}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Booking ID</span>
+                    <strong className="text-xs text-gray-800">#WV-{selected._id.slice(-6).toUpperCase()}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Start Date</span>
+                    <strong className="text-xs text-gray-800">{selected.startDate || '—'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">End Date</span>
+                    <strong className="text-xs text-gray-800">{selected.endDate || '—'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Amount Paid</span>
+                    <strong className="text-xs text-gray-800">&#8377;{(selected.totalPrice || 0).toLocaleString()}</strong>
+                  </div>
+                </div>
+
+                <div className="mb-5">
+                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Experience</span>
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                    {selected.experience?.images?.[0] && (
+                      <img src={selected.experience.images[0]} alt="" className="w-full h-28 object-cover rounded-lg mb-2" />
+                    )}
+                    <h4 className="text-xs font-bold text-gray-800">{selected.experience?.title || '—'}</h4>
+                    {selected.experience?.location?.city && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">{selected.experience.location.city}, {selected.experience.location.country}</p>
+                    )}
+                  </div>
+                </div>
+
+                {selected.statusHistory?.length > 0 && (
+                  <div className="mb-5">
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Status History</span>
+                    <div className="space-y-2">
+                      {[...selected.statusHistory].reverse().map((h, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${STATUS_CFG[h.status]?.dot || 'bg-gray-400'}`} />
+                          <div>
+                            <span className="text-[11px] font-semibold text-gray-700">
+                              {STATUS_CFG[h.status]?.label || h.status}
+                            </span>
+                            <span className="text-[10px] text-gray-400 ml-2">
+                              {new Date(h.changedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {h.note && <p className="text-[10px] text-gray-400 mt-0.5">{h.note}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  const actions = TRANSITIONS[selected.status] || [];
+                  if (actions.length === 0) return null;
+                  const primary     = actions.filter(a => a !== 'cancelled');
+                  const destructive = actions.includes('cancelled') ? ['cancelled'] : [];
+                  return (
+                    <div className="mt-auto pt-4 border-t border-gray-100 space-y-2">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Update Trip Status</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {primary.map(targetStatus => (
+                          <button key={targetStatus} disabled={updating}
+                            onClick={() => handleAction(selected._id, targetStatus)}
+                            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 ${ACTION_STYLE[targetStatus] || 'bg-gray-100 text-gray-700'}`}>
+                            {updating ? '...' : ACTION_LABELS[targetStatus]}
+                          </button>
+                        ))}
+                      </div>
+                      {destructive.map(targetStatus => (
+                        <button key={targetStatus} disabled={updating}
+                          onClick={() => handleAction(selected._id, targetStatus)}
+                          className={`w-full py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 ${ACTION_STYLE[targetStatus]}`}>
+                          {updating ? '...' : ACTION_LABELS[targetStatus]}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
-            {/* Action buttons based on current status */}
-            {(() => {
-              const actions = TRANSITIONS[selected.status] || [];
-              if (actions.length === 0) return null;
-
-              // Primary action is first in the list (e.g. confirm, start trip, complete)
-              // Destructive (cancel) is always last
-              const primary    = actions.filter(a => a !== 'cancelled');
-              const destructive = actions.includes('cancelled') ? ['cancelled'] : [];
-
-              return (
-                <div className="mt-auto pt-4 border-t border-gray-100 space-y-2">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Update Trip Status</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {primary.map(targetStatus => (
-                      <button key={targetStatus}
-                        disabled={updating}
-                        onClick={() => handleAction(selected._id, targetStatus)}
-                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 ${ACTION_STYLE[targetStatus] || 'bg-gray-100 text-gray-700'}`}
-                      >
-                        {updating ? '...' : ACTION_LABELS[targetStatus]}
-                      </button>
-                    ))}
-                  </div>
-                  {destructive.map(targetStatus => (
-                    <button key={targetStatus}
-                      disabled={updating}
-                      onClick={() => handleAction(selected._id, targetStatus)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-50 ${ACTION_STYLE[targetStatus]}`}
-                    >
-                      {updating ? '...' : ACTION_LABELS[targetStatus]}
-                    </button>
-                  ))}
+            {/* ── MESSAGES TAB ── */}
+            {drawerTab === 'messages' && (
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Message list */}
+                <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#F4F7F5] space-y-3">
+                  {chatLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-5 h-5 border-2 border-[#1A5F45] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : chatMsgs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <svg className="w-9 h-9 text-gray-300 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+                      </svg>
+                      <p className="text-xs text-gray-400">No messages yet for this booking</p>
+                    </div>
+                  ) : (
+                    chatMsgs.map(msg => {
+                      const isOp = msg.sender?.role === 'operator' || msg.sender?.role === 'admin';
+                      return (
+                        <div key={msg._id} className={`flex items-end gap-2 ${isOp ? 'justify-end' : 'justify-start'}`}>
+                          {!isOp && (
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${getAvatarCls(msg.sender?.name)}`}>
+                              {msg.sender?.name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                          )}
+                          <div className={`max-w-[75%] rounded-2xl px-3 py-2 shadow-sm ${
+                            isOp
+                              ? 'bg-[#1A5F45] text-white rounded-br-sm'
+                              : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
+                          }`}>
+                            <p className="text-[12px] leading-5 whitespace-pre-wrap break-words">{msg.text}</p>
+                            <p className={`text-[9px] mt-1 text-right ${isOp ? 'text-white/60' : 'text-gray-400'}`}>
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatEndRef} />
                 </div>
-              );
-            })()}
+
+                {/* Reply input */}
+                <div className="bg-white border-t border-gray-100 px-3 py-3 flex items-end gap-2 flex-shrink-0">
+                  <textarea
+                    className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-[12px] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1A5F45]/30 focus:border-[#1A5F45] max-h-24"
+                    placeholder="Reply to this guest…"
+                    rows={1}
+                    value={chatText}
+                    onChange={e => setChatText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                    maxLength={1000}
+                    disabled={chatSending}
+                  />
+                  <button
+                    onClick={handleChatSend}
+                    disabled={!chatText.trim() || chatSending}
+                    className="w-8 h-8 rounded-xl bg-[#1A5F45] hover:bg-[#145038] disabled:bg-gray-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors flex-shrink-0"
+                  >
+                    {chatSending ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
