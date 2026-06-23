@@ -27,6 +27,7 @@ import AIChatScreen from '../screens/AIChatScreen';
 import TripDashboardScreen from '../screens/TripDashboardScreen';
 import ChatScreen from '../screens/ChatScreen';
 import InquiryChatScreen from '../screens/InquiryChatScreen';
+import OperatorProfileScreen from '../screens/OperatorProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -94,7 +95,8 @@ function AppNavigator() {
       <Stack.Screen name="AIChat"         component={AIChatScreen} />
       <Stack.Screen name="TripDashboard"  component={TripDashboardScreen} />
       <Stack.Screen name="Chat"           component={ChatScreen} />
-      <Stack.Screen name="InquiryChat"    component={InquiryChatScreen} />
+      <Stack.Screen name="InquiryChat"       component={InquiryChatScreen} />
+      <Stack.Screen name="OperatorProfile"  component={OperatorProfileScreen} />
     </Stack.Navigator>
   );
 }

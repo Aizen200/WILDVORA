@@ -1,4 +1,6 @@
 const Experience = require('../models/Experience');
+const Booking = require('../models/Booking');
+const User = require('../models/User');
 
 // @route GET /api/experiences
 const getExperiences = async (req, res) => {
@@ -59,4 +61,49 @@ const createExperience = async (req, res) => {
   }
 };
 
-module.exports = { getExperiences, getExperience, createExperience };
+// @route GET /api/experiences/host/:hostId  (public)
+const getHostProfile = async (req, res) => {
+  try {
+    const { hostId } = req.params;
+
+    const host = await User.findById(hostId).select('name avatar bio city kyc createdAt');
+    if (!host) return res.status(404).json({ success: false, message: 'Host not found' });
+
+    const experiences = await Experience.find({ host: hostId, status: 'live', isActive: true })
+      .sort({ isFeatured: -1, rating: -1, createdAt: -1 });
+
+    const expIds = experiences.map(e => e._id);
+    const totalReviews = experiences.reduce((sum, e) => sum + e.reviewCount, 0);
+    const avgRating = experiences.length > 0
+      ? Math.round((experiences.reduce((sum, e) => sum + e.rating, 0) / experiences.length) * 10) / 10
+      : 0;
+    const guestsHosted = await Booking.countDocuments({
+      experience: { $in: expIds },
+      status: { $in: ['confirmed', 'completed'] },
+    });
+
+    res.json({
+      success: true,
+      host: {
+        _id: host._id,
+        name: host.name,
+        avatar: host.avatar,
+        bio: host.bio,
+        city: host.city,
+        verified: host.kyc === 'approved',
+        memberSince: host.createdAt,
+      },
+      experiences,
+      stats: {
+        experienceCount: experiences.length,
+        avgRating,
+        totalReviews,
+        guestsHosted,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getExperiences, getExperience, createExperience, getHostProfile };
