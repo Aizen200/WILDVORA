@@ -331,6 +331,7 @@ export default function ReviewsRatings() {
           </View>
         </View>
       </Modal>
+    </ScrollView>
   );
 }
 

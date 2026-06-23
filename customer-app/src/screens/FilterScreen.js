@@ -279,22 +279,25 @@ export default function FilterScreen({ navigation, route }) {
       </View>
 
       {/* ── Activity Quick Pills ─────────────────────────────────────────────── */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.pillsScroll}>
-        <View style={s.pillsRow}>
-          {ACTIVITY_TYPES.map((a) => {
-            const active = activity === a;
-            return (
-              <TouchableOpacity
-                key={a}
-                style={[s.pill, active && s.pillActive]}
-                onPress={() => setActivity(a)}
-                activeOpacity={0.8}
-              >
-                <Text style={[s.pillText, active && s.pillTextActive]}>{a}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={s.pillsScroll}
+        contentContainerStyle={s.pillsContentContainer}
+      >
+        {ACTIVITY_TYPES.map((a) => {
+          const active = activity === a;
+          return (
+            <TouchableOpacity
+              key={a}
+              style={[s.pill, active && s.pillActive]}
+              onPress={() => setActivity(a)}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.pillText, active && s.pillTextActive]}>{a}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* ── Advanced Filter Panel ───────────────────────────────────────────── */}
@@ -506,10 +509,20 @@ const s = StyleSheet.create({
   filterDotText: { fontSize: 9, fontWeight: '800', color: C.white },
 
   /* Activity quick pills */
-  pillsScroll: { height: 54 },
-  pillsRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingRight: 16 },
+  pillsScroll: {
+    height: 60,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  pillsContentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingRight: 16,
+    paddingVertical: 6,
+  },
   pill: {
-    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 50,
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 50,
     backgroundColor: C.surface,
     borderWidth: 1.5, borderColor: C.outlineVariant,
     marginRight: 8,
