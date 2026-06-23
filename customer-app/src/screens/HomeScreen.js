@@ -5,9 +5,11 @@ import {
   ImageBackground, Image, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { experienceAPI, userAPI } from '../services/api';
+import { getRecentlyViewed } from '../utils/recentlyViewed';
 
 const { width } = Dimensions.get('window');
 
@@ -219,6 +221,13 @@ export default function HomeScreen({ navigation }) {
   const [wishlistIds, setWishlistIds]       = useState(() => new Set(
     user?.wishlist?.map(w => w._id || w) || []
   ));
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getRecentlyViewed().then(setRecentlyViewed);
+    }, [])
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -393,6 +402,28 @@ export default function HomeScreen({ navigation }) {
             <MaterialCommunityIcons name="compass-off-outline" size={44} color="#D1D5DB" />
             <Text style={s.emptyFullTitle}>No adventures yet</Text>
             <Text style={s.emptyFullSub}>New experiences will appear here once they are approved.</Text>
+          </View>
+        )}
+
+        {/* ── Recently Viewed ── */}
+        {recentlyViewed.length > 0 && (
+          <View style={s.section}>
+            <View style={s.sectionHdr}>
+              <View>
+                <Text style={s.sectionTitle}>Recently Viewed</Text>
+                <Text style={s.sectionSub}>Pick up where you left off</Text>
+              </View>
+            </View>
+            <FlatList
+              horizontal
+              data={recentlyViewed}
+              keyExtractor={i => 'rv-' + i._id}
+              renderItem={({ item, index }) => (
+                <TrendingCard item={item} index={index} onPress={goToExperience} />
+              )}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 8 }}
+            />
           </View>
         )}
 

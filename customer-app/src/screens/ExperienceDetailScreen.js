@@ -8,6 +8,7 @@ import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-ic
 import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Alert from '../utils/alert';
+import { addToRecentlyViewed } from '../utils/recentlyViewed';
 
 const HERO_FALLBACK = require('../../assets/heroimage.png');
 
@@ -176,6 +177,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
         const exp = expRes.data.experience;
         setExperience(exp); setReviews(revRes.data.reviews);
         if (user?.wishlist) setInWishlist(user.wishlist.some(w => w._id === experienceId || w === experienceId));
+        addToRecentlyViewed(exp);
         fetchWeatherAndSafety(exp);
       } catch {
         Alert.alert('Error', 'Could not load experience'); navigation.goBack();
@@ -289,6 +291,11 @@ export default function ExperienceDetailScreen({ route, navigation }) {
           <View style={styles.hostCard}>
             {/* Top row: avatar + info + action button */}
             <View style={styles.hostCardRow}>
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}
+                onPress={() => experience.host?._id && navigation.navigate('OperatorProfile', { hostId: experience.host._id })}
+                activeOpacity={0.75}
+              >
               {hostAvatarUrl
                 ? <Image source={{ uri: hostAvatarUrl }} style={styles.avatar} />
                 : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.avatarInitials}>{getInitials(experience.hostName)}</Text></View>
@@ -312,6 +319,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                   </Text>
                 )}
               </View>
+              </TouchableOpacity>
               {bookingId ? (
                 <TouchableOpacity
                   style={styles.askHostBtn}

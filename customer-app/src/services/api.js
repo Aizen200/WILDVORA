@@ -58,6 +58,11 @@ export const userAPI = {
   changePassword: (data) => api.patch('/users/password', data),
 };
 
+// ─── Host / Operator profiles ────────────────────────────────
+export const hostAPI = {
+  getProfile: (hostId) => api.get(`/experiences/host/${hostId}`),
+};
+
 // ─── AI Trip Planner ──────────────────────────────────────────
 export const aiAPI = {
   getTripPlan: (data) => api.post('/ai/plan-trip', data),
