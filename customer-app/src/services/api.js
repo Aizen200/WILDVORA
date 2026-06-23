@@ -8,7 +8,7 @@ const getBaseUrl = () => {
     return 'http://localhost:3000/api';
   }
   // Configured to local IP so physical devices, emulators, and simulators can all connect
-  return 'http://192.168.100.10:3000/api';
+  return 'http://0.0.0.0:3000/api';
 };
 
 export const BASE_URL = getBaseUrl();
