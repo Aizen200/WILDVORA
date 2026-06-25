@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   FlatList, ActivityIndicator, ScrollView, Platform, Image, Keyboard,
+  Modal, PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -52,22 +53,54 @@ const DIFF_COLORS = {
 // ── Price Slider ──────────────────────────────────────────────────────────────
 function PriceSlider({ value, onChange }) {
   const [trackW, setTrackW] = useState(220);
+  const [containerPageX, setContainerPageX] = useState(0);
+  const containerRef = useRef(null);
+
+  const measureContainer = () => {
+    if (containerRef.current) {
+      containerRef.current.measure((x, y, width, height, pageX, pageY) => {
+        if (width) setTrackW(width);
+        if (pageX) setContainerPageX(pageX);
+      });
+    }
+  };
+
+  const handleTouch = (pageX) => {
+    const relX = pageX - containerPageX;
+    const pct = Math.max(0, Math.min(1, relX / trackW));
+    let val = Math.round(pct * PRICE_MAX);
+    val = Math.round(val / 500) * 500;
+    onChange(val);
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        measureContainer();
+        handleTouch(evt.nativeEvent.pageX);
+      },
+      onPanResponderMove: (evt) => {
+        handleTouch(evt.nativeEvent.pageX);
+      },
+    })
+  ).current;
+
   const pct = Math.max(0, Math.min(100, (value / PRICE_MAX) * 100));
+
   return (
-    <View onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
-      <TouchableOpacity
-        activeOpacity={1}
-        style={sl.hit}
-        onPress={(e) => {
-          const p = Math.max(0, Math.min(1, e.nativeEvent.locationX / trackW));
-          onChange(Math.round(p * PRICE_MAX));
-        }}
-      >
+    <View
+      ref={containerRef}
+      onLayout={measureContainer}
+      style={sl.container}
+    >
+      <View {...panResponder.panHandlers} style={sl.hit}>
         <View style={sl.track}>
           <View style={[sl.fill, { width: `${pct}%` }]} />
-          <View style={[sl.thumb, { left: `${pct}%`, marginLeft: -11 }]} />
+          <View style={[sl.thumb, { left: `${pct}%`, marginLeft: -12 }]} />
         </View>
-      </TouchableOpacity>
+      </View>
       <View style={sl.row}>
         <Text style={sl.lbl}>₹0</Text>
         <Text style={sl.lbl}>₹{PRICE_MAX.toLocaleString()}</Text>
@@ -76,19 +109,20 @@ function PriceSlider({ value, onChange }) {
   );
 }
 const sl = StyleSheet.create({
+  container: { marginVertical: 8 },
   hit:   { height: 32, justifyContent: 'center' },
-  track: { height: 5, backgroundColor: C.outlineVariant + '80', borderRadius: 3, position: 'relative' },
-  fill:  { position: 'absolute', left: 0, top: 0, height: 5, backgroundColor: C.primary, borderRadius: 3 },
+  track: { height: 6, backgroundColor: C.outlineVariant + '60', borderRadius: 3, position: 'relative' },
+  fill:  { position: 'absolute', left: 0, top: 0, height: 6, backgroundColor: C.primary, borderRadius: 3 },
   thumb: {
-    position: 'absolute', top: -9, width: 23, height: 23, borderRadius: 12,
-    backgroundColor: C.white, borderWidth: 2.5, borderColor: C.primary,
+    position: 'absolute', top: -9, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: C.white, borderWidth: 3, borderColor: C.primary,
     ...Platform.select({
-      ios:     { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+      ios:     { shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 5 },
       android: { elevation: 4 },
     }),
   },
-  row:  { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  lbl:  { fontSize: 11, color: C.outline, fontWeight: '600' },
+  row:  { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  lbl:  { fontSize: 12, color: C.outline, fontWeight: '600' },
 });
 
 // ── Result Card ───────────────────────────────────────────────────────────────
@@ -300,80 +334,153 @@ export default function FilterScreen({ navigation, route }) {
         })}
       </ScrollView>
 
-      {/* ── Advanced Filter Panel ───────────────────────────────────────────── */}
-      {showFilters && (
-        <View style={s.filterPanel}>
-          {/* Difficulty */}
-          <View style={s.filterSection}>
-            <Text style={s.filterSectionTitle}>Difficulty Level</Text>
-            <View style={s.filterChips}>
-              {DIFFICULTIES.map((d) => {
-                const active = difficulty === d;
-                const dc = DIFF_COLORS[d];
-                return (
-                  <TouchableOpacity
-                    key={d}
-                    style={[
-                      s.filterChip,
-                      active && (dc
-                        ? { backgroundColor: dc.bg, borderColor: dc.text }
-                        : s.filterChipActive),
-                    ]}
-                    onPress={() => setDifficulty(d)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[
-                      s.filterChipText,
-                      active && (dc ? { color: dc.text, fontWeight: '700' } : s.filterChipTextActive),
-                    ]}>
-                      {d}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+      {/* ── Advanced Filter Bottom Sheet Modal ─────────────────────────────── */}
+      <Modal
+        visible={showFilters}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={s.modalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowFilters(false)}
+          />
+          <View style={s.modalSheet}>
+            <View style={s.modalHandle} />
+
+            {/* Header */}
+            <View style={s.modalHeader}>
+              <TouchableOpacity
+                onPress={resetAdvanced}
+                disabled={advancedFilterCount === 0}
+                style={{ opacity: advancedFilterCount === 0 ? 0.3 : 1 }}
+              >
+                <Text style={s.modalResetText}>Reset All</Text>
+              </TouchableOpacity>
+              <Text style={s.modalTitle}>Filters</Text>
+              <TouchableOpacity
+                onPress={() => setShowFilters(false)}
+                style={s.modalCloseBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color={C.onSurface} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={s.modalScrollContent}
+            >
+              {/* Difficulty */}
+              <View style={s.filterSection}>
+                <Text style={s.filterSectionTitle}>DIFFICULTY LEVEL</Text>
+                <View style={s.filterChips}>
+                  {DIFFICULTIES.map((d) => {
+                    const active = difficulty === d;
+                    const dc = d === 'All' ? { bg: '#e8f4f0', text: '#1A5F45' } : DIFF_COLORS[d];
+                    return (
+                      <TouchableOpacity
+                        key={d}
+                        style={[
+                          s.filterChip,
+                          active
+                            ? { backgroundColor: dc.bg, borderColor: dc.text, borderWidth: 1.5 }
+                            : s.filterChipInactive
+                        ]}
+                        onPress={() => setDifficulty(d)}
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color={dc.text}
+                            style={{ marginRight: 4 }}
+                          />
+                        )}
+                        <Text style={[
+                          s.filterChipText,
+                          active
+                            ? { color: dc.text, fontWeight: '700' }
+                            : s.filterChipTextInactive
+                        ]}>
+                          {d}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Duration */}
+              <View style={s.filterSection}>
+                <Text style={s.filterSectionTitle}>DURATION</Text>
+                <View style={s.filterChips}>
+                  {DURATIONS.map((dur) => {
+                    const active = duration === dur;
+                    return (
+                      <TouchableOpacity
+                        key={dur}
+                        style={[
+                          s.filterChip,
+                          active
+                            ? { backgroundColor: '#e8f4f0', borderColor: C.primary, borderWidth: 1.5 }
+                            : s.filterChipInactive
+                        ]}
+                        onPress={() => setDuration(dur)}
+                        activeOpacity={0.8}
+                      >
+                        {active && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color={C.primary}
+                            style={{ marginRight: 4 }}
+                          />
+                        )}
+                        <Text style={[
+                          s.filterChipText,
+                          active
+                            ? { color: C.primary, fontWeight: '700' }
+                            : s.filterChipTextInactive
+                        ]}>
+                          {dur}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Price */}
+              <View style={[s.filterSection, { marginBottom: 30 }]}>
+                <View style={s.filterSectionHdr}>
+                  <Text style={s.filterSectionTitle}>MAX PRICE</Text>
+                  <Text style={s.priceValueText}>
+                    {maxPrice >= PRICE_MAX ? 'No limit' : `₹${maxPrice.toLocaleString()}`}
+                  </Text>
+                </View>
+                <PriceSlider value={maxPrice} onChange={setMaxPrice} />
+              </View>
+            </ScrollView>
+
+            {/* Bottom Button */}
+            <View style={s.modalFooter}>
+              <TouchableOpacity
+                style={s.applyBtn}
+                onPress={() => setShowFilters(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={s.applyBtnText}>
+                  Show {results.length} experience{results.length === 1 ? '' : 's'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          {/* Duration */}
-          <View style={s.filterSection}>
-            <Text style={s.filterSectionTitle}>Duration</Text>
-            <View style={s.filterChips}>
-              {DURATIONS.map((dur) => {
-                const active = duration === dur;
-                return (
-                  <TouchableOpacity
-                    key={dur}
-                    style={[s.filterChip, active && s.filterChipActive]}
-                    onPress={() => setDuration(dur)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[s.filterChipText, active && s.filterChipTextActive]}>{dur}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Price */}
-          <View style={s.filterSection}>
-            <View style={s.filterSectionHdr}>
-              <Text style={s.filterSectionTitle}>Max Price</Text>
-              <Text style={s.priceValueText}>
-                {maxPrice >= PRICE_MAX ? 'No limit' : `₹${maxPrice.toLocaleString()}`}
-              </Text>
-            </View>
-            <PriceSlider value={maxPrice} onChange={setMaxPrice} />
-          </View>
-
-          {/* Reset */}
-          {advancedFilterCount > 0 && (
-            <TouchableOpacity style={s.resetBtn} onPress={resetAdvanced} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="refresh" size={15} color={C.tertiary} />
-              <Text style={s.resetText}>Reset filters</Text>
-            </TouchableOpacity>
-          )}
         </View>
-      )}
+      </Modal>
 
       {/* ── Active filter tags ───────────────────────────────────────────────── */}
       {advancedFilterCount > 0 && !showFilters && (
@@ -537,33 +644,121 @@ const s = StyleSheet.create({
   pillText:       { fontSize: 14, fontWeight: '600', color: '#1a1a1a' },
   pillTextActive: { color: '#ffffff', fontWeight: '700' },
 
-  /* Filter panel */
-  filterPanel: {
+  /* Modal Overlay & Bottom Sheet styles */
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  modalSheet: {
     backgroundColor: C.surface,
-    marginHorizontal: 16, marginBottom: 8,
-    borderRadius: 20, padding: 18,
-    borderWidth: 1.5, borderColor: C.outlineVariant + '50',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     ...Platform.select({
-      ios:     { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
-      android: { elevation: 3 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 16,
+      },
     }),
   },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+  modalResetText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.tertiary,
+  },
+  modalCloseBtn: {
+    padding: 2,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    backgroundColor: C.surface,
+  },
+  applyBtn: {
+    backgroundColor: C.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: C.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  applyBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: C.white,
+  },
+
   filterSection:    { marginBottom: 18 },
   filterSectionHdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  filterSectionTitle: { fontSize: 13, fontWeight: '700', color: C.onSurface, letterSpacing: 0.3 },
-  priceValueText:   { fontSize: 14, fontWeight: '700', color: C.primary },
-  filterChips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterSectionTitle: { fontSize: 12, fontWeight: '800', color: C.outline, letterSpacing: 1.0 },
+  priceValueText:   { fontSize: 15, fontWeight: '800', color: C.primary },
+  filterChips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 50,
-    backgroundColor: C.surfaceLow,
-    borderWidth: 1.5, borderColor: C.outlineVariant + '80',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 24,
+    borderWidth: 1,
   },
-  filterChipActive:     { backgroundColor: C.primary, borderColor: C.primary },
-  filterChipText:       { fontSize: 13, fontWeight: '600', color: C.onSurfaceVariant },
-  filterChipTextActive: { color: C.white, fontWeight: '700' },
-
-  resetBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16, backgroundColor: C.tertiaryLight, borderRadius: 50 },
-  resetText: { fontSize: 13, fontWeight: '700', color: C.tertiary },
+  filterChipInactive: {
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+  },
+  filterChipText: {
+    fontSize: 13,
+  },
+  filterChipTextInactive: {
+    color: '#64748B',
+    fontWeight: '600',
+  },
 
   /* Active filter tags */
   activeTagsRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 8 },
