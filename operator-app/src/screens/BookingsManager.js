@@ -7,12 +7,11 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { operatorAPI, messageAPI } from '../services/api';
 
-// ── Status pill ──────────────────────────────────────────
 const STATUS_MAP = {
-  pending:   { bg: '#FDDDBD', text: '#5C3D11',  label: 'Pending' },
-  confirmed: { bg: '#A3F3CD', text: '#002115',  label: 'Confirmed' },
-  cancelled: { bg: '#FFDAD6', text: '#93000A',  label: 'Cancelled' },
-  completed: { bg: '#C2E8FF', text: '#001E2C',  label: 'Completed' },
+  pending:   { bg: '#FEF3C7', text: '#92400E', label: 'Pending' },
+  confirmed: { bg: '#D1FAE5', text: '#065F46', label: 'Confirmed' },
+  cancelled: { bg: '#FEE2E2', text: '#991B1B', label: 'Cancelled' },
+  completed: { bg: '#DBEAFE', text: '#1E40AF', label: 'Completed' },
 };
 
 const StatusPill = ({ status }) => {
@@ -35,7 +34,7 @@ export default function BookingsManager() {
   const [error, setError]               = useState('');
   const [messageModal, setMessageModal] = useState(null);
   const [msgText, setMsgText]           = useState('');
-  const [updating, setUpdating]         = useState(null); // id of booking being updated
+  const [updating, setUpdating]         = useState(null);
   const [modalMessages, setModalMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sendingMsg, setSendingMsg]           = useState(false);
@@ -47,9 +46,7 @@ export default function BookingsManager() {
     setMessagesLoading(true);
     try {
       const res = await messageAPI.getByBooking(booking._id);
-      if (res.data.success) {
-        setModalMessages(res.data.messages || []);
-      }
+      if (res.data.success) setModalMessages(res.data.messages || []);
     } catch (err) {
       console.error('Error fetching modal messages:', err);
     } finally {
@@ -62,9 +59,7 @@ export default function BookingsManager() {
     const interval = setInterval(async () => {
       try {
         const res = await messageAPI.getByBooking(messageModal._id);
-        if (res.data.success) {
-          setModalMessages(res.data.messages || []);
-        }
+        if (res.data.success) setModalMessages(res.data.messages || []);
       } catch (err) {
         console.error('Polling error:', err);
       }
@@ -78,13 +73,8 @@ export default function BookingsManager() {
     const textToSend = msgText.trim();
     setMsgText('');
     try {
-      const res = await messageAPI.sendMessage({
-        bookingId: messageModal._id,
-        text: textToSend,
-      });
-      if (res.data.success) {
-        setModalMessages(prev => [...prev, res.data.message]);
-      }
+      const res = await messageAPI.sendMessage({ bookingId: messageModal._id, text: textToSend });
+      if (res.data.success) setModalMessages(prev => [...prev, res.data.message]);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Failed to send message.');
       setMsgText(textToSend);
@@ -113,7 +103,6 @@ export default function BookingsManager() {
 
   const onRefresh = () => { setRefreshing(true); fetchBookings(true); };
 
-  // Client-side search on top of the tab-filtered results
   const filtered = bookings.filter(b => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -168,8 +157,10 @@ export default function BookingsManager() {
     }
   };
 
-  const totalCount    = bookings.length;
-  const pendingCount  = bookings.filter(b => b.status === 'pending').length;
+  const totalCount     = bookings.length;
+  const pendingCount   = bookings.filter(b => b.status === 'pending').length;
+  const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
+  const completedCount = bookings.filter(b => b.status === 'completed').length;
 
   return (
     <ScrollView
@@ -180,71 +171,75 @@ export default function BookingsManager() {
     >
       {/* Header */}
       <View style={styles.pageHeader}>
-        <Text style={styles.pageTitle}>Bookings Manager</Text>
-        <Text style={styles.pageSubtitle}>Review and manage your upcoming adventure sessions.</Text>
-      </View>
-
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalCount}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: '#F59E0B' }]}>
-          <Text style={[styles.statValue, { color: '#F59E0B' }]}>{pendingCount}</Text>
-          <Text style={styles.statLabel}>Pending</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: theme.primary }]}>
-          <Text style={[styles.statValue, { color: theme.primary }]}>
-            {bookings.filter(b => b.status === 'confirmed').length}
-          </Text>
-          <Text style={styles.statLabel}>Confirmed</Text>
-        </View>
-        <View style={[styles.statCard, { borderLeftColor: '#6B7280' }]}>
-          <Text style={[styles.statValue, { color: '#6B7280' }]}>
-            {bookings.filter(b => b.status === 'completed').length}
-          </Text>
-          <Text style={styles.statLabel}>Completed</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.pageTitle}>Bookings</Text>
+          {pendingCount > 0 && (
+            <View style={styles.pendingBadge}>
+              <Text style={styles.pendingBadgeText}>{pendingCount} pending</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Search bar */}
-      <View style={styles.searchCard}>
-        <Feather name="search" size={16} color={theme.outlineVariant} />
+      {/* Summary numbers */}
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryItem}>
+          <Text style={styles.summaryNum}>{totalCount}</Text>
+          <Text style={styles.summaryLabel}>Total</Text>
+        </View>
+        <View style={styles.summarySep} />
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryNum, { color: '#D97706' }]}>{pendingCount}</Text>
+          <Text style={styles.summaryLabel}>Pending</Text>
+        </View>
+        <View style={styles.summarySep} />
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryNum, { color: theme.primary }]}>{confirmedCount}</Text>
+          <Text style={styles.summaryLabel}>Confirmed</Text>
+        </View>
+        <View style={styles.summarySep} />
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryNum, { color: '#6B7280' }]}>{completedCount}</Text>
+          <Text style={styles.summaryLabel}>Done</Text>
+        </View>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchBar}>
+        <Feather name="search" size={15} color={theme.outlineVariant} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by customer, experience..."
+          placeholder="Search by customer or experience..."
           placeholderTextColor={theme.outlineVariant}
           value={search}
           onChangeText={setSearch}
         />
         {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={theme.outlineVariant} />
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={17} color={theme.outlineVariant} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Filter tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
-        <View style={{ flexDirection: 'row', gap: 8, paddingBottom: 4 }}>
-          {FILTER_TABS.map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.filterTab, filter === tab && styles.filterTabActive]}
-              onPress={() => { setFilter(tab); }}
-            >
-              <Text style={[styles.filterTabText, filter === tab && styles.filterTabTextActive]}>
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContent}>
+        {FILTER_TABS.map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.filterTab, filter === tab && styles.filterTabActive]}
+            onPress={() => setFilter(tab)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.filterTabText, filter === tab && styles.filterTabTextActive]}>
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       {error ? (
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle-outline" size={16} color="#EF4444" />
+          <Ionicons name="alert-circle-outline" size={15} color="#EF4444" />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
@@ -256,48 +251,48 @@ export default function BookingsManager() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.emptyState}>
-          <Feather name="inbox" size={40} color={theme.outlineVariant} />
+          <Feather name="inbox" size={36} color={theme.outlineVariant} />
           <Text style={styles.emptyTitle}>No bookings found</Text>
           <Text style={styles.emptySubtitle}>
-            {search.trim() ? 'No results match your search.' : `No ${filter !== 'All' ? filter.toLowerCase() : ''} bookings yet.`}
+            {search.trim()
+              ? 'No results match your search.'
+              : `No ${filter !== 'All' ? filter.toLowerCase() : ''} bookings yet.`}
           </Text>
         </View>
       ) : (
         filtered.map(b => {
-          const isBusy = updating === b._id;
-          const dateStr = b.startDate
+          const isBusy   = updating === b._id;
+          const initial  = b.user?.name?.charAt(0)?.toUpperCase() || '?';
+          const dateStr  = b.startDate
             ? new Date(b.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-            : 'N/A';
+            : 'Date TBD';
 
           return (
             <View key={b._id} style={styles.bookingCard}>
-              {/* Top row */}
-              <View style={styles.rowBetween}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={[styles.avatarImg, { backgroundColor: theme.primaryFixed + '44' }]}>
-                    <Ionicons name="person" size={22} color={theme.primary} />
-                  </View>
-                  <View>
-                    <Text style={styles.customerName}>{b.user?.name || 'Customer'}</Text>
-                    <Text style={styles.guestsText}>{b.groupSize || 1} Guests • #{b._id.slice(-4).toUpperCase()}</Text>
-                  </View>
+              {/* Customer row */}
+              <View style={styles.cardTopRow}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initial}</Text>
+                </View>
+                <View style={styles.customerBlock}>
+                  <Text style={styles.customerName}>{b.user?.name || 'Customer'}</Text>
+                  <Text style={styles.bookingRef}>
+                    #{b._id.slice(-6).toUpperCase()} · {b.groupSize || 1} guest{(b.groupSize || 1) > 1 ? 's' : ''}
+                  </Text>
                 </View>
                 <StatusPill status={b.status} />
               </View>
 
-              {/* Experience title */}
-              <Text style={styles.listingTitle} numberOfLines={2}>{b.experience?.title || 'Unknown Experience'}</Text>
+              {/* Experience */}
+              <Text style={styles.expTitle} numberOfLines={2}>{b.experience?.title || 'Unknown Experience'}</Text>
 
-              {/* Date & Amount */}
+              {/* Meta row */}
               <View style={styles.metaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar-outline" size={14} color={theme.textLight} />
-                  <Text style={styles.metaText}>{dateStr}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Ionicons name="cash-outline" size={14} color={theme.textLight} />
-                  <Text style={styles.metaText}>₹{b.totalPrice?.toFixed(0) || '0'}</Text>
-                </View>
+                <Ionicons name="calendar-outline" size={13} color={theme.textLight} />
+                <Text style={styles.metaText}>{dateStr}</Text>
+                <Text style={styles.metaDot}>·</Text>
+                <Ionicons name="cash-outline" size={13} color={theme.textLight} />
+                <Text style={styles.metaText}>₹{b.totalPrice?.toFixed(0) || '0'}</Text>
               </View>
 
               {/* Actions */}
@@ -305,24 +300,21 @@ export default function BookingsManager() {
                 <ActivityIndicator size="small" color={theme.primary} style={{ marginTop: 4 }} />
               ) : b.status === 'pending' ? (
                 <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirm(b._id)}>
+                  <TouchableOpacity style={styles.confirmBtn} onPress={() => handleConfirm(b._id)} activeOpacity={0.85}>
                     <Text style={styles.confirmBtnText}>Confirm</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(b._id)}>
+                  <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(b._id)} activeOpacity={0.85}>
                     <Text style={styles.declineBtnText}>Decline</Text>
                   </TouchableOpacity>
                 </View>
               ) : b.status === 'confirmed' ? (
                 <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={styles.messageBtn}
-                    onPress={() => openMessageModal(b)}
-                  >
-                    <MaterialCommunityIcons name="message-outline" size={16} color={theme.secondary} />
+                  <TouchableOpacity style={styles.messageBtn} onPress={() => openMessageModal(b)} activeOpacity={0.85}>
+                    <MaterialCommunityIcons name="message-outline" size={15} color={theme.primary} />
                     <Text style={styles.messageBtnText}>Message</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.completeBtn} onPress={() => handleComplete(b._id)}>
-                    <Text style={styles.completeBtnText}>Mark Done</Text>
+                  <TouchableOpacity style={styles.completeBtn} onPress={() => handleComplete(b._id)} activeOpacity={0.85}>
+                    <Text style={styles.completeBtnText}>Mark done</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -334,46 +326,37 @@ export default function BookingsManager() {
       {/* Message modal */}
       <Modal visible={!!messageModal} transparent animationType="slide" onRequestClose={() => setMessageModal(null)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { height: '80%', margin: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Message {messageModal?.user?.name}</Text>
-              <TouchableOpacity onPress={() => setMessageModal(null)}>
-                <Ionicons name="close" size={24} color={theme.text} />
+              <TouchableOpacity onPress={() => setMessageModal(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={22} color={theme.text} />
               </TouchableOpacity>
             </View>
 
             {messagesLoading ? (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <View style={styles.modalLoadingWrap}>
                 <ActivityIndicator size="small" color={theme.primary} />
-                <Text style={{ marginTop: 8, color: theme.textLight }}>Loading chat history...</Text>
+                <Text style={styles.modalLoadingText}>Loading messages...</Text>
               </View>
             ) : (
-              <ScrollView 
-                style={{ flex: 1, marginBottom: 12, backgroundColor: theme.surfaceContainerLow, borderRadius: 12, padding: 10 }}
-                contentContainerStyle={{ gap: 8 }}
+              <ScrollView
+                style={styles.chatScroll}
+                contentContainerStyle={{ gap: 8, padding: 12 }}
                 ref={ref => { if (ref) ref.scrollToEnd({ animated: false }); }}
               >
                 {modalMessages.length === 0 ? (
-                  <Text style={{ textAlign: 'center', color: theme.textLight, marginTop: 40, fontStyle: 'italic' }}>
-                    No messages yet. Send a message to start conversation.
-                  </Text>
+                  <Text style={styles.emptyChatText}>No messages yet. Say hello!</Text>
                 ) : (
                   modalMessages.map(m => {
                     const isOperator = m.sender?.role === 'operator';
                     return (
-                      <View 
-                        key={m._id} 
-                        style={{ 
-                          alignSelf: isOperator ? 'flex-end' : 'flex-start',
-                          backgroundColor: isOperator ? theme.primary : '#E2E8F0',
-                          borderRadius: 12,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          maxWidth: '85%'
-                        }}
+                      <View
+                        key={m._id}
+                        style={[styles.bubble, isOperator ? styles.bubbleOut : styles.bubbleIn]}
                       >
-                        <Text style={{ color: isOperator ? '#FFF' : '#1E293B', fontSize: 13 }}>{m.text}</Text>
-                        <Text style={{ color: isOperator ? '#FFF8' : '#64748B', fontSize: 9, alignSelf: 'flex-end', marginTop: 3 }}>
+                        <Text style={[styles.bubbleText, isOperator && { color: '#fff' }]}>{m.text}</Text>
+                        <Text style={[styles.bubbleTime, isOperator && { color: 'rgba(255,255,255,0.6)' }]}>
                           {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </Text>
                       </View>
@@ -384,7 +367,7 @@ export default function BookingsManager() {
             )}
 
             <TextInput
-              style={[styles.msgInput, { height: 60 }]}
+              style={styles.msgInput}
               placeholder="Type your message..."
               placeholderTextColor={theme.outlineVariant}
               value={msgText}
@@ -393,14 +376,15 @@ export default function BookingsManager() {
               editable={!sendingMsg}
             />
             <TouchableOpacity
-              style={[styles.sendBtn, (!msgText.trim() || sendingMsg) && { opacity: 0.6 }]}
+              style={[styles.sendBtn, (!msgText.trim() || sendingMsg) && styles.sendBtnOff]}
               onPress={handleSendMessage}
               disabled={!msgText.trim() || sendingMsg}
+              activeOpacity={0.85}
             >
               {sendingMsg ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.sendBtnText}>Send Message</Text>
+                <Text style={styles.sendBtnText}>Send</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -412,112 +396,206 @@ export default function BookingsManager() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: 16, paddingTop: 8 },
-  pageHeader: { marginBottom: 16, marginTop: 4 },
-  pageTitle: { color: theme.text, fontSize: 24, fontWeight: '700' },
-  pageSubtitle: { color: theme.textMuted, fontSize: 14, marginTop: 4, lineHeight: 20 },
 
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  statCard: {
-    flex: 1, backgroundColor: theme.card, borderRadius: 14, padding: 12,
-    borderLeftWidth: 3, borderLeftColor: theme.primary,
-    shadowColor: '#1E293B', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  // Header
+  pageHeader: { marginBottom: 14, marginTop: 4 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pageTitle: { fontSize: 26, fontWeight: '700', color: theme.text, letterSpacing: -0.3 },
+  pendingBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  statValue: { fontSize: 20, fontWeight: '800', color: theme.text },
-  statLabel: { fontSize: 11, color: theme.textMuted, marginTop: 2, fontWeight: '600' },
+  pendingBadgeText: { fontSize: 12, fontWeight: '700', color: '#92400E' },
 
-  searchCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: theme.card, borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 11, marginBottom: 12,
-    shadowColor: '#1E293B', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+  // Summary row
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+  },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryNum: { fontSize: 22, fontWeight: '800', color: theme.text, letterSpacing: -0.3 },
+  summaryLabel: { fontSize: 11, color: theme.textLight, marginTop: 2, fontWeight: '500' },
+  summarySep: { width: 1, height: 32, backgroundColor: theme.cardBorder },
+
+  // Search
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
   },
   searchInput: { flex: 1, color: theme.text, fontSize: 14 },
 
+  // Filter tabs
   filterScroll: { marginBottom: 16 },
+  filterContent: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
   filterTab: {
-    borderRadius: 99, paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 99,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     backgroundColor: theme.surfaceContainer,
   },
-  filterTabActive: { backgroundColor: theme.primary, shadowColor: theme.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  filterTabText: { color: theme.textMuted, fontSize: 13, fontWeight: '600' },
-  filterTabTextActive: { color: '#FFFFFF' },
+  filterTabActive: { backgroundColor: theme.primary },
+  filterTabText: { fontSize: 13, fontWeight: '600', color: theme.textMuted },
+  filterTabTextActive: { color: '#fff' },
 
+  // Error
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 12,
+    backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 12,
     borderWidth: 1, borderColor: '#FECACA',
   },
   errorText: { color: '#EF4444', fontSize: 13, flex: 1 },
 
-  loadingWrap: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  // Loading / empty
+  loadingWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   loadingText: { color: theme.textLight, fontSize: 14 },
-
-  emptyState: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
+  emptyState: { alignItems: 'center', paddingVertical: 52, gap: 8 },
+  emptyTitle: { color: theme.text, fontSize: 16, fontWeight: '700' },
   emptySubtitle: { color: theme.outlineVariant, fontSize: 14, textAlign: 'center' },
 
+  // Booking cards
   bookingCard: {
-    backgroundColor: theme.card, borderRadius: 24, padding: 20, marginBottom: 14,
-    shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
     gap: 10,
   },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  avatarImg: {
-    width: 46, height: 46, borderRadius: 23,
-    alignItems: 'center', justifyContent: 'center',
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.primaryFixed + '55',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  customerName: { color: theme.text, fontSize: 14, fontWeight: '700' },
-  guestsText: { color: theme.textMuted, fontSize: 12, marginTop: 1 },
+  avatarText: { fontSize: 16, fontWeight: '700', color: theme.primary },
+  customerBlock: { flex: 1 },
+  customerName: { fontSize: 14, fontWeight: '700', color: theme.text },
+  bookingRef: { fontSize: 12, color: theme.textMuted, marginTop: 1 },
 
-  statusPill: { borderRadius: 99, paddingHorizontal: 12, paddingVertical: 4 },
-  statusText: { fontSize: 12, fontWeight: '600' },
+  statusPill: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 },
+  statusText: { fontSize: 11, fontWeight: '700' },
 
-  listingTitle: { color: theme.primary, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  expTitle: { fontSize: 15, fontWeight: '600', color: theme.primary, lineHeight: 21 },
 
-  metaRow: { flexDirection: 'row', gap: 16 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  metaText: { color: theme.textMuted, fontSize: 13 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText: { fontSize: 13, color: theme.textMuted },
+  metaDot: { fontSize: 13, color: theme.outlineVariant, marginHorizontal: 2 },
 
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 2 },
   confirmBtn: {
-    flex: 1, backgroundColor: theme.primary, borderRadius: 14,
-    paddingVertical: 12, alignItems: 'center',
+    flex: 1,
+    backgroundColor: theme.primary,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
   },
-  confirmBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   declineBtn: {
-    flex: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center',
-    borderWidth: 1.5, borderColor: theme.outlineVariant,
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: theme.outlineVariant,
   },
   declineBtnText: { color: theme.textMuted, fontWeight: '700', fontSize: 14 },
-
   messageBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: theme.surfaceContainerHigh, borderRadius: 14, paddingVertical: 12,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: theme.primaryFixed + '33',
+    borderRadius: 10,
+    paddingVertical: 11,
   },
-  messageBtnText: { color: theme.secondary, fontWeight: '700', fontSize: 14 },
-
+  messageBtnText: { color: theme.primary, fontWeight: '700', fontSize: 14 },
   completeBtn: {
-    flex: 1, backgroundColor: '#059669', borderRadius: 14,
-    paddingVertical: 12, alignItems: 'center',
+    flex: 1,
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
   },
   completeBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
-  modalOverlay: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
+  // Message modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: theme.card, borderRadius: 24, padding: 24, margin: 16,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 8,
+    backgroundColor: theme.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    height: '80%',
   },
-  modalTitle: { color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
+  modalLoadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  modalLoadingText: { color: theme.textLight, fontSize: 13 },
+  chatScroll: {
+    flex: 1,
+    backgroundColor: theme.surfaceContainerLow,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  emptyChatText: {
+    textAlign: 'center',
+    color: theme.textLight,
+    marginTop: 40,
+    fontSize: 13,
+  },
+  bubble: {
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: '82%',
+  },
+  bubbleOut: { alignSelf: 'flex-end', backgroundColor: theme.primary },
+  bubbleIn:  { alignSelf: 'flex-start', backgroundColor: '#E2E8F0' },
+  bubbleText: { color: '#1E293B', fontSize: 13 },
+  bubbleTime: { color: '#64748B', fontSize: 9, alignSelf: 'flex-end', marginTop: 3 },
   msgInput: {
-    backgroundColor: theme.surfaceContainerLow, borderRadius: 14,
-    padding: 14, color: theme.text, fontSize: 14,
-    height: 100, textAlignVertical: 'top', marginBottom: 12,
+    backgroundColor: theme.surfaceContainerLow,
+    borderRadius: 12,
+    padding: 14,
+    color: theme.text,
+    fontSize: 14,
+    height: 60,
+    textAlignVertical: 'top',
+    marginBottom: 10,
   },
-  sendBtn: { backgroundColor: theme.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  sendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  cancelLink: { marginTop: 12, alignItems: 'center' },
-  cancelLinkText: { color: theme.textLight, fontWeight: '600', fontSize: 14 },
+  sendBtn: {
+    backgroundColor: theme.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  sendBtnOff: { opacity: 0.5 },
+  sendBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

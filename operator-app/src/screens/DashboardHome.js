@@ -142,6 +142,20 @@ export default function DashboardHome({ setActiveTab, goToCreate }) {
         ))}
       </View>
 
+      {/* ── Create new experience CTA ── */}
+      <TouchableOpacity style={styles.createBtn} onPress={goToCreate} activeOpacity={0.85}>
+        <View style={styles.createBtnLeft}>
+          <View style={styles.createBtnIcon}>
+            <Ionicons name="add" size={20} color={theme.primary} />
+          </View>
+          <View>
+            <Text style={styles.createBtnTitle}>Create new experience</Text>
+            <Text style={styles.createBtnSub}>List a new adventure for customers</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={theme.textLight} />
+      </TouchableOpacity>
+
       {/* ── Quick actions ── */}
       <Text style={[styles.sectionTitle, { marginBottom: 14 }]}>Quick actions</Text>
       <View style={styles.quickRow}>
@@ -246,6 +260,32 @@ const styles = StyleSheet.create({
   },
   statNumber: { fontSize: 26, fontWeight: '800', color: theme.text, letterSpacing: -0.5 },
   statLabel:  { fontSize: 12, color: theme.textLight, marginTop: 4, fontWeight: '500' },
+
+  // Create new experience button
+  createBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+  },
+  createBtnLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  createBtnIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: theme.primaryFixed + '55',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createBtnTitle: { fontSize: 15, fontWeight: '700', color: theme.text },
+  createBtnSub: { fontSize: 12, color: theme.textLight, marginTop: 1 },
 
   // Quick actions
   quickRow: {
