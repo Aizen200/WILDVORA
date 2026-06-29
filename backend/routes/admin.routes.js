@@ -28,8 +28,12 @@ const {
   sendEmailToAllHosts,
   getGrowthMapData,
   overrideTripStatus,
-  getStaleTrips
+  getStaleTrips,
+  getDestinations,
+  createDestination,
+  updateDestination
 } = require('../controllers/AdminController');
+
 
 // All admin routes require authentication and the admin role
 router.use(protect);
@@ -62,4 +66,10 @@ router.post('/payouts/release', releasePayout);
 router.get('/payouts/logs', getPayoutLogs);
 router.get('/customers/:id/bookings', getCustomerBookings);
 
+// Destinations management
+router.get('/destinations', getDestinations);
+router.post('/destinations', createDestination);
+router.patch('/destinations/:id', updateDestination);
+
 module.exports = router;
+

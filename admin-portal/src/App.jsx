@@ -8,12 +8,15 @@ import Payouts from './pages/Payouts';
 import Hosts from './pages/Hosts';
 import AdminLayout from './components/AdminLayout';
 import Dashboard from './pages/Dashboard';
-import ListingsApprovalQueue from './pages/ListingsApprovalQueue';
+import Experiences from './pages/Experiences';
+import Partners from './pages/Partners';
+import Destinations from './pages/Destinations';
 import BookingsDisputes from './pages/BookingsDisputes';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Help from './pages/Help';
 import Settings from './pages/Settings';
+
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -53,11 +56,12 @@ function AppRoutes() {
 
       {/* Protected routes wrapped in AdminLayout */}
       <Route path="/"                element={<ProtectedLayout><Navigate to="/overview" replace /></ProtectedLayout>} />
-      <Route path="/hosts"           element={<ProtectedLayout><Hosts /></ProtectedLayout>} />
+      <Route path="/partners"        element={<ProtectedLayout><Partners /></ProtectedLayout>} />
+      <Route path="/destinations"    element={<ProtectedLayout><Destinations /></ProtectedLayout>} />
+      <Route path="/experiences"     element={<ProtectedLayout><Experiences /></ProtectedLayout>} />
       <Route path="/notifications"   element={<ProtectedLayout><Notifications /></ProtectedLayout>} />
       <Route path="/profile"         element={<ProtectedLayout><Profile /></ProtectedLayout>} />
       <Route path="/overview"        element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-      <Route path="/listings"        element={<ProtectedLayout><ListingsApprovalQueue /></ProtectedLayout>} />
       <Route path="/bookings"        element={<ProtectedLayout><BookingsDisputes /></ProtectedLayout>} />
       
       {/* Interactive placeholder pages for other sidebar links */}
@@ -67,8 +71,8 @@ function AppRoutes() {
       <Route path="/reports"         element={<ProtectedLayout><div className="p-8"><h1 className="text-3xl font-extrabold text-gray-900">Reports</h1><p className="text-gray-500 mt-2">Platform reports.</p></div></ProtectedLayout>} />
 
       {/* Self-contained layout routes aligned to common layout */}
-      <Route path="/customers"       element={<ProtectedLayout><Customers /></ProtectedLayout>} />
       <Route path="/payouts"         element={<ProtectedLayout><Payouts /></ProtectedLayout>} />
+
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
