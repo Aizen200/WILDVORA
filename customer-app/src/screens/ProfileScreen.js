@@ -93,7 +93,7 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile]           = useState(null);
   const [reviews, setReviews]           = useState([]);
   const [completedTrips, setCompleted]  = useState(0);
-  const [loading, setLoading]           = useState(true);
+  const [loading, setLoading]           = useState(!!user);
   const [logoutModal, setLogoutModal]   = useState(false);
   const [editModal, setEditModal]       = useState(false);
   const [saving, setSaving]             = useState(false);
@@ -120,6 +120,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   useEffect(() => {
+    if (!user) return;
     (async () => {
       try {
         const [profRes, revRes] = await Promise.all([
@@ -134,7 +135,7 @@ export default function ProfileScreen({ navigation }) {
       } catch {}
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [user]);
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
@@ -172,6 +173,28 @@ export default function ProfileScreen({ navigation }) {
       <View style={s.center}>
         <ActivityIndicator size="large" color={C.primary} />
       </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.guestWrap}>
+          <View style={s.guestAvatarRing}>
+            <MaterialCommunityIcons name="account-outline" size={44} color={C.primary} />
+          </View>
+          <Text style={s.guestTitle}>Join Wildvora</Text>
+          <Text style={s.guestSub}>
+            Create a free account to manage your bookings, save adventures, and connect with operators.
+          </Text>
+          <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
+            <Text style={s.guestPrimaryBtnText}>Create Account</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
+            <Text style={s.guestSecondaryBtnText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -586,4 +609,13 @@ const s = StyleSheet.create({
   dialogConfirmText:{ color: C.white, fontWeight: '700', fontSize: 14, letterSpacing: 0.3 },
   dialogCancel:     { paddingVertical: 14, width: '100%', alignItems: 'center' },
   dialogCancelText: { color: C.onSurfaceVariant, fontWeight: '600', fontSize: 14 },
+
+  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  guestAvatarRing:      { width: 96, height: 96, borderRadius: 48, backgroundColor: C.primaryLight, borderWidth: 2, borderColor: '#A7F3D0', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  guestTitle:           { fontSize: 24, fontWeight: '800', color: C.onSurface, marginBottom: 10, textAlign: 'center', letterSpacing: -0.4 },
+  guestSub:             { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 21, marginBottom: 36 },
+  guestPrimaryBtn:      { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
+  guestPrimaryBtnText:  { fontSize: 15, fontWeight: '800', color: C.white },
+  guestSecondaryBtn:    { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 15, alignSelf: 'stretch', alignItems: 'center' },
+  guestSecondaryBtnText:{ fontSize: 15, fontWeight: '700', color: C.primary },
 });

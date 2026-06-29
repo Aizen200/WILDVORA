@@ -28,13 +28,13 @@ import TripDashboardScreen from '../screens/TripDashboardScreen';
 import ChatScreen from '../screens/ChatScreen';
 import InquiryChatScreen from '../screens/InquiryChatScreen';
 import OperatorProfileScreen from '../screens/OperatorProfileScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 const PRIMARY = '#1A5F45';
 
-// Map each tab to a MaterialCommunityIcons name (active / inactive pair)
 const TAB_ICONS = {
   Home:    { active: 'compass',       inactive: 'compass-outline' },
   Search:  { active: 'magnify',       inactive: 'magnify' },
@@ -82,31 +82,26 @@ function MainTabs() {
   );
 }
 
-function AppNavigator() {
+function AppNavigator({ initialRoute }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+      <Stack.Screen name="Onboarding"       component={OnboardingScreen} />
       <Stack.Screen name="Main"             component={MainTabs} />
       <Stack.Screen name="ExperienceDetail" component={ExperienceDetailScreen} />
       <Stack.Screen name="Booking"          component={BookingScreen} />
       <Stack.Screen name="Wishlist"         component={WishlistScreen} />
-      <Stack.Screen name="Settings"       component={SettingsScreen} />
-      <Stack.Screen name="ReviewHistory"  component={ReviewHistoryScreen} />
-      <Stack.Screen name="HelpCenter"     component={HelpCenterScreen} />
-      <Stack.Screen name="AIChat"         component={AIChatScreen} />
-      <Stack.Screen name="TripDashboard"  component={TripDashboardScreen} />
-      <Stack.Screen name="Chat"           component={ChatScreen} />
-      <Stack.Screen name="InquiryChat"       component={InquiryChatScreen} />
+      <Stack.Screen name="Settings"         component={SettingsScreen} />
+      <Stack.Screen name="ReviewHistory"    component={ReviewHistoryScreen} />
+      <Stack.Screen name="HelpCenter"       component={HelpCenterScreen} />
+      <Stack.Screen name="AIChat"           component={AIChatScreen} />
+      <Stack.Screen name="TripDashboard"    component={TripDashboardScreen} />
+      <Stack.Screen name="Chat"             component={ChatScreen} />
+      <Stack.Screen name="InquiryChat"      component={InquiryChatScreen} />
       <Stack.Screen name="OperatorProfile"  component={OperatorProfileScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function AuthNavigator() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login"          component={LoginScreen} />
-      <Stack.Screen name="Register"       component={RegisterScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      {/* Auth screens as modal overlays — navigated to on demand */}
+      <Stack.Screen name="Login"          component={LoginScreen}          options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Register"       component={RegisterScreen}       options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
@@ -124,7 +119,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {user ? <AppNavigator /> : <AuthNavigator />}
+      <AppNavigator initialRoute={user ? 'Main' : 'Onboarding'} />
     </NavigationContainer>
   );
 }

@@ -8,8 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 import { experienceAPI, userAPI } from '../services/api';
 import { getRecentlyViewed } from '../utils/recentlyViewed';
+import AuthPromptSheet from '../components/AuthPromptSheet';
 
 const { width } = Dimensions.get('window');
 const INTEREST_CARD_WIDTH = Math.min(width * 0.44, 200);
@@ -19,7 +21,7 @@ const FEATURED_CARD_WIDTH = Math.min(width * 0.72, 320);
 
 const C = {
   primary:          '#1A5F45',
-  background:       '#F8F8F8',
+  background:       '#F7F6F2',
   surface:          '#FFFFFF',
   surfaceVariant:   '#F1F5F2',
   onSurface:        '#111827',
@@ -33,7 +35,7 @@ const C = {
 };
 
 const CATEGORIES = [
-  { key: 'All',          label: 'All',          icon: 'compass-outline' },
+  { key: 'All',          label: 'For You',      icon: 'compass-outline' },
   { key: 'Trekking',     label: 'Trekking',     icon: 'hiking' },
   { key: 'Camping',      label: 'Camping',      icon: 'tent' },
   { key: 'Water Sports', label: 'Water Sports', icon: 'wave' },
@@ -48,6 +50,19 @@ const INTEREST_FILTERS = [
   { key: 'women_friendly', label: 'Women Friendly',  sub: 'Curated for groups of women',    icon: 'account-group-outline', color: C.purple },
 ];
 
+const INTEREST_IMG_ITEMS = [
+  { key: 'verified',       label: 'Verified Adventures', desc: 'Expert-approved only'  },
+  { key: 'top_rated',      label: 'Top Rated',           desc: '4.5★ and above'        },
+  { key: 'budget',         label: 'Weekend Escapes',     desc: 'Under ₹3,000'          },
+  { key: 'women_friendly', label: 'Women Friendly',      desc: 'Safe & inclusive'       },
+];
+
+const WHY_FEATURES = [
+  { icon: 'shield-check-outline', label: 'Verified Operators', desc: 'Licensed & background-checked', color: C.primary },
+  { icon: 'medical-bag',          label: 'Safety First',       desc: 'Every experience safety-audited', color: '#b45309' },
+  { icon: 'headset',              label: '24/7 Support',       desc: 'Emergency helpline always on',  color: C.blue    },
+  { icon: 'certificate-outline',  label: 'Certified Guides',   desc: 'Govt-certified local experts',  color: C.purple  },
+];
 
 const HERO_IMAGE = require('../../assets/heroimage.png');
 
@@ -57,6 +72,16 @@ const CARD_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDbJND2DExd4tGk_meQf3SbpfLq-GLxo93wvzwp56njlr4Zhn4mIK_MyF1Z7sluqq9Mi2IKVA2bcvfxz58GOOHUfxI0tC2SNuBns2UxkhTK2dN4Z3LeA_Imjnnlef1fIkh8ynlFgxxjQZOB8nAwINlP5KZ2PE8lE0qkpSRhKgfmcNLRCFW7JbXC6ibRsL2uQUODYToVddox-MKbxwD337hZnFdme4awUJgknShzN_lJl8Ei6IyPx0HZP4SxSeRVPj9Dy-BnIvySDt4',
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBKQ_7zuwqBLhH-dTfmOPPDE8NQP5nYs1P8iv3gBb5kXzYakFrj6jj3IuBWARt0plEZ6JVJwfr3aRD6dcUmWeDu_Xmequ4XcTmd3CfCrXdrg5p3fJd0ussi8Xn1kNAMvifznmR7ikIce7hLec3PXFYeGmGdR2JOVjnPYbpIKKT9sZmO10AlAh_Gneo8I2vOWx2l3s0S0WnTj068m0aRhfZHBT7yG7oir8YPpGwXyAHaJsdAK44n5LCDlAN-OLUveDqBLeGbvLsxzZo',
 ];
+
+// Featured card dimensions (portrait 3:4)
+const PORTRAIT_W   = Math.min(width * 0.70, 320);
+const PORTRAIT_H   = PORTRAIT_W * (4 / 3);
+const PORTRAIT_GAP = 14;
+
+// Discovery carousel card dimensions
+const CARD_W   = Math.min(width * 0.56, 240);
+const CARD_H   = CARD_W * 1.22;
+const CARD_GAP = 12;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,83 +136,118 @@ function DurationPill({ duration }) {
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
 
-function FeaturedCard({ item, index, onPress, onWishlist, isWishlisted }) {
+function FeaturedCard({ item, index, isActive, onPress, onWishlist, isWishlisted }) {
   const img      = useCardImage(item, index);
   const verified = item.isVerified || item.operator?.isVerified;
+  const scaleVal = useRef(new Animated.Value(isActive ? 1.0 : 0.92)).current;
+  const opacVal  = useRef(new Animated.Value(isActive ? 1.0 : 0.65)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleVal, { toValue: isActive ? 1.0 : 0.92, tension: 280, friction: 18, useNativeDriver: true }),
+      Animated.timing(opacVal,  { toValue: isActive ? 1.0 : 0.65, duration: 200, useNativeDriver: true }),
+    ]).start();
+  }, [isActive]);
+
   return (
-    <TouchableOpacity style={s.featCard} onPress={() => onPress(item)} activeOpacity={0.93}>
-      {/* Image */}
-      <View style={s.featImgWrap}>
+    <Animated.View style={{ width: PORTRAIT_W, transform: [{ scale: scaleVal }], opacity: opacVal }}>
+      <TouchableOpacity onPress={() => onPress(item)} activeOpacity={0.93} style={s.featCardInner}>
         <Image source={{ uri: img.uri }} style={s.featImg} resizeMode="cover" onError={img.onError} />
-        <View style={s.featGradient} />
-        <TouchableOpacity style={s.wishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
+        <View style={s.featGrad1} />
+        <View style={s.featGrad2} />
+        <View style={s.featGrad3} />
+        {verified && (
+          <View style={s.featVerifiedBadge}>
+            <MaterialCommunityIcons name="shield-check" size={10} color={C.primary} />
+            <Text style={s.featVerifiedText}>Verified</Text>
+          </View>
+        )}
+        <TouchableOpacity style={s.featWishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
           <MaterialCommunityIcons
             name={isWishlisted ? 'heart' : 'heart-outline'}
-            size={16}
+            size={18}
             color={isWishlisted ? '#ef4444' : C.white}
           />
         </TouchableOpacity>
-        {/* Overlay: category + title + location */}
-        <View style={s.featOverlayContent}>
+        <View style={s.featOverlay}>
           {item.category && (
             <View style={s.featCatBadge}>
               <Text style={s.featCatText}>{item.category.toUpperCase()}</Text>
             </View>
           )}
           <Text style={s.featOverlayTitle} numberOfLines={2}>{item.title}</Text>
-          <View style={s.featOverlayRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={11} color="rgba(255,255,255,0.8)" />
-            <Text style={s.featOverlayLoc}>{item.location?.city}, {item.location?.country}</Text>
+          <View style={s.featLocRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={11} color="rgba(255,255,255,0.75)" />
+            <Text style={s.featLocText} numberOfLines={1}>
+              {item.location?.city}{item.location?.country ? `, ${item.location.country}` : ''}
+            </Text>
+          </View>
+          <View style={s.featMetaRow}>
+            <View style={s.featStarWrap}>
+              <MaterialCommunityIcons name="star" size={12} color="#FBBF24" />
+              <Text style={s.featRating}>{parseFloat(item.rating || 4.9).toFixed(1)}</Text>
+            </View>
+            {item.duration && (
+              <View style={s.featDurBadge}>
+                <Text style={s.featDurText}>{item.duration}</Text>
+              </View>
+            )}
+            <Text style={s.featPriceText}>from ₹{item.price}</Text>
           </View>
         </View>
-      </View>
-
-      {/* Info bar */}
-      <View style={s.featInfo}>
-        <View style={s.featInfoLeft}>
-          <StarRow rating={item.rating} reviewCount={item.reviewCount} />
-          {verified && <VerifiedBadge />}
-        </View>
-        <DurationPill duration={item.duration} />
-      </View>
-
-      {/* Price + CTA */}
-      <View style={s.featFooter}>
-        <View>
-          <Text style={s.featPriceNum}>
-            ₹{item.price}
-            <Text style={s.featPriceSub}> / {item.duration?.toLowerCase().includes('day') ? 'day' : 'trip'}</Text>
-          </Text>
-        </View>
-        <TouchableOpacity style={s.bookBtn} onPress={() => onPress(item)}>
-          <Text style={s.bookBtnText}>Book Now</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
-function TrendingCard({ item, index, onPress }) {
+function DiscoveryCard({ item, index, isActive, onPress, onWishlist, isWishlisted }) {
   const img      = useCardImage(item, index);
   const verified = item.isVerified || item.operator?.isVerified;
+  const scaleVal = useRef(new Animated.Value(isActive ? 1.0 : 0.93)).current;
+  const opacVal  = useRef(new Animated.Value(isActive ? 1.0 : 0.70)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleVal, { toValue: isActive ? 1.0 : 0.93, tension: 300, friction: 20, useNativeDriver: true }),
+      Animated.timing(opacVal,  { toValue: isActive ? 1.0 : 0.70, duration: 180, useNativeDriver: true }),
+    ]).start();
+  }, [isActive]);
+
   return (
-    <TouchableOpacity style={s.trendCard} onPress={() => onPress(item)} activeOpacity={0.9}>
-      <Image source={{ uri: img.uri }} style={s.trendImg} resizeMode="cover" onError={img.onError} />
-      <View style={s.trendBody}>
-        <Text style={s.trendTitle} numberOfLines={2}>{item.title}</Text>
-        <View style={s.trendMetaRow}>
-          <MaterialCommunityIcons name="map-marker-outline" size={10} color={C.onSurfaceVariant} />
-          <Text style={s.trendLoc} numberOfLines={1}>
-            {item.location?.city || 'India'}{item.duration ? `  ·  ${item.duration}` : ''}
-          </Text>
+    <Animated.View style={{ width: CARD_W, transform: [{ scale: scaleVal }], opacity: opacVal }}>
+      <TouchableOpacity onPress={() => onPress(item)} activeOpacity={0.93} style={s.discCardInner}>
+        <Image source={{ uri: img.uri }} style={s.discImg} resizeMode="cover" onError={img.onError} />
+        <View style={s.discGrad1} />
+        <View style={s.discGrad2} />
+        {verified && (
+          <View style={s.discVerifiedBadge}>
+            <MaterialCommunityIcons name="shield-check" size={9} color={C.primary} />
+            <Text style={s.discVerifiedText}>Verified</Text>
+          </View>
+        )}
+        {onWishlist && (
+          <TouchableOpacity style={s.discWishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
+            <MaterialCommunityIcons
+              name={isWishlisted ? 'heart' : 'heart-outline'}
+              size={15}
+              color={isWishlisted ? '#ef4444' : C.white}
+            />
+          </TouchableOpacity>
+        )}
+        <View style={s.discOverlay}>
+          <Text style={s.discTitle} numberOfLines={2}>{item.title}</Text>
+          <View style={s.discLocRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={10} color="rgba(255,255,255,0.72)" />
+            <Text style={s.discLoc} numberOfLines={1}>{item.location?.city || 'India'}</Text>
+          </View>
+          <View style={s.discMetaRow}>
+            <MaterialCommunityIcons name="star" size={10} color="#FBBF24" />
+            <Text style={s.discRating}>{parseFloat(item.rating || 4.9).toFixed(1)}</Text>
+            <Text style={s.discPrice}>  ₹{item.price}</Text>
+          </View>
         </View>
-        <StarRow rating={item.rating} reviewCount={item.reviewCount} size={11} />
-        <View style={s.trendBottom}>
-          <Text style={s.trendPrice}>₹{item.price}</Text>
-          {verified && <VerifiedBadge small />}
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -247,11 +307,90 @@ function WhyRow({ item, index, divider }) {
   );
 }
 
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ title, subtitle, onSeeAll }) {
+  return (
+    <View style={s.sectionHdr}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={s.sectionSub}>{subtitle}</Text> : null}
+      </View>
+      {onSeeAll && (
+        <TouchableOpacity style={s.seeAllBtn} onPress={onSeeAll} activeOpacity={0.7}>
+          <Text style={s.seeAllText}>See all</Text>
+          <MaterialCommunityIcons name="arrow-right" size={14} color={C.primary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+// ─── Carousel Section ─────────────────────────────────────────────────────────
+
+function CarouselSection({ title, subtitle, data, onSeeAll, onPress, onWishlist, wishlistIds }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  if (!data || data.length === 0) return null;
+  return (
+    <View style={s.section}>
+      <SectionHeader title={title} subtitle={subtitle} onSeeAll={onSeeAll} />
+      <FlatList
+        horizontal
+        data={data}
+        keyExtractor={(item, i) => `${i}-${item._id}`}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CARD_W + CARD_GAP}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        contentContainerStyle={s.carouselContent}
+        ItemSeparatorComponent={() => <View style={{ width: CARD_GAP }} />}
+        onMomentumScrollEnd={e => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_W + CARD_GAP));
+          setActiveIdx(Math.max(0, idx));
+        }}
+        renderItem={({ item, index }) => (
+          <DiscoveryCard
+            item={item}
+            index={index}
+            isActive={index === activeIdx}
+            onPress={onPress}
+            onWishlist={onWishlist}
+            isWishlisted={wishlistIds?.has(item._id)}
+          />
+        )}
+      />
+    </View>
+  );
+}
+
+// ─── Interest Image Card ──────────────────────────────────────────────────────
+
+function InterestImageCard({ item, index, isActive, onPress }) {
+  const imgUri = CARD_IMAGES[index % CARD_IMAGES.length];
+  return (
+    <TouchableOpacity onPress={() => onPress(item.key)} activeOpacity={0.88} style={s.intCard}>
+      <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      <View style={s.intCardOverlay} />
+      {isActive && (
+        <View style={s.intCardCheck}>
+          <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
+        </View>
+      )}
+      <View style={s.intCardContent}>
+        <Text style={s.intCardLabel}>{item.label}</Text>
+        <Text style={s.intCardDesc}>{item.desc}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function HomeScreen({ navigation }) {
   const { user }  = useAuth();
   const firstName = user?.name?.split(' ')[0] || 'Explorer';
+  const { requireAuth, promptVisible, hidePrompt } = useAuthGuard();
+
   const [search, setSearch]                 = useState('');
   const [category, setCategory]             = useState('All');
   const [activeFilter, setActiveFilter]     = useState(null);
@@ -263,6 +402,7 @@ export default function HomeScreen({ navigation }) {
     user?.wishlist?.map(w => w._id || w) || []
   ));
   const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [activeFeatIdx, setActiveFeatIdx]   = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -292,7 +432,7 @@ export default function HomeScreen({ navigation }) {
   const goToExperience = item => navigation.navigate('ExperienceDetail', { experienceId: item._id });
   const handleSearch   = () => navigation.navigate('Search', { initialSearch: search });
 
-  const handleWishlist = async (item) => {
+  const handleWishlist = requireAuth(async (item) => {
     try {
       await userAPI.toggleWishlist(item._id);
       setWishlistIds(prev => {
@@ -301,7 +441,11 @@ export default function HomeScreen({ navigation }) {
         return next;
       });
     } catch {}
-  };
+  });
+
+  // Category filter applies to all carousels in place — no scrolling
+  const handleCategoryChange = (key) => setCategory(key);
+  const handleInterestChange = (key) => setActiveFilter(prev => prev === key ? null : key);
 
   const baseList = category === 'All'
     ? allExperiences
@@ -318,28 +462,21 @@ export default function HomeScreen({ navigation }) {
     }
   })();
 
-  const trendingItems  = allExperiences.slice(0, 5);
-  const activeInterest = INTEREST_FILTERS.find(f => f.key === activeFilter);
+  const filteredFeatured = category === 'All'
+    ? featured
+    : featured.filter(e => e.category === category);
 
-  const scrollViewRef      = useRef(null);
-  const adventuresSectionY = useRef(0);
+  const filteredRecent = category === 'All'
+    ? recentlyViewed
+    : recentlyViewed.filter(e => e.category === category);
 
-  const scrollToAdventures = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: adventuresSectionY.current - 16, animated: true });
-    }, 60);
-  };
+  const displayList      = activeFilter ? filteredList : baseList;
+  const newItems         = displayList.slice(0, 8);
+  const popularItems     = displayList.slice(0, 8);
+  const weekendItems     = displayList.filter(e => parseFloat(e.price) < 4000).slice(0, 6);
+  const recommendedItems = displayList.filter(e => parseFloat(e.rating || 0) >= 4.0).slice(0, 6);
 
-  const handleCategoryChange = (key) => {
-    setCategory(key);
-    if (key !== 'All') scrollToAdventures();
-  };
-
-  const handleInterestChange = (key) => {
-    const next = activeFilter === key ? null : key;
-    setActiveFilter(next);
-    if (next) scrollToAdventures();
-  };
+  const scrollViewRef = useRef(null);
 
   if (loading) {
     return (
@@ -362,55 +499,56 @@ export default function HomeScreen({ navigation }) {
           />
         }
       >
-        {/* ── Header ── */}
-        <ImageBackground source={HERO_IMAGE} style={s.header} resizeMode="cover">
-          <View style={s.headerOverlay} />
-          <View style={s.headerNav}>
-            <Text style={s.headerLogo}>wildvora</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={s.headerAvatar}>
+        {/* ── 1. Cinematic Hero ── */}
+        <ImageBackground source={HERO_IMAGE} style={s.hero} resizeMode="cover">
+          <View style={s.heroGrad1} />
+          <View style={s.heroGrad2} />
+          <View style={s.heroGrad3} />
+          <View style={s.heroGrad4} />
+          <View style={s.heroGrad5} />
+
+          <View style={s.heroNav}>
+            <Text style={s.heroLogo}>wildvora</Text>
+            <TouchableOpacity
+              onPress={() => user ? navigation.navigate('Profile') : navigation.navigate('Login')}
+              style={s.heroAvatar}
+            >
               {user?.avatar
                 ? <Image source={{ uri: user.avatar }} style={s.avatarImg} />
-                : <Text style={s.headerAvatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>}
+                : user
+                  ? <Text style={s.heroAvatarText}>{user.name?.[0]?.toUpperCase()}</Text>
+                  : <MaterialCommunityIcons name="account-outline" size={20} color="#fff" />}
             </TouchableOpacity>
           </View>
-          <View style={s.headerGreetWrap}>
-            <Text style={s.headerGreet}>
-              {getGreeting()},{'\n'}<Text style={s.headerGreetName}>{firstName}</Text>
-            </Text>
-            <Text style={s.headerGreetSub}>Where to next?</Text>
+
+          <View style={s.heroContent}>
+            <Text style={s.heroGreetLine}>{getGreeting()},</Text>
+            <Text style={s.heroName}>{firstName} </Text>
+            <Text style={s.heroSub}>Where will adventure take you today?</Text>
           </View>
-          
-          <View style={s.statsStrip}>
-            {[
-              { num: '250+', label: 'Adventures' },
-              { num: '50+',  label: 'Operators'  },
-              { num: '4.8★', label: 'Avg Rating' },
-            ].map((item, i, arr) => (
-              <React.Fragment key={i}>
-                <View style={s.statItem}>
-                  <Text style={s.statNum}>{item.num}</Text>
-                  <Text style={s.statLabel}>{item.label}</Text>
-                </View>
-                {i < arr.length - 1 && <View style={s.statDivider} />}
-              </React.Fragment>
-            ))}
-          </View>
+        </ImageBackground>
+
+        {/* ── 2. Search Bar ── */}
+        <View style={s.searchWrap}>
           <TouchableOpacity style={s.searchPill} onPress={() => navigation.navigate('Search')} activeOpacity={0.88}>
-            <View style={s.searchPillIconWrap}>
+            <View style={s.searchIconWrap}>
               <MaterialCommunityIcons name="magnify" size={19} color={C.primary} />
             </View>
-            <View style={s.searchPillDivider} />
-            <Text style={s.searchPillText}>Destinations, treks, camps…</Text>
-            <View style={s.searchPillFilter}>
+            <View style={s.searchDivider} />
+            <Text style={s.searchPlaceholder}>Destinations, treks, camps…</Text>
+            <View style={s.searchFilterBtn}>
               <MaterialCommunityIcons name="tune-variant" size={16} color={C.onSurfaceVariant} />
             </View>
           </TouchableOpacity>
-        </ImageBackground>
+        </View>
 
-        {/* ── Category selector ── */}
+        {/* ── 3. Category Navigation ── */}
         <View style={s.catSection}>
-          <Text style={s.catHeading}>What are you looking for?</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.catRow}
+          >
             {CATEGORIES.map(cat => {
               const active = category === cat.key;
               return (
@@ -418,21 +556,15 @@ export default function HomeScreen({ navigation }) {
                   key={cat.key}
                   style={s.catItem}
                   onPress={() => handleCategoryChange(cat.key)}
-                  activeOpacity={0.75}
+                  activeOpacity={0.7}
                 >
-                  <View style={[s.catIconBg, active && s.catIconBgActive]}>
-                    <MaterialCommunityIcons
-                      name={cat.icon}
-                      size={22}
-                      color={active ? C.white : C.onSurfaceVariant}
-                    />
-                  </View>
                   <Text style={[s.catLabel, active && s.catLabelActive]}>{cat.label}</Text>
-                  {active && <View style={s.catActiveDot} />}
+                  {active && <View style={s.catUnderline} />}
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
+          <View style={s.catBorderLine} />
         </View>
 
         {/* ── Empty state ── */}
@@ -444,215 +576,173 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* ── Recently Viewed ── */}
-        {recentlyViewed.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHdr}>
-              <View>
-                <Text style={s.sectionTitle}>Recently Viewed</Text>
-                <Text style={s.sectionSub}>Pick up where you left off</Text>
-              </View>
-            </View>
-            <FlatList
-              horizontal
-              data={recentlyViewed}
-              keyExtractor={i => 'rv-' + i._id}
-              renderItem={({ item, index }) => (
-                <TrendingCard item={item} index={index} onPress={goToExperience} />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 8 }}
+        {/* ── 4. Featured This Week ── */}
+        {filteredFeatured.length > 0 && (
+          <View style={s.featSection}>
+            <SectionHeader
+              title="Featured This Week"
+              subtitle="Handpicked for the bold"
+              onSeeAll={() => navigation.navigate('Search', { featured: true })}
             />
-          </View>
-        )}
-
-        {/* ── Trending this weekend ── */}
-        {trendingItems.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHdr}>
-              <View>
-                <Text style={s.sectionTitle}>Trending This Weekend</Text>
-                <Text style={s.sectionSub}>What adventurers are booking right now</Text>
-              </View>
-            </View>
             <FlatList
               horizontal
-              data={trendingItems}
-              keyExtractor={i => 'tw-' + i._id}
-              renderItem={({ item, index }) => (
-                <TrendingCard item={item} index={index} onPress={goToExperience} />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 8 }}
-            />
-          </View>
-        )}
-
-        {/* ── Featured ── */}
-        {featured.length > 0 && (
-          <View style={s.section}>
-            <View style={s.sectionHdr}>
-              <View>
-                <Text style={s.sectionTitle}>Featured Experiences</Text>
-                <Text style={s.sectionSub}>Handpicked for the bold</Text>
-              </View>
-              <TouchableOpacity style={s.seeAllBtn} onPress={() => navigation.navigate('Search', { featured: true })}>
-                <Text style={s.seeAllText}>See all</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              horizontal
-              data={featured}
+              data={filteredFeatured}
               keyExtractor={i => i._id}
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={PORTRAIT_W + PORTRAIT_GAP}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              contentContainerStyle={s.featListContent}
+              ItemSeparatorComponent={() => <View style={{ width: PORTRAIT_GAP }} />}
+              onMomentumScrollEnd={e => {
+                const idx = Math.round(e.nativeEvent.contentOffset.x / (PORTRAIT_W + PORTRAIT_GAP));
+                setActiveFeatIdx(Math.max(0, idx));
+              }}
               renderItem={({ item, index }) => (
                 <FeaturedCard
                   item={item}
                   index={index}
+                  isActive={index === activeFeatIdx}
                   onPress={goToExperience}
                   onWishlist={handleWishlist}
                   isWishlisted={wishlistIds.has(item._id)}
                 />
               )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 8 }}
-              snapToInterval={FEATURED_CARD_WIDTH + 14}
-              decelerationRate="fast"
             />
+            <View style={s.dotRow}>
+              {filteredFeatured.map((_, i) => (
+                <View key={i} style={[s.dot, i === activeFeatIdx && s.dotActive]} />
+              ))}
+            </View>
           </View>
         )}
 
-        {/* ── Browse by interest ── */}
-        <View style={s.interestSection}>
-          <View style={s.interestSectionHdr}>
-            <Text style={s.sectionTitle}>Browse by Interest</Text>
-            <Text style={s.sectionSub}>Adventures filtered just for you</Text>
-          </View>
+        {/* ── 5. Recently Viewed ── */}
+        <CarouselSection
+          title="Recently Viewed"
+          subtitle="Pick up where you left off"
+          data={filteredRecent}
+          onPress={goToExperience}
+          onWishlist={handleWishlist}
+          wishlistIds={wishlistIds}
+        />
+
+        {/* ── 6. New on Wildvora ── */}
+        <CarouselSection
+          title="New on Wildvora"
+          subtitle="Fresh experiences just added"
+          data={newItems}
+          onSeeAll={() => navigation.navigate('Search')}
+          onPress={goToExperience}
+          onWishlist={handleWishlist}
+          wishlistIds={wishlistIds}
+        />
+
+        {/* ── 7. Popular Destinations ── */}
+        <CarouselSection
+          title="Popular Destinations"
+          subtitle="Where explorers are heading"
+          data={popularItems}
+          onSeeAll={() => navigation.navigate('Search')}
+          onPress={goToExperience}
+          onWishlist={handleWishlist}
+          wishlistIds={wishlistIds}
+        />
+
+        {/* ── 8. Weekend Escapes ── */}
+        <CarouselSection
+          title="Weekend Escapes"
+          subtitle="Short trips for the quick break"
+          data={weekendItems}
+          onSeeAll={() => navigation.navigate('Search')}
+          onPress={goToExperience}
+          onWishlist={handleWishlist}
+          wishlistIds={wishlistIds}
+        />
+
+        {/* ── 9. Recommended For You ── */}
+        <CarouselSection
+          title="Recommended For You"
+          subtitle="Curated based on your interests"
+          data={recommendedItems}
+          onSeeAll={() => navigation.navigate('Search')}
+          onPress={goToExperience}
+          onWishlist={handleWishlist}
+          wishlistIds={wishlistIds}
+        />
+
+        {/* ── 10. Browse by Interest ── */}
+        <View style={s.section}>
+          <SectionHeader title="Browse by Interest" subtitle="Discover your kind of adventure" />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.interestStrip}
+            contentContainerStyle={s.intStrip}
             decelerationRate="fast"
-            snapToInterval={INTEREST_CARD_WIDTH + 12}
+            snapToInterval={160}
           >
-            {INTEREST_FILTERS.map(f => {
-              const active = activeFilter === f.key;
-              return (
-                <TouchableOpacity
-                  key={f.key}
-                  style={[s.interestTile, { backgroundColor: f.color }, active && s.interestTileActive]}
-                  onPress={() => handleInterestChange(f.key)}
-                  activeOpacity={0.88}
-                >
-                  <MaterialCommunityIcons name={f.icon} size={92} color="rgba(255,255,255,0.09)" style={s.interestWatermark} />
-                  {active && (
-                    <View style={s.interestCheckBadge}>
-                      <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
-                    </View>
-                  )}
-                  <View style={s.interestIconBubble}>
-                    <MaterialCommunityIcons name={f.icon} size={26} color="#fff" />
-                  </View>
-                  <View style={{ flex: 1 }} />
-                  <Text style={s.interestTileLabel}>{f.label}</Text>
-                  <Text style={s.interestTileSub}>{f.sub}</Text>
-                  <View style={s.interestTileBottom}>
-                    <Text style={s.interestTileExplore}>Explore</Text>
-                    <MaterialCommunityIcons name="arrow-right" size={14} color="rgba(255,255,255,0.75)" />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {INTEREST_IMG_ITEMS.map((item, index) => (
+              <InterestImageCard
+                key={item.key}
+                item={item}
+                index={index}
+                isActive={activeFilter === item.key}
+                onPress={handleInterestChange}
+              />
+            ))}
           </ScrollView>
-        </View>
-
-        {/* ── All adventures (filtered) ── */}
-        <View
-          style={s.section}
-          onLayout={e => { adventuresSectionY.current = e.nativeEvent.layout.y; }}
-        >
-          <View style={s.sectionHdr}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.sectionTitle}>
-                {activeInterest ? activeInterest.label : category === 'All' ? 'All Adventures' : category}
-              </Text>
-              <Text style={s.sectionSub}>
-                {filteredList.length} experience{filteredList.length !== 1 ? 's' : ''} available
-              </Text>
-            </View>
-            {(category !== 'All' || activeFilter) && (
-              <TouchableOpacity
-                style={s.clearBtn}
-                onPress={() => { setCategory('All'); setActiveFilter(null); }}
-              >
-                <MaterialCommunityIcons name="close" size={13} color={C.primary} />
-                <Text style={s.clearText}>Clear</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {filteredList.length > 0 ? (
-            <View style={s.rowList}>
-              {filteredList.map((item, i) => (
-                <ExperienceRow key={'row-' + item._id} item={item} index={i} onPress={goToExperience} />
-              ))}
-            </View>
-          ) : (
-            <View style={s.emptyBox}>
-              <MaterialCommunityIcons name="compass-off-outline" size={32} color="#D1D5DB" />
-              <Text style={s.emptyText}>No experiences match these filters.</Text>
-            </View>
+          {activeFilter && (
+            <TouchableOpacity
+              style={s.clearFilterBtn}
+              onPress={() => setActiveFilter(null)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="close-circle-outline" size={14} color={C.onSurfaceVariant} />
+              <Text style={s.clearFilterText}>Clear filter</Text>
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* ── Why Wildvora ── */}
-        <View style={s.whySection}>
-          <View style={s.whySectionHdr}>
-            <Text style={s.sectionTitle}>Why Wildvora</Text>
-            <Text style={s.sectionSub}>What sets us apart</Text>
-          </View>
-          {[
-            { num: '01', icon: 'shield-check-outline', color: C.primary, title: 'Verified Operators',  desc: 'Background-checked and licensed operators only.' },
-            { num: '02', icon: 'medical-bag',          color: '#b45309', title: 'Safety Audited',       desc: 'Every experience passes our safety audit.' },
-            { num: '03', icon: 'headset',              color: C.blue,    title: 'Emergency Support',    desc: '24/7 helpline available on every booking.' },
-            { num: '04', icon: 'certificate-outline',  color: C.purple,  title: 'Certified Guides',     desc: 'Govt-certified local guides, always.' },
-          ].map((item, i, arr) => (
-            <WhyRow key={i} item={item} index={i} divider={i < arr.length - 1} />
-          ))}
-        </View>
-
-        {/* ── Safety & Prep Guides ── */}
-        <View style={s.safetySection}>
-          <View style={s.safetySectionHdr}>
-            <Text style={s.sectionTitle}>Safety & Prep Guides</Text>
-            <Text style={s.sectionSub}>Read before you head out</Text>
-          </View>
-          <View style={s.safetyStack}>
+        {/* ── 11. Trusted by Explorers ── */}
+        <View style={s.statsSection}>
+          <Text style={s.statsSectionEyebrow}>TRUSTED BY EXPLORERS</Text>
+          <View style={s.statsRow}>
             {[
-              { cat: 'Trekking',     catColor: C.primary, icon: 'summit', title: 'High-Altitude AMS',      desc: 'Acclimatisation, symptoms & prevention', readTime: '5 min' },
-              { cat: 'Water Sports', catColor: C.blue,    icon: 'wave',   title: 'River Rafting Grades',   desc: 'Rapid grades & what they mean for you',   readTime: '3 min' },
-              { cat: 'Jungle',       catColor: '#7c3aed', icon: 'tree',   title: 'Jungle Code of Conduct', desc: 'Wildlife safety rules & field etiquette',  readTime: '4 min' },
-            ].map((g, i) => (
-              <TouchableOpacity key={i} style={s.safetyCard} activeOpacity={0.82}>
-                <View style={[s.safetyCardBar, { backgroundColor: g.catColor }]} />
-                <View style={s.safetyCardBody}>
-                  <View style={s.safetyCardHeader}>
-                    <View style={[s.safetyCardIconWrap, { backgroundColor: g.catColor + '14' }]}>
-                      <MaterialCommunityIcons name={g.icon} size={15} color={g.catColor} />
-                    </View>
-                    <Text style={[s.safetyCardCat, { color: g.catColor }]}>{g.cat}</Text>
-                    <View style={{ flex: 1 }} />
-                    <Text style={s.safetyReadTime}>{g.readTime} read</Text>
-                  </View>
-                  <Text style={s.safetyCardTitle}>{g.title}</Text>
-                  <Text style={s.safetyCardDesc}>{g.desc}</Text>
+              { num: '250+', label: 'Experiences'       },
+              { num: '50+',  label: 'Verified Operators' },
+              { num: '4.8★', label: 'Average Rating'    },
+            ].map((item, i, arr) => (
+              <React.Fragment key={i}>
+                <View style={s.statItem}>
+                  <Text style={s.statNum}>{item.num}</Text>
+                  <Text style={s.statLabel}>{item.label}</Text>
                 </View>
-                <MaterialCommunityIcons name="chevron-right" size={18} color="#C4C9CE" style={s.safetyCardArrow} />
-              </TouchableOpacity>
+                {i < arr.length - 1 && <View style={s.statDivider} />}
+              </React.Fragment>
             ))}
           </View>
         </View>
 
-        {/* ── Pro card ── */}
+        {/* ── 12. Why Wildvora ── */}
+        <View style={s.whySection}>
+          <View style={{ marginBottom: 20 }}>
+            <Text style={s.sectionTitle}>Why Wildvora</Text>
+            <Text style={s.sectionSub}>What sets us apart</Text>
+          </View>
+          <View style={s.whyGrid}>
+            {WHY_FEATURES.map((f, i) => (
+              <View key={i} style={s.whyCard}>
+                <View style={[s.whyCardIcon, { backgroundColor: f.color + '15' }]}>
+                  <MaterialCommunityIcons name={f.icon} size={22} color={f.color} />
+                </View>
+                <Text style={s.whyCardTitle}>{f.label}</Text>
+                <Text style={s.whyCardDesc}>{f.desc}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* ── 13. Pro card (bottom) ── */}
         <View style={s.proCard}>
           <Text style={s.proEyebrow}>MEMBERSHIP</Text>
           <Text style={s.proTitle}>Wildvora Pro</Text>
@@ -671,6 +761,13 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity style={s.aiFab} onPress={() => navigation.navigate('AIChat')} activeOpacity={0.88}>
         <MaterialCommunityIcons name="robot-outline" size={22} color={C.white} />
       </TouchableOpacity>
+
+      <AuthPromptSheet
+        visible={promptVisible}
+        onDismiss={hidePrompt}
+        onSignUp={() => { hidePrompt(); navigation.navigate('Register'); }}
+        onSignIn={() => { hidePrompt(); navigation.navigate('Login'); }}
+      />
     </SafeAreaView>
   );
 }
@@ -681,113 +778,151 @@ const s = StyleSheet.create({
   safe:     { flex: 1, backgroundColor: C.background },
   loadWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.background },
 
-  /* Shared */
-  iconBtn:    { padding: 4 },
-  avatarImg:  { width: 36, height: 36, borderRadius: 18 },
+  avatarImg: { width: 36, height: 36, borderRadius: 18 },
 
-  /* Header */
-  header:            { paddingBottom: 22, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.15)' },
-  headerOverlay:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.38)' },
-  headerNav:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingTop: 14, paddingBottom: 20 },
-  headerLogo:        { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  headerAvatar:      { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
-  headerAvatarText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
-  headerGreetWrap:   { paddingHorizontal: 22, marginBottom: 22 },
-  headerGreet:       { fontSize: 30, fontWeight: '700', color: '#fff', letterSpacing: -0.5, lineHeight: 38 },
-  headerGreetName:   { fontWeight: '900', color: '#fff' },
-  headerGreetSub:    { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 5 },
-  searchPill:        { marginHorizontal: 22, marginTop: 26, flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 50, paddingVertical: 13, paddingLeft: 13, paddingRight: 13, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 18, elevation: 8, borderWidth: 1, borderColor: C.outlineVariant },
-  searchPillIconWrap:{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.primary + '12', justifyContent: 'center', alignItems: 'center' },
-  searchPillDivider: { width: 1, height: 22, backgroundColor: C.outlineVariant, marginHorizontal: 12 },
-  searchPillText:    { flex: 1, fontSize: 15, color: '#a0afa8', fontWeight: '500' },
-  searchPillFilter:  { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceVariant, justifyContent: 'center', alignItems: 'center' },
-  statsStrip:        { flexDirection: 'row', alignItems: 'center', marginHorizontal: 22, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)' },
-  statItem:          { flex: 1, alignItems: 'center' },
-  statNum:           { fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
-  statLabel:         { fontSize: 11, color: 'rgba(255,255,255,0.72)', fontWeight: '500', marginTop: 3 },
-  statDivider:       { width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.2)' },
+  /* ── Hero ── */
+  hero:      { height: 400, justifyContent: 'flex-end' },
+  heroGrad1: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '100%', backgroundColor: 'rgba(0,0,0,0.09)' },
+  heroGrad2: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '78%',  backgroundColor: 'rgba(0,0,0,0.10)' },
+  heroGrad3: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '57%',  backgroundColor: 'rgba(0,0,0,0.11)' },
+  heroGrad4: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%',  backgroundColor: 'rgba(0,0,0,0.13)' },
+  heroGrad5: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '22%',  backgroundColor: 'rgba(0,0,0,0.15)' },
+  heroNav:         { position: 'absolute', top: 14, left: 22, right: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroLogo:        { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
+  heroAvatar:      { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)' },
+  heroAvatarText:  { fontSize: 14, fontWeight: '700', color: '#fff' },
+  heroContent:     { paddingHorizontal: 22, paddingBottom: 48 },
+  heroGreetLine:   { fontSize: 16, fontWeight: '500', color: 'rgba(255,255,255,0.75)', letterSpacing: 0.2, marginBottom: 4 },
+  heroName:        { fontSize: 44, fontWeight: '800', color: '#fff', letterSpacing: -1.5, lineHeight: 52, marginBottom: 10 },
+  heroSub:         { fontSize: 15, color: 'rgba(255,255,255,0.70)', lineHeight: 22 },
 
-  /* Category selector */
-  catSection: { backgroundColor: C.surface, paddingTop: 20, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
-  catHeading: { fontSize: 13, fontWeight: '700', color: C.onSurfaceVariant, paddingHorizontal: 20, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.8 },
-  catRow:     { paddingHorizontal: 20, gap: 20 },
-  catItem:    { alignItems: 'center', gap: 7 },
-  catIconBg:      { width: 54, height: 54, borderRadius: 27, backgroundColor: C.surfaceVariant, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  catIconBgActive:{ backgroundColor: C.primary, borderColor: C.primary, shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 7, elevation: 5 },
-  catLabel:       { fontSize: 11, fontWeight: '600', color: C.onSurfaceVariant, textAlign: 'center' },
-  catLabelActive: { color: C.primary, fontWeight: '700' },
-  catActiveDot:   { width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary, marginTop: 2 },
+  /* ── Search ── */
+  searchWrap:       { paddingHorizontal: 20, marginTop: -24, zIndex: 10 },
+  searchPill:       { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 16, paddingVertical: 13, paddingHorizontal: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
+  searchIconWrap:   { width: 36, height: 36, borderRadius: 10, backgroundColor: C.primary + '12', justifyContent: 'center', alignItems: 'center' },
+  searchDivider:    { width: 1, height: 22, backgroundColor: C.outlineVariant, marginHorizontal: 12 },
+  searchPlaceholder:{ flex: 1, fontSize: 14, color: '#9CA3AF', fontWeight: '500' },
+  searchFilterBtn:  { width: 36, height: 36, borderRadius: 10, backgroundColor: C.surfaceVariant, justifyContent: 'center', alignItems: 'center' },
 
-  /* Section layout */
-  section:    { paddingHorizontal: 20, paddingTop: 32 },
-  sectionHdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, letterSpacing: -0.2 },
+  /* ── Category navigation ── */
+  catSection:     { marginTop: 20 },
+  catRow:         { paddingHorizontal: 20, gap: 28, paddingBottom: 12 },
+  catItem:        { alignItems: 'center', paddingBottom: 2 },
+  catLabel:       { fontSize: 14, fontWeight: '500', color: C.onSurfaceVariant, letterSpacing: 0.1 },
+  catLabelActive: { fontWeight: '700', color: C.onSurface },
+  catUnderline:   { height: 2, width: '100%', minWidth: 24, backgroundColor: C.primary, borderRadius: 1, marginTop: 6 },
+  catBorderLine:  { height: StyleSheet.hairlineWidth, backgroundColor: C.outlineVariant },
+
+  /* ── Generic section ── */
+  section:      { paddingTop: 36 },
+  sectionHdr:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 18, paddingHorizontal: 20 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: C.onSurface, letterSpacing: -0.3 },
   sectionSub:   { fontSize: 12, color: C.onSurfaceVariant, marginTop: 3 },
-  seeAllBtn:  { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: '#D1D5DB' },
-  seeAllText: { fontSize: 12, fontWeight: '600', color: C.onSurfaceVariant },
+  seeAllBtn:    { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  seeAllText:   { fontSize: 13, fontWeight: '600', color: C.primary },
 
-  /* Star row */
+  /* ── Star row ── */
   starRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   starNum:     { fontSize: 12, fontWeight: '700', color: C.onSurface },
   starDot:     { fontSize: 11, color: C.onSurfaceVariant },
   starReviews: { fontSize: 11, color: C.onSurfaceVariant },
 
-  /* Verified badge */
+  /* ── Verified badge ── */
   verifiedBadge:      { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: '#F0FAF4', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, borderWidth: 1, borderColor: '#A7F3D0', marginTop: 5 },
   verifiedBadgeSmall: { paddingHorizontal: 4, paddingVertical: 2, marginTop: 0 },
   verifiedText:       { fontSize: 11, fontWeight: '600', color: C.primary },
 
-  /* Duration pill */
+  /* ── Duration pill ── */
   durationPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.surfaceVariant, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   durationText: { fontSize: 11, fontWeight: '600', color: C.onSurfaceVariant },
 
-  /* Featured cards */
-  featCard:    { width: FEATURED_CARD_WIDTH, marginRight: 14, backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 },
-  featImgWrap: { height: 190, position: 'relative' },
-  featImg:     { width: '100%', height: '100%' },
-  featGradient:{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.15)' },
-  wishBtn:     { position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
-  featOverlayContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, paddingBottom: 14, backgroundColor: 'rgba(0,0,0,0.48)' },
-  featCatBadge:{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 4, marginBottom: 6 },
-  featCatText: { fontSize: 9, fontWeight: '700', color: C.white, letterSpacing: 1, textTransform: 'uppercase' },
-  featOverlayTitle: { fontSize: 16, fontWeight: '700', color: C.white, lineHeight: 21, marginBottom: 4 },
-  featOverlayRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  featOverlayLoc: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-  featInfo:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
-  featInfoLeft:    { gap: 6, flex: 1 },
-  featFooter:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 },
-  featPriceNum:    { fontSize: 18, fontWeight: '800', color: C.primary },
-  featPriceSub:    { fontSize: 11, fontWeight: '400', color: C.onSurfaceVariant },
-  bookBtn:         { paddingHorizontal: 18, paddingVertical: 9, backgroundColor: C.primary, borderRadius: 9 },
-  bookBtnText:     { fontSize: 13, fontWeight: '700', color: C.white },
+  /* ── Featured This Week (portrait) ── */
+  featSection:      { paddingTop: 36 },
+  featListContent:  { paddingHorizontal: 20, paddingBottom: 8 },
+  featCardInner:    { width: PORTRAIT_W, height: PORTRAIT_H, borderRadius: 22, overflow: 'hidden' },
+  featImg:          { width: '100%', height: '100%' },
+  featGrad1:        { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
+  featGrad2:        { position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%', backgroundColor: 'rgba(0,0,0,0.34)' },
+  featGrad3:        { position: 'absolute', bottom: 0, left: 0, right: 0, height: '32%', backgroundColor: 'rgba(0,0,0,0.30)' },
+  featVerifiedBadge:{ position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.93)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  featVerifiedText: { fontSize: 10, fontWeight: '700', color: C.primary, letterSpacing: 0.3 },
+  featWishBtn:      { position: 'absolute', top: 12, right: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
+  featOverlay:      { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, paddingBottom: 20 },
+  featCatBadge:     { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, marginBottom: 8 },
+  featCatText:      { fontSize: 9, fontWeight: '700', color: C.white, letterSpacing: 1.2, textTransform: 'uppercase' },
+  featOverlayTitle: { fontSize: 20, fontWeight: '700', color: C.white, lineHeight: 26, marginBottom: 6, letterSpacing: -0.3 },
+  featLocRow:       { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 10 },
+  featLocText:      { fontSize: 12, color: 'rgba(255,255,255,0.75)', flex: 1 },
+  featMetaRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featStarWrap:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  featRating:       { fontSize: 12, fontWeight: '700', color: '#fff' },
+  featDurBadge:     { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 4 },
+  featDurText:      { fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
+  featPriceText:    { fontSize: 13, fontWeight: '700', color: '#fff', marginLeft: 'auto' },
 
-  /* Trending cards */
-  trendCard:    { width: 165, marginRight: 12, backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  trendImg:     { width: '100%', height: 115 },
-  trendBody:    { padding: 10, gap: 5 },
-  trendTitle:   { fontSize: 13, fontWeight: '700', color: C.onSurface, lineHeight: 18 },
-  trendMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  trendLoc:     { fontSize: 11, color: C.onSurfaceVariant, flex: 1 },
-  trendBottom:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
-  trendPrice:   { fontSize: 14, fontWeight: '800', color: C.primary },
+  /* Dot indicators */
+  dotRow:    { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 14, paddingBottom: 4 },
+  dot:       { width: 5, height: 5, borderRadius: 2.5, backgroundColor: C.outlineVariant },
+  dotActive: { width: 16, borderRadius: 3, backgroundColor: C.primary },
 
-  /* Browse by interest — horizontal filmstrip */
-  interestSection:     { paddingTop: 32 },
-  interestSectionHdr:  { paddingHorizontal: 22, marginBottom: 18 },
-  interestStrip:       { paddingHorizontal: 22, gap: 12 },
-  interestTile:        { width: INTEREST_CARD_WIDTH, height: 190, borderRadius: 18, padding: 16, overflow: 'hidden', justifyContent: 'flex-start' },
-  interestTileActive:  { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 6 },
-  interestWatermark:   { position: 'absolute', right: -8, bottom: -8 },
-  interestCheckBadge:  { position: 'absolute', top: 12, right: 12 },
-  interestIconBubble:  { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.22)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  interestTileLabel:   { fontSize: 15, fontWeight: '800', color: '#fff', letterSpacing: -0.2, marginBottom: 4 },
-  interestTileSub:     { fontSize: 11, color: 'rgba(255,255,255,0.78)', lineHeight: 15, marginBottom: 12 },
-  interestTileBottom:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  interestTileExplore: { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
+  /* ── Discovery carousel cards ── */
+  carouselContent: { paddingHorizontal: 20, paddingBottom: 4 },
+  discCardInner:   { width: CARD_W, height: CARD_H, borderRadius: 18, overflow: 'hidden' },
+  discImg:         { width: '100%', height: '100%' },
+  discGrad1:       { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.08)' },
+  discGrad2:       { position: 'absolute', bottom: 0, left: 0, right: 0, height: '52%', backgroundColor: 'rgba(0,0,0,0.50)' },
+  discVerifiedBadge:{ position: 'absolute', top: 10, left: 10, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
+  discVerifiedText: { fontSize: 9, fontWeight: '700', color: C.primary },
+  discWishBtn:     { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center' },
+  discOverlay:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14, paddingBottom: 16 },
+  discTitle:       { fontSize: 14, fontWeight: '700', color: C.white, lineHeight: 19, marginBottom: 4, letterSpacing: -0.2 },
+  discLocRow:      { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 5 },
+  discLoc:         { fontSize: 11, color: 'rgba(255,255,255,0.72)', flex: 1 },
+  discMetaRow:     { flexDirection: 'row', alignItems: 'center' },
+  discRating:      { fontSize: 11, fontWeight: '700', color: '#fff', marginLeft: 3 },
+  discPrice:       { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
 
-  /* Experience row */
-  rowList:    { gap: 12 },
-  rowCard:    { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+
+  /* ── Interest image cards ── */
+  intStrip:        { paddingLeft: 20, paddingRight: 20, gap: 10 },
+  intCard:         { width: 150, height: 186, borderRadius: 16, overflow: 'hidden', justifyContent: 'flex-end' },
+  intCardOverlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.42)' },
+  intCardCheck:    { position: 'absolute', top: 10, right: 10 },
+  intCardContent:  { padding: 14 },
+  intCardLabel:    { fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 17, marginBottom: 3, letterSpacing: -0.1 },
+  intCardDesc:     { fontSize: 11, color: 'rgba(255,255,255,0.72)' },
+
+  clearFilterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12, alignSelf: 'flex-start', marginLeft: 20 },
+  clearFilterText: { fontSize: 12, color: C.onSurfaceVariant, fontWeight: '500' },
+
+  /* ── Trusted by Explorers ── */
+  statsSection:        { marginHorizontal: 20, marginTop: 40, padding: 24, backgroundColor: C.surface, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  statsSectionEyebrow: { fontSize: 10, fontWeight: '700', color: C.onSurfaceVariant, letterSpacing: 2, textAlign: 'center', marginBottom: 20 },
+  statsRow:            { flexDirection: 'row', alignItems: 'center' },
+  statItem:            { flex: 1, alignItems: 'center' },
+  statNum:             { fontSize: 28, fontWeight: '800', color: C.primary, letterSpacing: -0.5 },
+  statLabel:           { fontSize: 11, color: C.onSurfaceVariant, fontWeight: '500', marginTop: 4, textAlign: 'center' },
+  statDivider:         { width: 1, height: 36, backgroundColor: C.outlineVariant },
+
+  /* ── Why Wildvora (2×2 grid) ── */
+  whySection: { marginTop: 40, paddingHorizontal: 20 },
+  whyGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  whyCard:    { width: (width - 52) / 2, backgroundColor: C.surface, borderRadius: 16, padding: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  whyCardIcon:{ width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  whyCardTitle:{ fontSize: 13, fontWeight: '700', color: C.onSurface, marginBottom: 4, letterSpacing: -0.1 },
+  whyCardDesc: { fontSize: 11, color: C.onSurfaceVariant, lineHeight: 16 },
+
+  /* kept for WhyRow component (defined, not rendered) */
+  whyRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 15, gap: 14 },
+  whyNum:     { fontSize: 11, fontWeight: '800', color: '#D1D5DB', letterSpacing: 0.5, width: 20 },
+  whyIconDot: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
+  whyRowBody: { flex: 1 },
+  whyRowTitle:{ fontSize: 14, fontWeight: '700', color: C.onSurface, marginBottom: 2 },
+  whyRowDesc: { fontSize: 12, color: C.onSurfaceVariant, lineHeight: 17 },
+  whyDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.outlineVariant, marginHorizontal: 22 },
+
+  /* ── ExperienceRow (defined, not rendered) ── */
+  rowCard:    { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
   rowImg:     { width: 110, height: 130 },
   rowBody:    { flex: 1, padding: 12, justifyContent: 'space-between' },
   rowCat:     { fontSize: 10, fontWeight: '700', color: C.onSurfaceVariant, textTransform: 'uppercase', letterSpacing: 0.6 },
@@ -800,52 +935,22 @@ const s = StyleSheet.create({
   rowPrice:   { fontSize: 16, fontWeight: '800', color: C.primary },
   rowPriceSub:{ fontSize: 11, color: C.onSurfaceVariant, marginTop: 1 },
 
-  /* Clear filter */
-  clearBtn:  { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1, borderColor: C.primary },
-  clearText: { fontSize: 12, fontWeight: '600', color: C.primary },
-
-  /* Empty states */
+  /* ── Empty states ── */
   emptyFull:     { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40, gap: 12 },
   emptyFullTitle:{ fontSize: 17, fontWeight: '700', color: C.onSurface },
   emptyFullSub:  { fontSize: 13, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 19 },
   emptyBox:      { alignItems: 'center', paddingVertical: 32, gap: 10, backgroundColor: C.surface, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
   emptyText:     { fontSize: 13, color: C.onSurfaceVariant, textAlign: 'center' },
 
-  /* Why Wildvora — numbered editorial rows */
-  whySection:    { marginTop: 32, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.outlineVariant },
-  whySectionHdr: { paddingHorizontal: 22, paddingTop: 24, marginBottom: 8 },
-  whyRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 15, gap: 14 },
-  whyNum:        { fontSize: 11, fontWeight: '800', color: '#D1D5DB', letterSpacing: 0.5, width: 20 },
-  whyIconDot:    { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  whyRowBody:    { flex: 1 },
-  whyRowTitle:   { fontSize: 14, fontWeight: '700', color: C.onSurface, marginBottom: 2 },
-  whyRowDesc:    { fontSize: 12, color: C.onSurfaceVariant, lineHeight: 17 },
-  whyDivider:    { height: StyleSheet.hairlineWidth, backgroundColor: C.outlineVariant, marginHorizontal: 22 },
-
-  /* Safety & Prep Guides — accent-bar cards */
-  safetySection:     { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.outlineVariant, marginTop: 32, paddingBottom: 8 },
-  safetySectionHdr:  { paddingHorizontal: 22, paddingTop: 24, marginBottom: 16 },
-  safetyStack:       { paddingHorizontal: 22, gap: 12 },
-  safetyCard:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
-  safetyCardBar:     { width: 4, alignSelf: 'stretch' },
-  safetyCardBody:    { flex: 1, paddingHorizontal: 14, paddingVertical: 14 },
-  safetyCardHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  safetyCardIconWrap:{ width: 26, height: 26, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
-  safetyCardCat:     { fontSize: 12, fontWeight: '700' },
-  safetyReadTime:    { fontSize: 11, color: C.onSurfaceVariant, fontWeight: '500' },
-  safetyCardTitle:   { fontSize: 15, fontWeight: '700', color: C.onSurface, letterSpacing: -0.2, marginBottom: 4 },
-  safetyCardDesc:    { fontSize: 12, color: C.onSurfaceVariant, lineHeight: 17 },
-  safetyCardArrow:   { paddingRight: 14 },
-
-  /* Pro card */
-  proCard:    { margin: 20, marginTop: 32, backgroundColor: C.primary, borderRadius: 18, padding: 28, alignItems: 'center' },
+  /* ── Pro card ── */
+  proCard:    { margin: 20, marginTop: 40, backgroundColor: C.primary, borderRadius: 20, padding: 28, alignItems: 'center' },
   proEyebrow: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.55)', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' },
-  proTitle:   { fontSize: 24, fontWeight: '800', color: C.white, marginBottom: 10, letterSpacing: -0.3 },
-  proBody:    { fontSize: 14, color: 'rgba(255,255,255,0.72)', textAlign: 'center', lineHeight: 21, marginBottom: 24 },
-  proBtn:     { paddingVertical: 13, paddingHorizontal: 32, backgroundColor: C.white, borderRadius: 10 },
+  proTitle:   { fontSize: 26, fontWeight: '800', color: C.white, marginBottom: 10, letterSpacing: -0.5 },
+  proBody:    { fontSize: 14, color: 'rgba(255,255,255,0.72)', textAlign: 'center', lineHeight: 22, marginBottom: 26 },
+  proBtn:     { paddingVertical: 14, paddingHorizontal: 36, backgroundColor: C.white, borderRadius: 12 },
   proBtnText: { color: C.primary, fontWeight: '800', fontSize: 14 },
 
-  /* AI FAB */
+  /* ── AI FAB ── */
   aiFab: {
     position: 'absolute', bottom: 24, right: 20,
     width: 50, height: 50, borderRadius: 25,

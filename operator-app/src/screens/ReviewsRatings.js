@@ -3,12 +3,11 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { operatorAPI } from '../services/api';
 
-// ── Star row ─────────────────────────────────────────────
-const Stars = ({ rating, size = 16 }) => (
+const Stars = ({ rating, size = 15 }) => (
   <View style={{ flexDirection: 'row', gap: 2 }}>
     {[1, 2, 3, 4, 5].map(i => (
       <Ionicons
@@ -21,24 +20,21 @@ const Stars = ({ rating, size = 16 }) => (
   </View>
 );
 
-// ── Rating bar ───────────────────────────────────────────
-const RatingBar = ({ star, pct, color }) => (
-  <View style={styles.ratingBarRow}>
-    <Text style={styles.ratingBarStar}>{star}</Text>
-    <View style={styles.ratingBarTrack}>
-      <View style={[styles.ratingBarFill, { width: `${pct}%`, backgroundColor: color || theme.primary }]} />
-    </View>
-    <Text style={styles.ratingBarPct}>{pct}%</Text>
-  </View>
-);
+const STAR_CHIPS = [
+  { label: 'All', value: 'All' },
+  { label: '5★', value: '5' },
+  { label: '4★', value: '4' },
+  { label: '3★', value: '3' },
+  { label: '2★', value: '2' },
+  { label: '1★', value: '1' },
+];
 
 export default function ReviewsRatings() {
   const [reviews, setReviews]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError]           = useState('');
-  const [filterRating, setFilterRating] = useState('All'); // 'All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filterRating, setFilterRating] = useState('All');
 
   const [replyModal, setReplyModal] = useState(null);
   const [replyText,  setReplyText]  = useState('');
@@ -63,14 +59,9 @@ export default function ReviewsRatings() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+  useEffect(() => { fetchReviews(); }, [fetchReviews]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchReviews(true);
-  };
+  const onRefresh = () => { setRefreshing(true); fetchReviews(true); };
 
   const handlePostReply = async () => {
     if (!replyText.trim() || !replyModal) return;
@@ -95,7 +86,6 @@ export default function ReviewsRatings() {
     }
   };
 
-  // Compute stats
   const totalReviewsCount = reviews.length;
   const avgRating = totalReviewsCount > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviewsCount).toFixed(1)
@@ -107,228 +97,216 @@ export default function ReviewsRatings() {
     if (counts[rounded] !== undefined) counts[rounded]++;
   });
 
-  const getPct = (star) => {
-    if (totalReviewsCount === 0) return 0;
-    return Math.round((counts[star] / totalReviewsCount) * 100);
-  };
+  const getPct = (star) =>
+    totalReviewsCount === 0 ? 0 : Math.round((counts[star] / totalReviewsCount) * 100);
 
-  // Filter logic
   const filteredReviews = reviews.filter(r => {
     if (filterRating === 'All') return true;
-    const starMap = {
-      '5 Stars': 5,
-      '4 Stars': 4,
-      '3 Stars': 3,
-      '2 Stars': 2,
-      '1 Star': 1
-    };
-    return r.rating === starMap[filterRating];
+    return r.rating === parseInt(filterRating);
   });
 
   return (
     <View style={{ flex: 1 }}>
-    <ScrollView
-      style={styles.screen}
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 32 }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.primary]} />
-      }
-    >
-      {/* Average Rating Card */}
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>AVERAGE RATING</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
-          <Text style={styles.avgNumber}>{avgRating}</Text>
-          <Text style={styles.avgDenom}>/ 5</Text>
+      <ScrollView
+        style={styles.screen}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+        }
+      >
+        {/* Page title */}
+        <View style={styles.pageHeader}>
+          <Text style={styles.pageTitle}>Reviews</Text>
+          {totalReviewsCount > 0 && (
+            <Text style={styles.pageSubtitle}>{totalReviewsCount} verified review{totalReviewsCount > 1 ? 's' : ''}</Text>
+          )}
         </View>
-        <Stars rating={Math.round(parseFloat(avgRating))} size={20} />
-        <Text style={styles.reviewCount}>Based on {totalReviewsCount} verified reviews</Text>
-      </View>
 
-      {/* Rating Distribution */}
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>RATING DISTRIBUTION</Text>
-        <View style={{ marginTop: 16, gap: 12 }}>
-          <RatingBar star={5} pct={getPct(5)} color={theme.primary} />
-          <RatingBar star={4} pct={getPct(4)} color={theme.primary} />
-          <RatingBar star={3} pct={getPct(3)} color={theme.primaryFixedDim} />
-          <RatingBar star={2} pct={getPct(2)} color={theme.tertiary} />
-          <RatingBar star={1} pct={getPct(1)} color={theme.danger} />
+        {/* Overview card: avg + distribution side by side */}
+        <View style={styles.overviewCard}>
+          <View style={styles.overviewLeft}>
+            <Text style={styles.avgNum}>{avgRating}</Text>
+            <Stars rating={Math.round(parseFloat(avgRating))} size={17} />
+            <Text style={styles.avgLabel}>out of 5</Text>
+          </View>
+
+          <View style={styles.overviewDivider} />
+
+          <View style={styles.overviewRight}>
+            {[5, 4, 3, 2, 1].map(star => {
+              const pct = getPct(star);
+              return (
+                <View key={star} style={styles.barRow}>
+                  <Text style={styles.barStar}>{star}</Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: `${pct}%` }]} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         </View>
-      </View>
 
-      {/* Performance Banner */}
-      {totalReviewsCount > 0 && parseFloat(avgRating) >= 4.5 && (
-        <View style={styles.performanceCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.performanceTitle}>Top Host Status</Text>
-            <Text style={styles.performanceText}>
-              Your average rating is exceptional. Keep providing amazing experiences to your guests!
+        {/* Top host banner */}
+        {totalReviewsCount > 0 && parseFloat(avgRating) >= 4.5 && (
+          <View style={styles.topHostBanner}>
+            <Ionicons name="ribbon-outline" size={16} color={theme.primary} />
+            <Text style={styles.topHostText}>
+              Top rated host · Keep up the great work!
             </Text>
           </View>
-          <Feather name="trending-up" size={36} color="rgba(255,255,255,0.3)" />
+        )}
+
+        {/* Filter chips + reviews header */}
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Reviews</Text>
         </View>
-      )}
 
-      {/* Recent Reviews header */}
-      <View style={[styles.rowBetween, { marginBottom: 12, marginTop: 4 }]}>
-        <Text style={styles.recentTitle}>Recent Reviews</Text>
-        <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilterModal(true)}>
-          <Text style={styles.filterBtnText}>Filter: {filterRating}</Text>
-          <Ionicons name="filter" size={13} color={theme.text} style={{ marginLeft: 4 }} />
-        </TouchableOpacity>
-      </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipScroll}
+          contentContainerStyle={styles.chipContent}
+        >
+          {STAR_CHIPS.map(chip => (
+            <TouchableOpacity
+              key={chip.value}
+              style={[styles.chip, filterRating === chip.value && styles.chipActive]}
+              onPress={() => setFilterRating(chip.value)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, filterRating === chip.value && styles.chipTextActive]}>
+                {chip.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-      {/* Error state */}
-      {error ? (
-        <View style={styles.errorBox}>
-          <Ionicons name="alert-circle" size={20} color="#EF4444" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
+        {error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle-outline" size={15} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
-      {/* Loading state */}
-      {loading && !refreshing ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Fetching reviews...</Text>
-        </View>
-      ) : (
-        <>
-          {/* Review cards */}
-          {filteredReviews.map(r => {
-            const hasReply = !!r.hostReply;
-            const reviewerName = r.user?.name || 'Anonymous Guest';
-            const reviewDate = r.createdAt ? new Date(r.createdAt).toLocaleDateString(undefined, {
-              year: 'numeric', month: 'long', day: 'numeric'
-            }) : 'Recent';
+        {loading && !refreshing ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={styles.loadingText}>Loading reviews...</Text>
+          </View>
+        ) : (
+          <>
+            {filteredReviews.map(r => {
+              const hasReply    = !!r.hostReply;
+              const initial     = r.user?.name?.charAt(0)?.toUpperCase() || '?';
+              const reviewerName = r.user?.name || 'Anonymous Guest';
+              const reviewDate  = r.createdAt
+                ? new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Recent';
 
-            return (
-              <View key={r._id} style={styles.reviewCard}>
-                {/* Top: avatar + name + stars */}
-                <View style={styles.reviewTop}>
-                  <View style={styles.reviewAvatarCol}>
-                    <View style={styles.reviewAvatar}>
-                      <Ionicons name="person" size={22} color={theme.textLight} />
+              return (
+                <View key={r._id} style={styles.reviewCard}>
+                  {/* Top row */}
+                  <View style={styles.reviewTop}>
+                    <View style={styles.reviewerRow}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{initial}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.reviewerName}>{reviewerName}</Text>
+                        <Text style={styles.reviewDate}>{reviewDate}</Text>
+                      </View>
                     </View>
-                    <View>
-                      <Text style={styles.reviewerName}>{reviewerName}</Text>
-                      <Text style={styles.reviewDate}>{reviewDate}</Text>
-                    </View>
+                    <Stars rating={r.rating} size={14} />
                   </View>
-                  <Stars rating={r.rating} size={16} />
-                </View>
 
-                {/* Comment */}
-                <Text style={styles.reviewComment}>{r.comment}</Text>
+                  {/* Comment */}
+                  <Text style={styles.reviewComment}>{r.comment}</Text>
 
-                {/* Existing reply */}
-                {hasReply && (
-                  <View style={styles.replyBox}>
-                    <Text style={styles.replyBoxLabel}>Your Reply</Text>
-                    <Text style={styles.replyBoxText}>"{r.hostReply}"</Text>
-                  </View>
-                )}
-
-                {/* Footer: trip tag + action */}
-                <View style={styles.reviewFooter}>
-                  <View style={styles.tripTag}>
-                    <Text style={styles.tripTagText} numberOfLines={1}>
-                      Trip: {r.experience?.title || 'Unknown Experience'}
+                  {/* Experience tag */}
+                  <View style={styles.expTag}>
+                    <Ionicons name="map-outline" size={11} color={theme.textLight} />
+                    <Text style={styles.expTagText} numberOfLines={1}>
+                      {r.experience?.title || 'Unknown Experience'}
                     </Text>
                   </View>
+
+                  {/* Reply */}
                   {hasReply ? (
-                    <TouchableOpacity onPress={() => { setReplyModal(r); setReplyText(r.hostReply); setEditMode(true); }}>
-                      <Text style={styles.editReplyText}>Edit Reply</Text>
-                    </TouchableOpacity>
+                    <View style={styles.replyBox}>
+                      <View style={styles.replyBoxHeader}>
+                        <Text style={styles.replyBoxLabel}>Your response</Text>
+                        <TouchableOpacity
+                          onPress={() => { setReplyModal(r); setReplyText(r.hostReply); setEditMode(true); }}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Text style={styles.editLink}>Edit</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.replyBoxText}>{r.hostReply}</Text>
+                    </View>
                   ) : (
                     <TouchableOpacity
                       style={styles.replyBtn}
                       onPress={() => { setReplyModal(r); setReplyText(''); setEditMode(false); }}
+                      activeOpacity={0.8}
                     >
-                      <Ionicons name="return-up-back-outline" size={14} color="#FFFFFF" />
-                      <Text style={styles.replyBtnText}> Reply</Text>
+                      <Ionicons name="return-up-back-outline" size={14} color={theme.primary} />
+                      <Text style={styles.replyBtnText}>Reply to {reviewerName.split(' ')[0]}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
-            );
-          })}
+              );
+            })}
 
-          {filteredReviews.length === 0 && (
-            <View style={styles.emptyState}>
-              <Feather name="inbox" size={36} color={theme.outlineVariant} />
-              <Text style={styles.emptyTitle}>No Reviews Found</Text>
-              <Text style={styles.emptySubtitle}>There are no reviews matching the selected filter.</Text>
-            </View>
-          )}
-        </>
-      )}
-    </ScrollView>
-
-      {/* Filter Selection Modal */}
-      <Modal visible={showFilterModal} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowFilterModal(false)}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Filter by Rating</Text>
-            {['All', '5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'].map(opt => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.filterOption,
-                  filterRating === opt && { backgroundColor: theme.primaryContainer + '28' }
-                ]}
-                onPress={() => {
-                  setFilterRating(opt);
-                  setShowFilterModal(false);
-                }}
-              >
-                <Text style={[
-                  styles.filterOptionText,
-                  filterRating === opt && { color: theme.primary, fontWeight: '700' }
-                ]}>
-                  {opt}
+            {filteredReviews.length === 0 && (
+              <View style={styles.emptyState}>
+                <Ionicons name="star-outline" size={36} color={theme.outlineVariant} />
+                <Text style={styles.emptyTitle}>No reviews found</Text>
+                <Text style={styles.emptySubtitle}>
+                  {filterRating !== 'All'
+                    ? `No ${filterRating}-star reviews yet.`
+                    : 'Reviews from guests will appear here.'}
                 </Text>
-                {filterRating === opt && <Ionicons name="checkmark" size={18} color={theme.primary} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
 
       {/* Reply modal */}
-      <Modal visible={!!replyModal} transparent animationType="slide">
+      <Modal visible={!!replyModal} transparent animationType="slide" onRequestClose={() => setReplyModal(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {editMode ? 'Edit Reply' : `Reply to ${replyModal?.user?.name || 'Guest'}`}
-            </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editMode ? 'Edit reply' : `Reply to ${replyModal?.user?.name?.split(' ')[0] || 'guest'}`}
+              </Text>
+              <TouchableOpacity onPress={() => setReplyModal(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close" size={22} color={theme.text} />
+              </TouchableOpacity>
+            </View>
             <TextInput
-              style={[styles.input, { height: 110, textAlignVertical: 'top', marginBottom: 12 }]}
-              placeholder="Type your reply..."
+              style={styles.replyInput}
+              placeholder="Write a thoughtful reply..."
               placeholderTextColor={theme.outlineVariant}
               value={replyText}
               onChangeText={setReplyText}
               multiline
+              textAlignVertical="top"
             />
             <TouchableOpacity
-              style={[styles.sendBtn, submittingReply && { opacity: 0.7 }]}
+              style={[styles.submitBtn, submittingReply && { opacity: 0.6 }]}
               onPress={handlePostReply}
               disabled={submittingReply}
+              activeOpacity={0.85}
             >
               {submittingReply ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.sendBtnText}>{editMode ? 'Update Reply' : 'Post Reply'}</Text>
+                <Text style={styles.submitBtnText}>{editMode ? 'Update reply' : 'Post reply'}</Text>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelLink} onPress={() => setReplyModal(null)}>
-              <Text style={styles.cancelLinkText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -339,98 +317,173 @@ export default function ReviewsRatings() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg, paddingHorizontal: 16, paddingTop: 8 },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
-  card: {
-    backgroundColor: theme.card, borderRadius: 24, padding: 20, marginBottom: 14,
-    shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 2,
+  // Page header
+  pageHeader: { marginBottom: 16, marginTop: 4 },
+  pageTitle: { fontSize: 26, fontWeight: '700', color: theme.text, letterSpacing: -0.3 },
+  pageSubtitle: { fontSize: 13, color: theme.textLight, marginTop: 2 },
+
+  // Overview card
+  overviewCard: {
+    flexDirection: 'row',
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+    padding: 18,
+    marginBottom: 12,
+    alignItems: 'center',
   },
-  sectionLabel: { color: theme.textLight, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
-  avgNumber: { color: theme.primary, fontSize: 52, fontWeight: '800', lineHeight: 56 },
-  avgDenom: { color: theme.textMuted, fontSize: 20, fontWeight: '600' },
-  reviewCount: { color: theme.textLight, fontSize: 13, marginTop: 6 },
-
-  ratingBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  ratingBarStar: { color: theme.textMuted, fontSize: 13, width: 12, textAlign: 'center' },
-  ratingBarTrack: { flex: 1, height: 8, backgroundColor: theme.surfaceContainer, borderRadius: 99, overflow: 'hidden' },
-  ratingBarFill: { height: '100%', borderRadius: 99 },
-  ratingBarPct: { color: theme.textLight, fontSize: 12, width: 32, textAlign: 'right' },
-
-  performanceCard: {
-    backgroundColor: theme.primaryContainer, borderRadius: 24, padding: 20, marginBottom: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-  },
-  performanceTitle: { color: theme.onPrimaryContainer, fontSize: 17, fontWeight: '700', marginBottom: 4 },
-  performanceText: { color: theme.onPrimaryContainer, fontSize: 13, lineHeight: 18, opacity: 0.9 },
-
-  recentTitle: { color: theme.text, fontSize: 20, fontWeight: '700' },
-  filterBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.surfaceContainerHigh, borderRadius: 99,
-    paddingHorizontal: 14, paddingVertical: 8,
-  },
-  filterBtnText: { color: theme.text, fontSize: 13, fontWeight: '600' },
-
-  reviewCard: {
-    backgroundColor: theme.card, borderRadius: 24, padding: 20, marginBottom: 14,
-    shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
-    gap: 12,
-  },
-  reviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  reviewAvatarCol: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  reviewAvatar: {
-    width: 44, height: 44, borderRadius: 22,
+  overviewLeft: { alignItems: 'center', paddingRight: 18, minWidth: 90 },
+  avgNum: { fontSize: 44, fontWeight: '800', color: theme.text, letterSpacing: -1, lineHeight: 50 },
+  avgLabel: { fontSize: 11, color: theme.textLight, marginTop: 4, fontWeight: '500' },
+  overviewDivider: { width: 1, height: 80, backgroundColor: theme.cardBorder, marginRight: 18 },
+  overviewRight: { flex: 1, gap: 6 },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  barStar: { fontSize: 11, fontWeight: '600', color: theme.textMuted, width: 8, textAlign: 'center' },
+  barTrack: {
+    flex: 1, height: 6,
     backgroundColor: theme.surfaceContainer,
-    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 99, overflow: 'hidden',
   },
-  reviewerName: { color: theme.text, fontSize: 15, fontWeight: '700' },
-  reviewDate: { color: theme.textLight, fontSize: 12, marginTop: 1 },
-  reviewComment: { color: theme.textMuted, fontSize: 14, lineHeight: 22 },
+  barFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: 99 },
 
-  replyBox: {
-    backgroundColor: theme.surfaceContainerLow, borderRadius: 14, padding: 14,
-    borderLeftWidth: 3, borderLeftColor: theme.primary,
+  // Top host banner
+  topHostBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.primaryFixed + '55',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.primaryFixed,
   },
-  replyBoxLabel: { color: theme.primary, fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  replyBoxText: { color: theme.textMuted, fontSize: 13, fontStyle: 'italic', lineHeight: 18 },
+  topHostText: { fontSize: 13, fontWeight: '600', color: theme.primary, flex: 1 },
 
-  reviewFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  tripTag: { backgroundColor: theme.surfaceContainer, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 5, flexShrink: 1, marginRight: 8 },
-  tripTagText: { color: theme.secondary, fontSize: 12, fontWeight: '600' },
-  replyBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.primary, borderRadius: 99,
-    paddingHorizontal: 16, paddingVertical: 8,
+  // Section row
+  sectionRow: { marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: theme.text },
+
+  // Filter chips
+  chipScroll: { marginBottom: 14 },
+  chipContent: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  chip: {
+    borderRadius: 99,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: theme.surfaceContainer,
   },
-  replyBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  editReplyText: { color: theme.primary, fontSize: 13, fontWeight: '600' },
+  chipActive: { backgroundColor: theme.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: theme.textMuted },
+  chipTextActive: { color: '#fff' },
 
+  // Error
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 12,
+    backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 12,
     borderWidth: 1, borderColor: '#FECACA',
   },
   errorText: { color: '#EF4444', fontSize: 13, flex: 1 },
 
-  loadingWrap: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  // Loading / empty
+  loadingWrap: { alignItems: 'center', paddingVertical: 48, gap: 12 },
   loadingText: { color: theme.textLight, fontSize: 14 },
+  emptyState: { alignItems: 'center', paddingVertical: 52, gap: 8 },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: theme.text },
+  emptySubtitle: { fontSize: 13, color: theme.textLight, textAlign: 'center' },
 
-  emptyState: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyTitle: { color: theme.text, fontSize: 17, fontWeight: '700' },
-  emptySubtitle: { color: theme.outlineVariant, fontSize: 14, textAlign: 'center' },
-
-  modalOverlay: { flex: 1, backgroundColor: '#00000055', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: theme.card, borderRadius: 24, padding: 24, margin: 16 },
-  modalTitle: { color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 14 },
-  input: { backgroundColor: theme.surfaceContainerLow, borderRadius: 14, padding: 14, color: theme.text, fontSize: 14 },
-  sendBtn: { backgroundColor: theme.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  sendBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  cancelLink: { marginTop: 12, alignItems: 'center' },
-  cancelLinkText: { color: theme.textLight, fontWeight: '600', fontSize: 14 },
-
-  filterOption: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 4,
+  // Review card
+  reviewCard: {
+    backgroundColor: theme.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+    padding: 16,
+    marginBottom: 10,
+    gap: 12,
   },
-  filterOptionText: { color: theme.text, fontSize: 15, fontWeight: '500' },
+  reviewTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  reviewerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: theme.primaryFixed + '55',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: { fontSize: 15, fontWeight: '700', color: theme.primary },
+  reviewerName: { fontSize: 14, fontWeight: '700', color: theme.text },
+  reviewDate: { fontSize: 12, color: theme.textLight, marginTop: 1 },
+  reviewComment: { fontSize: 14, color: theme.textMuted, lineHeight: 21 },
+
+  // Experience tag
+  expTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+  },
+  expTagText: { fontSize: 12, color: theme.textLight, fontWeight: '500' },
+
+  // Reply box (existing reply)
+  replyBox: {
+    backgroundColor: theme.surfaceContainerLow,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+  },
+  replyBoxHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  replyBoxLabel: { fontSize: 11, fontWeight: '700', color: theme.textLight },
+  editLink: { fontSize: 12, fontWeight: '600', color: theme.primary },
+  replyBoxText: { fontSize: 13, color: theme.textMuted, lineHeight: 18 },
+
+  // Reply button (no reply yet)
+  replyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: theme.primary,
+  },
+  replyBtnText: { fontSize: 13, fontWeight: '700', color: theme.primary },
+
+  // Reply modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: theme.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: theme.text },
+  replyInput: {
+    backgroundColor: theme.surfaceContainerLow,
+    borderRadius: 12,
+    padding: 14,
+    color: theme.text,
+    fontSize: 14,
+    height: 110,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.cardBorder,
+  },
+  submitBtn: {
+    backgroundColor: theme.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
