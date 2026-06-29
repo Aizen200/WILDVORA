@@ -5,6 +5,7 @@ import {
   Animated, ImageBackground, Image, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -39,18 +40,32 @@ const CATEGORIES = [
   { key: 'Cycling',      label: 'Cycling',      icon: 'bicycle' },
 ];
 
-const INTEREST_FILTERS = [
-  { key: 'verified',       label: 'Verified',        sub: 'Operator-verified experiences',  icon: 'shield-check-outline',  color: C.primary },
-  { key: 'top_rated',      label: 'Top Rated',       sub: 'Rated 4.5 and above',            icon: 'star-outline',          color: C.amber },
-  { key: 'budget',         label: 'Budget Friendly', sub: 'Under ₹3,000 per trip',          icon: 'tag-outline',           color: C.blue },
-  { key: 'women_friendly', label: 'Women Friendly',  sub: 'Curated for groups of women',    icon: 'account-group-outline', color: C.purple },
-];
 
 const INTEREST_IMG_ITEMS = [
-  { key: 'verified',       label: 'Verified Adventures', desc: 'Expert-approved only'  },
-  { key: 'top_rated',      label: 'Top Rated',           desc: '4.5★ and above'        },
-  { key: 'budget',         label: 'Weekend Escapes',     desc: 'Under ₹3,000'          },
-  { key: 'women_friendly', label: 'Women Friendly',      desc: 'Safe & inclusive'       },
+  {
+    key: 'verified',
+    label: 'Verified Adventures',
+    desc: 'Trusted experiences only',
+    image: require('../../assets/browse/verified.jpg'),
+  },
+  {
+    key: 'top_rated',
+    label: 'Top Rated',
+    desc: 'Loved by travellers',
+    image: require('../../assets/browse/toprated.jpg'),
+  },
+  {
+    key: 'budget',
+    label: 'Weekend Escapes',
+    desc: 'Perfect quick getaways',
+    image: require('../../assets/browse/weekend.jpg'),
+  },
+  {
+    key: 'women_friendly',
+    label: 'Women Friendly',
+    desc: 'Safe & curated adventures',
+    image: require('../../assets/browse/women.jpg'),
+  },
 ];
 
 const WHY_FEATURES = [
@@ -361,17 +376,24 @@ function CarouselSection({ title, subtitle, data, onSeeAll, onPress, onWishlist,
 
 // ─── Interest Image Card ──────────────────────────────────────────────────────
 
-function InterestImageCard({ item, index, isActive, onPress }) {
-  const imgUri = CARD_IMAGES[index % CARD_IMAGES.length];
+function InterestImageCard({ item, onPress }) {
   return (
-    <TouchableOpacity onPress={() => onPress(item.key)} activeOpacity={0.88} style={s.intCard}>
-      <Image source={{ uri: imgUri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-      <View style={s.intCardOverlay} />
-      {isActive && (
-        <View style={s.intCardCheck}>
-          <MaterialCommunityIcons name="check-circle" size={16} color="#fff" />
-        </View>
-      )}
+    <TouchableOpacity
+      onPress={() => onPress(item.key)}
+      activeOpacity={0.9}
+      style={s.intCard}
+    >
+      <Image
+        source={item.image}
+        style={s.intCardImg}
+        resizeMode="cover"
+      />
+
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.75)']}
+        style={StyleSheet.absoluteFillObject}
+      />
+
       <View style={s.intCardContent}>
         <Text style={s.intCardLabel}>{item.label}</Text>
         <Text style={s.intCardDesc}>{item.desc}</Text>
@@ -441,7 +463,11 @@ export default function HomeScreen({ navigation }) {
 
   // Category filter applies to all carousels in place — no scrolling
   const handleCategoryChange = (key) => setCategory(key);
-  const handleInterestChange = (key) => setActiveFilter(prev => prev === key ? null : key);
+  const handleInterestChange = (key) => {
+      navigation.navigate("Search", {
+        category: key,
+      });
+    };
 
   const baseList = category === 'All'
     ? allExperiences
@@ -669,7 +695,10 @@ export default function HomeScreen({ navigation }) {
 
         {/* ── 10. Browse by Interest ── */}
         <View style={s.section}>
-          <SectionHeader title="Browse by Interest" subtitle="Discover your kind of adventure" />
+          <SectionHeader
+            title="Explore Adventures"
+            subtitle="Find experiences you'll love"
+            />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -681,21 +710,10 @@ export default function HomeScreen({ navigation }) {
                 key={item.key}
                 item={item}
                 index={index}
-                isActive={activeFilter === item.key}
                 onPress={handleInterestChange}
               />
             ))}
           </ScrollView>
-          {activeFilter && (
-            <TouchableOpacity
-              style={s.clearFilterBtn}
-              onPress={() => setActiveFilter(null)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="close-circle-outline" size={14} color={C.onSurfaceVariant} />
-              <Text style={s.clearFilterText}>Clear filter</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* ── 11. Trusted by Explorers ── */}
@@ -878,13 +896,14 @@ const s = StyleSheet.create({
   discPrice:       { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
 
   /* ── Interest image cards ── */
-  intStrip:        { paddingLeft: 20, paddingRight: 20, gap: 10 },
-  intCard:         { width: 150, height: 186, borderRadius: 16, overflow: 'hidden', justifyContent: 'flex-end' },
-  intCardOverlay:  { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.42)' },
+  intStrip:        { paddingLeft: 20, paddingRight: 20, gap: 12 },
+  intCard:         { width: 162, height: 210, borderRadius: 16, overflow: 'hidden' },
+  intCardImg:      { width: '100%', height: '100%' },
   intCardCheck:    { position: 'absolute', top: 10, right: 10 },
-  intCardContent:  { padding: 14 },
-  intCardLabel:    { fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 17, marginBottom: 3, letterSpacing: -0.1 },
-  intCardDesc:     { fontSize: 11, color: 'rgba(255,255,255,0.72)' },
+  intCardIconWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 40, justifyContent: 'center', alignItems: 'center' },
+  intCardContent:  { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14 },
+  intCardLabel:    { fontSize: 14, fontWeight: '700', color: '#fff', lineHeight: 19, marginBottom: 3, letterSpacing: -0.1 },
+  intCardDesc:     { fontSize: 12, color: 'rgba(255,255,255,0.78)' },
 
   clearFilterBtn:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12, alignSelf: 'flex-start', marginLeft: 20 },
   clearFilterText: { fontSize: 12, color: C.onSurfaceVariant, fontWeight: '500' },

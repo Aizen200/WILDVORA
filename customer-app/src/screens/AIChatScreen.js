@@ -1,35 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Image, Platform, KeyboardAvoidingView, Animated, ActivityIndicator,
+  StyleSheet, Image,ImageBackground, Platform, KeyboardAvoidingView,
+  Animated, Dimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { experienceAPI, aiAPI } from '../services/api';
 
-const C = {
-  primary:          '#1A5F45',
-  primaryDark:      '#154D38',
-  primaryLight:     '#E8F5EF',
-  chatBg:           '#EDF1EF',
-  surface:          '#ffffff',
-  onSurface:        '#181d1a',
-  onSurfaceVariant: '#5A6B64',
-  outlineVariant:   '#C5D1CB',
-  secondary:        '#0a6687',
-  white:            '#ffffff',
-};
+const HERO_IMAGE = require('../../assets/heroimage.png');
+
+const EXAMPLE_PROMPTS = [
+  '"Show me beginner-friendly treks\nnear Bangalore under ₹5,000."',
+  '"Plan a 3-day monsoon escape\nfor 2 people."',
+  '"Family camping near rivers\nthis weekend."',
+  '"Hidden gems off the beaten path\nin South India."',
+];
+
+const CHIPS = [
+  'Weekend Trips', 'Budget Treks', 'Camping',
+  'Hidden Gems', 'Family Adventures', 'Monsoon Escapes',
+];
+
+const FOLLOW_UPS = ['Best time to go?', 'Similar options?', 'What to pack?', 'How to book?'];
 
 const CARD_IMAGES = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDMxqmVZiEOLbS8iPmgbb6yZs6DOT2ueMpEqfGJceQT5UKb-vk8NYWZoAt-1MkZLPkvjsFtOReCDsVaBRG2KY5KP5LdT49c2FNnkGdDbeshfCbeECqk1lyKhgWaKU2qqSQj1pSjg3VQvAPEhnvArYc-0kRxN-egqoRdUN60Zei6Lxkitme_X-kKfjWYdpZLwNE3UQasoTRlT0cziDoDMIxVfscnKB10ZHEogVN5cDmdIQ9fXIkS0iIBlFS-U5ymQ8eXcWCBSG9l6Fg',
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCCwlcB3bQtzyJNOrLT4EsnoHFNw9cIRYARJ7T09kYY_AQYhYTBPp8P-JZ1ql_NGI3NiFwbW0OxMTzdUW5vwAyY6imbUS88XUUqVyZNLXi14OJIghFzuSgbwv5qfjjyyVCaE47qFk8AL4y2rHBjgcBC8hPxXywIJeN5COCXEVUbMkkAuD_IGQ55wzAfDXDnMLwC9CkmkVl3p7WXltYRzxGKBNefxfzmlLZ92u-XqtHzE41ZakGWrChYh9ccxbqDXnzVBfpvYA',
-];
-
-const SUGGESTED = [
-  '3-day trek in Himachal under ₹5000',
-  'Family camping near a river',
-  'Water sports trip in Goa for 2',
-  'Jungle safari under ₹8000',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuCCwlcB3bQtzyJNOrLT4EsnoHFNw9cIRYARJ7T09kYY_AQYhYTBPp8P-JZ1ql_NGI3NiFwbW0OxMTzdUW5vwAyY6imbUS88XUUqVyZNLXI14OJIghFzuSgbwv5qfjjyyVCaE47qFk8AL4y2rHBjgcBC8hPxXywIJeN5COCXEVUbMkkAuD_IGQ55wzAfDXDnMLwC9CkmkVl3p7WXltYRzxGKBNefxfzmlLZ92u-XqtHzE41ZakGWrChYh9ccxbqDXnzVBfpvYA',
 ];
 
 const cleanText = (text) => {
@@ -46,37 +44,37 @@ const cleanText = (text) => {
 const getTime = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-/* ─── Animated typing indicator ─── */
+/* ── Typing dots ── */
 const TypingDots = () => {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const make = (dot, delay) =>
+    const makeDot = (val, delay) =>
       Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
-          Animated.timing(dot, { toValue: -6, duration: 260, useNativeDriver: true }),
-          Animated.timing(dot, { toValue: 0, duration: 260, useNativeDriver: true }),
+          Animated.timing(val, { toValue: -5, duration: 260, useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0,  duration: 260, useNativeDriver: true }),
           Animated.delay(480),
         ])
       );
-    const a1 = make(dot1, 0);
-    const a2 = make(dot2, 160);
-    const a3 = make(dot3, 320);
+    const a1 = makeDot(dot1, 0);
+    const a2 = makeDot(dot2, 160);
+    const a3 = makeDot(dot3, 320);
     a1.start(); a2.start(); a3.start();
     return () => { a1.stop(); a2.stop(); a3.stop(); };
   }, []);
 
   return (
-    <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: 4, paddingHorizontal: 2 }}>
+    <View style={{ flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: 4 }}>
       {[dot1, dot2, dot3].map((dot, i) => (
         <Animated.View
           key={i}
           style={{
-            width: 9, height: 9, borderRadius: 5,
-            backgroundColor: C.onSurfaceVariant + '80',
+            width: 8, height: 8, borderRadius: 4,
+            backgroundColor: 'rgba(255,255,255,0.5)',
             transform: [{ translateY: dot }],
           }}
         />
@@ -85,108 +83,88 @@ const TypingDots = () => {
   );
 };
 
-/* ─── Smart message text renderer ─── */
-const MessageText = ({ text, isUser }) => {
-  if (!text) return null;
-  const lines = text.split('\n');
-  const textColor = isUser ? C.white : C.onSurface;
-  const accentColor = isUser ? 'rgba(255,255,255,0.9)' : C.primary;
-
-  return (
-    <View style={{ gap: 2 }}>
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <View key={i} style={{ height: 5 }} />;
-
-        if (trimmed.startsWith('•') || /^[-–]\s/.test(trimmed)) {
-          const content = trimmed.replace(/^[•\-–]\s*/, '');
-          return (
-            <View key={i} style={{ flexDirection: 'row', gap: 7, marginVertical: 1 }}>
-              <Text style={{ color: accentColor, fontSize: 14, lineHeight: 21 }}>•</Text>
-              <Text style={{ flex: 1, fontSize: 14, lineHeight: 21, color: textColor }}>{content}</Text>
-            </View>
-          );
-        }
-
-        if (!isUser && /^day\s*\d+[\s:]/i.test(trimmed)) {
-          return (
-            <Text key={i} style={{ fontSize: 13, fontWeight: '700', color: accentColor, marginTop: 10, marginBottom: 1 }}>
-              {trimmed}
-            </Text>
-          );
-        }
-
-        return (
-          <Text key={i} style={{ fontSize: 14, lineHeight: 21, color: textColor }}>
-            {trimmed}
-          </Text>
-        );
-      })}
-    </View>
-  );
-};
-
 export default function AIChatScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('Chat');
 
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      role: 'assistant',
-      text: 'Hi! I am your Wildvora trip planner. Tell me about your dream adventure and I will recommend the perfect itinerary — budget, duration, group size, anything.',
-      experiences: [],
-      time: getTime(),
-    },
-  ]);
-  const [input, setInput]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [screen, setScreen]       = useState('landing');
+  const [input, setInput]         = useState('');
+  const [messages, setMessages]   = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [promptIdx, setPromptIdx] = useState(0);
 
-  const [budget, setBudget]               = useState('');
-  const [groupSize, setGroupSize]         = useState('');
-  const [duration, setDuration]           = useState('');
-  const [adventureLevel, setAdventureLevel] = useState('Easy');
-  const [plannerResult, setPlannerResult] = useState(null);
-  const [plannerLoading, setPlannerLoading] = useState(false);
-  const [plannerError, setPlannerError]   = useState('');
+  /* ── Landing ↔ chat transition ── */
+  const landingOpacity = useRef(new Animated.Value(1)).current;
+  const chatOpacity    = useRef(new Animated.Value(0)).current;
+  const chatSlideY     = useRef(new Animated.Value(30)).current;
+
+  /* ── Glass card pulsing border (useNativeDriver must be false for color) ── */
+  const pulseBorder = useRef(new Animated.Value(0)).current;
+  const cardBorderColor = pulseBorder.interpolate({
+    inputRange:  [0, 0.5, 1],
+    outputRange: [
+      'rgba(255,255,255,0.10)',
+      'rgba(255,255,255,0.40)',
+      'rgba(255,255,255,0.10)',
+    ],
+  });
 
   useEffect(() => {
-    if (scrollRef.current) {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
-    }
-  }, [messages, loading]);
+    Animated.loop(
+      Animated.timing(pulseBorder, {
+        toValue: 1, duration: 4000,
+        useNativeDriver: false,
+      })
+    ).start();
+  }, []);
 
+  /* ── Rotate example prompts ── */
+  useEffect(() => {
+    const t = setInterval(() => setPromptIdx(i => (i + 1) % EXAMPLE_PROMPTS.length), 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  /* ── Auto-scroll chat ── */
+  useEffect(() => {
+    if (screen === 'chat' && scrollRef.current) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    }
+  }, [messages, loading, screen]);
+
+  /* ── Send message ── */
   const send = async (text) => {
     const trimmed = (text || input).trim();
     if (!trimmed || loading) return;
+
     const userMsg = { id: Date.now().toString(), role: 'user', text: trimmed, time: getTime() };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput('');
     setLoading(true);
     setError('');
+
     try {
-      const history = next.map((m) => ({ role: m.role, content: m.text }));
-      const res = await aiAPI.getTripPlan({ messages: history });
+      const res = await aiAPI.getTripPlan({
+        messages: next.map(m => ({ role: m.role, content: m.text })),
+      });
       if (res.data?.success) {
-        const { text: replyText, recommendedExperienceIds } = res.data.tripPlan;
+        const { text: reply, recommendedExperienceIds } = res.data.tripPlan;
         let resolved = [];
-        if (Array.isArray(recommendedExperienceIds) && recommendedExperienceIds.length > 0) {
+        if (recommendedExperienceIds?.length) {
           const results = await Promise.all(
-            recommendedExperienceIds.map((id) =>
-              experienceAPI.getOne(id).then((r) => r.data.experience).catch(() => null)
+            recommendedExperienceIds.map(id =>
+              experienceAPI.getOne(id).then(r => r.data.experience).catch(() => null)
             )
           );
           resolved = results.filter(Boolean);
         }
-        setMessages((prev) => [
+        setMessages(prev => [
           ...prev,
           {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
-            text: cleanText(replyText),
+            text: cleanText(reply),
             experiences: resolved,
             time: getTime(),
           },
@@ -195,59 +173,42 @@ export default function AIChatScreen({ navigation }) {
         setError('Could not get a response. Please try again.');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to reach the AI. Check your connection.');
+      setError(err.response?.data?.message || 'Failed to reach the AI.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePlanTrip = async () => {
-    if (!budget || !groupSize || !duration) {
-      setPlannerError('Please fill in all fields.');
-      return;
-    }
-    setPlannerLoading(true);
-    setPlannerError('');
-    setPlannerResult(null);
-    try {
-      const res = await aiAPI.getGuidedTripPlan({
-        budget: Number(budget),
-        groupSize: Number(groupSize),
-        duration,
-        adventureLevel,
-      });
-      if (res.data?.success) {
-        const { tripPlan } = res.data;
-        let resolved = [];
-        if (Array.isArray(tripPlan.recommendedExperienceIds) && tripPlan.recommendedExperienceIds.length > 0) {
-          const results = await Promise.all(
-            tripPlan.recommendedExperienceIds.map((id) =>
-              experienceAPI.getOne(id).then((r) => r.data.experience).catch(() => null)
-            )
-          );
-          resolved = results.filter(Boolean);
-        }
-        setPlannerResult({
-          ...tripPlan,
-          explanation: cleanText(tripPlan.explanation),
-          experiences: resolved,
-        });
-      } else {
-        setPlannerError('Failed to generate a plan. Please try again.');
-      }
-    } catch (err) {
-      setPlannerError(err.response?.data?.message || 'Failed to connect to the AI. Check connection.');
-    } finally {
-      setPlannerLoading(false);
-    }
+  /* ── Transitions ── */
+  const goToChat = (query) => {
+    const q = (query || input).trim();
+    if (!q || loading) return;
+    send(q);
+    Animated.timing(landingOpacity, { toValue: 0, duration: 350, useNativeDriver: true }).start(() => {
+      setScreen('chat');
+      Animated.parallel([
+        Animated.timing(chatOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(chatSlideY,  { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+    });
   };
 
+  const goBackToLanding = () => {
+    Animated.parallel([
+      Animated.timing(chatOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.timing(chatSlideY,  { toValue: 30, duration: 280, useNativeDriver: true }),
+    ]).start(() => {
+      setScreen('landing');
+      Animated.timing(landingOpacity, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+    });
+  };
+
+  /* ── Experience cards in chat ── */
   const renderExpCards = (exps) => (
     <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
+      horizontal showsHorizontalScrollIndicator={false}
       style={{ marginTop: 12 }}
-      contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+      contentContainerStyle={{ gap: 10 }}
       nestedScrollEnabled
     >
       {exps.map((exp, idx) => (
@@ -258,30 +219,18 @@ export default function AIChatScreen({ navigation }) {
           activeOpacity={0.88}
         >
           <Image
-            source={{ uri: exp.coverImage || exp.images?.[0] || CARD_IMAGES[idx % CARD_IMAGES.length] }}
-            style={s.expImg}
+            source={{ uri: exp.coverImage || exp.images?.[0] || CARD_IMAGES[idx % 2] }}
+            style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
           />
-          <View style={s.expCategoryTag}>
-            <Text style={s.expCategoryText}>{exp.category || 'Adventure'}</Text>
-          </View>
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={StyleSheet.absoluteFillObject} />
           <View style={s.expBody}>
+            <Text style={s.expCategory}>{exp.category || 'Adventure'}</Text>
             <Text style={s.expTitle} numberOfLines={2}>{exp.title}</Text>
-            <View style={s.expLocRow}>
-              <Ionicons name="location-outline" size={11} color={C.onSurfaceVariant} />
-              <Text style={s.expLoc} numberOfLines={1}>
-                {exp.location?.city}, {exp.location?.country}
-              </Text>
-            </View>
-            <View style={s.expFooter}>
-              <Text style={s.expPrice}>
-                ₹{exp.price}
-                <Text style={s.expPricePer}>/person</Text>
-              </Text>
-              <View style={s.expCtaRow}>
-                <Text style={s.expCtaText}>View</Text>
-                <Ionicons name="arrow-forward" size={10} color={C.secondary} />
-              </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 5 }}>
+              <Ionicons name="location-outline" size={10} color="rgba(255,255,255,0.55)" />
+              <Text style={s.expLoc} numberOfLines={1}>{exp.location?.city}</Text>
+              <Text style={s.expPrice}> · ₹{exp.price}</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -289,524 +238,397 @@ export default function AIChatScreen({ navigation }) {
     </ScrollView>
   );
 
+  /* ════════════════════════════════════════════════════════ */
   return (
-    <SafeAreaView style={s.root} edges={['top']}>
-      {/* ── Header ── */}
-      <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={s.backBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color={C.onSurface} />
-        </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <View style={s.headerAvatar}>
-            <MaterialCommunityIcons name="robot" size={18} color={C.white} />
-          </View>
-          <View>
-            <Text style={s.headerLabel}>AI Trip Planner</Text>
-            <View style={s.onlineRow}>
-              <View style={s.onlineDot} />
-              <Text style={s.headerSub}>Online · Powered by Wildvora</Text>
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+
+      {/* ══════════════════ LANDING ══════════════════ */}
+      <Animated.View
+        style={[StyleSheet.absoluteFillObject, { opacity: landingOpacity }]}
+        pointerEvents={screen === 'landing' ? 'auto' : 'none'}
+      >
+        {/* Full-screen hero image via ImageBackground */}
+        <ImageBackground source={HERO_IMAGE} style={{ flex: 1 }} resizeMode="cover">
+
+          {/* Dark cinematic overlay — matches HTML hero-overlay */}
+          <LinearGradient
+            colors={[
+  'rgba(0,0,0,0.08)',
+  'rgba(0,0,0,0.18)',
+  'rgba(0,0,0,0.40)',
+]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          {/* Flex column: nav at top → spacer → bottom content */}
+          <View style={{ flex: 1, paddingTop: insets.top }}>
+
+            {/* ── Top nav (h-24 = 96px in HTML, paddingVertical handles height) ── */}
+            <View style={s.topNav}>
+              <Text style={s.logo}>Wildvora</Text>
+              <TouchableOpacity
+                style={s.iconBtn}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close" size={22} color="#fff" />
+              </TouchableOpacity>
             </View>
-          </View>
-        </View>
-        <View style={{ width: 38 }} />
-      </View>
 
-      {/* ── Tabs ── */}
-      <View style={s.tabBar}>
-        {[
-          { key: 'Chat', label: 'AI Chat' },
-          { key: 'Planner', label: 'AI Guided Planner' },
-        ].map(({ key, label }) => (
-          <TouchableOpacity
-            key={key}
-            style={[s.tabBtn, activeTab === key && s.tabBtnActive]}
-            onPress={() => setActiveTab(key)}
-          >
-            <Text style={[s.tabText, activeTab === key && s.tabTextActive]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+            {/* Spacer fills the middle — hero image visible */}
+            <View style={{ flex: 1 }} />
 
-      {activeTab === 'Chat' ? (
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          {/* ── Messages ── */}
-          <ScrollView
-            ref={scrollRef}
-            style={s.scroll}
-            contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 16 }]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {messages.map((msg) => {
-              const isUser = msg.role === 'user';
-              return (
-                <View key={msg.id} style={[s.msgRow, isUser ? s.msgRowUser : s.msgRowAI]}>
-                  {!isUser && (
-                    <View style={s.msgAvatar}>
-                      <MaterialCommunityIcons name="robot-outline" size={15} color={C.primary} />
-                    </View>
-                  )}
-                  <View style={[s.msgCol, isUser && { alignItems: 'flex-end' }]}>
-                    <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleAI]}>
-                      <MessageText text={msg.text} isUser={isUser} />
-                    </View>
-                    {msg.time ? (
-                      <Text style={s.timeLabel}>{msg.time}</Text>
-                    ) : null}
-                    {!isUser && msg.experiences?.length > 0 && renderExpCards(msg.experiences)}
-                  </View>
-                </View>
-              );
-            })}
+            {/* ── Bottom section: card + search + chips ── */}
+            <View style={[s.bottomSection, { paddingBottom: insets.bottom + 32 }]}>
 
-            {/* Typing indicator */}
-            {loading && (
-              <View style={[s.msgRow, s.msgRowAI]}>
-                <View style={s.msgAvatar}>
-                  <MaterialCommunityIcons name="robot-outline" size={15} color={C.primary} />
-                </View>
-                <View style={[s.bubble, s.bubbleAI, { paddingVertical: 10 }]}>
-                  <TypingDots />
-                </View>
-              </View>
-            )}
-
-            {error ? (
-              <View style={s.errorRow}>
-                <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
-                <Text style={s.errorText}>{error}</Text>
-              </View>
-            ) : null}
-          </ScrollView>
-
-          {/* ── Suggestion chips ── */}
-          {messages.length === 1 && !loading && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 6 }}
-              style={{ flexGrow: 0 }}
-            >
-              {SUGGESTED.map((label) => (
-                <TouchableOpacity
-                  key={label}
-                  style={s.chip}
-                  onPress={() => send(label)}
-                  activeOpacity={0.78}
-                >
-                  <Text style={s.chipText}>{label}</Text>
+              {/* ── Glass card with pulsing border ── */}
+              <Animated.View style={[s.glassCard, { borderColor: cardBorderColor }]}>
+                {/* Dismiss chip in card top-right */}
+                <TouchableOpacity style={s.cardCloseBtn} activeOpacity={0.7}>
+                  <Ionicons name="close" size={16} color="rgba(255,255,255,0.4)" />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
 
-          {/* ── Input bar ── */}
-          <View style={[s.inputBar, { paddingBottom: insets.bottom + 10 }]}>
-            <TextInput
-              style={s.input}
-              placeholder="Tell me your dream adventure..."
-              placeholderTextColor={C.onSurfaceVariant + '70'}
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={() => send()}
-              returnKeyType="send"
-              editable={!loading}
-              multiline
-            />
-            <TouchableOpacity
-              style={[s.sendBtn, (!input.trim() || loading) && s.sendBtnOff]}
-              onPress={() => send()}
-              disabled={!input.trim() || loading}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="send" size={16} color={C.white} style={{ marginLeft: 2 }} />
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      ) : (
-        /* ── Planner tab ── */
-        <ScrollView style={{ flex: 1, backgroundColor: C.chatBg }} contentContainerStyle={s.plannerContent}>
-          <View style={s.plannerHeaderCard}>
-            <View style={s.plannerIconWrap}>
-              <MaterialCommunityIcons name="map-search" size={22} color={C.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.plannerTitle}>AI Guided Planner</Text>
-              <Text style={s.plannerSub}>Tell us your preferences and we will scan approved experiences to craft your perfect trip.</Text>
-            </View>
-          </View>
+                <View style={{ alignItems: 'center' }}>
+                  {/* "AI Search" label */}
+                  <Text style={s.aiLabel}>AI Search</Text>
+                  {/* Rotating example prompt — large headline */}
+                  <Text style={s.examplePrompt}>{EXAMPLE_PROMPTS[promptIdx]}</Text>
+                </View>
+              </Animated.View>
 
-          {[
-            { label: 'Budget (₹)', placeholder: 'e.g. 5000', value: budget, onChange: setBudget, numeric: true },
-            { label: 'Group Size', placeholder: 'e.g. 4', value: groupSize, onChange: setGroupSize, numeric: true },
-            { label: 'Duration', placeholder: 'e.g. 3 days', value: duration, onChange: setDuration, numeric: false },
-          ].map((field) => (
-            <View key={field.label} style={s.formGroup}>
-              <Text style={s.formLabel}>{field.label}</Text>
-              <TextInput
-                style={s.formInput}
-                keyboardType={field.numeric ? 'numeric' : 'default'}
-                placeholder={field.placeholder}
-                placeholderTextColor={C.onSurfaceVariant + '65'}
-                value={field.value}
-                onChangeText={field.onChange}
-              />
-            </View>
-          ))}
-
-          <View style={s.formGroup}>
-            <Text style={s.formLabel}>Adventure Level</Text>
-            <View style={s.levelRow}>
-              {[
-                { key: 'Easy', color: '#16a34a' },
-                { key: 'Moderate', color: '#d97706' },
-                { key: 'Hard', color: '#ea580c' },
-                { key: 'Expert', color: '#dc2626' },
-              ].map(({ key, color }) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    s.levelBtn,
-                    adventureLevel === key && { backgroundColor: C.primary, borderColor: C.primary },
-                  ]}
-                  onPress={() => setAdventureLevel(key)}
-                >
-                  <View
-                    style={[
-                      s.levelDot,
-                      { backgroundColor: adventureLevel === key ? 'rgba(255,255,255,0.8)' : color + '30' },
-                    ]}
+              {/* ── Search interface ── */}
+              <View style={s.searchSection}>
+                {/* Search input row */}
+                <View style={s.searchRow}>
+                  <TextInput
+                    style={s.searchInput}
+                    placeholder="Ask Wildvora anything..."
+                    placeholderTextColor="rgba(255,255,255,0.50)"
+                    value={input}
+                    onChangeText={setInput}
+                    onSubmitEditing={() => goToChat()}
+                    returnKeyType="search"
+                  />
+                  <TouchableOpacity
+                    style={s.searchBtn}
+                    onPress={() => goToChat()}
+                    activeOpacity={0.85}
                   >
-                    <View
-                      style={{
-                        width: 6, height: 6, borderRadius: 3,
-                        backgroundColor: adventureLevel === key ? C.white : color,
-                      }}
-                    />
-                  </View>
-                  <Text style={[s.levelText, adventureLevel === key && { color: C.white, fontWeight: '700' }]}>
-                    {key}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Ionicons name="arrow-forward" size={22} color="#002115" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Suggestion chips */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 10, paddingRight: 8 }}
+                >
+                  {CHIPS.map(chip => (
+                    <TouchableOpacity
+                      key={chip}
+                      style={s.chip}
+                      onPress={() => goToChat(chip)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={s.chipTxt}>{chip}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
             </View>
           </View>
+        </ImageBackground>
+      </Animated.View>
 
-          {plannerError ? (
-            <View style={s.errBox}>
-              <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
-              <Text style={s.errBoxText}>{plannerError}</Text>
+      {/* ══════════════════ CHAT ══════════════════ */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { opacity: chatOpacity, transform: [{ translateY: chatSlideY }] },
+        ]}
+        pointerEvents={screen === 'chat' ? 'auto' : 'none'}
+      >
+        <View style={{ flex: 1, backgroundColor: '#0b1310' }}>
+
+          {/* Chat header */}
+          <View style={[s.chatHeader, { paddingTop: insets.top + 10 }]}>
+            <TouchableOpacity style={s.iconBtn} onPress={goBackToLanding} activeOpacity={0.8}>
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={s.chatTitle}>Wildvora AI</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                <Text style={s.chatSub}>Powered by Wildvora</Text>
+              </View>
             </View>
-          ) : null}
+            <View style={{ width: 44 }} />
+          </View>
 
-          <TouchableOpacity style={s.planBtn} onPress={handlePlanTrip} disabled={plannerLoading} activeOpacity={0.85}>
-            {plannerLoading ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={s.planBtnText}>Finding your adventure...</Text>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MaterialCommunityIcons name="creation" size={18} color="#fff" />
-                <Text style={s.planBtnText}>Plan My Trip</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={[s.chatList, { paddingBottom: insets.bottom + 20 }]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {messages.map((msg, idx) => {
+                const isUser = msg.role === 'user';
+                const isLastAI = !isUser && idx === messages.length - 1 && !loading;
+                return (
+                  <View key={msg.id}>
+                    <View style={[s.msgRow, isUser ? s.msgUser : s.msgAI]}>
+                      {!isUser && (
+                        <View style={s.aiBadge}>
+                          <Text style={s.aiBadgeTxt}>AI</Text>
+                        </View>
+                      )}
+                      <View style={[s.bubble, isUser ? s.bubUser : s.bubAI]}>
+                        <Text style={[s.bubTxt, isUser && { color: '#fff' }]}>{msg.text}</Text>
+                      </View>
+                    </View>
 
-          {plannerResult && (
-            <View style={s.resultCard}>
-              <View style={s.resultBadgeRow}>
-                <MaterialCommunityIcons name="check-decagram" size={14} color={C.primary} />
-                <Text style={s.resultBadgeText}>RECOMMENDED FOR YOU</Text>
-              </View>
-              <Text style={s.resultTripName}>{plannerResult.recommendedTrip}</Text>
+                    {!isUser && msg.experiences?.length > 0 && (
+                      <View style={{ paddingLeft: 44 }}>
+                        {renderExpCards(msg.experiences)}
+                      </View>
+                    )}
 
-              <View style={s.statsRow}>
-                {[
-                  { icon: 'cash-multiple', label: 'Cost', value: plannerResult.cost },
-                  { icon: 'map-marker-distance', label: 'Distance', value: plannerResult.distance },
-                  { icon: 'gauge', label: 'Difficulty', value: plannerResult.difficulty },
-                ].map(({ icon, label, value }) => (
-                  <View key={label} style={s.statItem}>
-                    <MaterialCommunityIcons name={icon} size={20} color={C.primary} style={{ marginBottom: 5 }} />
-                    <Text style={s.statValue}>{value}</Text>
-                    <Text style={s.statLabel}>{label}</Text>
+                    {isLastAI && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{
+                          gap: 8, paddingLeft: 44, paddingVertical: 10, paddingRight: 8,
+                        }}
+                      >
+                        {FOLLOW_UPS.map(fc => (
+                          <TouchableOpacity
+                            key={fc} style={s.followChip}
+                            onPress={() => send(fc)} activeOpacity={0.75}
+                          >
+                            <Text style={s.followTxt}>{fc}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
-                ))}
-              </View>
+                );
+              })}
 
-              {plannerResult.explanation ? (
-                <View style={s.explanationBox}>
-                  <MaterialCommunityIcons name="information-outline" size={14} color={C.primary} style={{ marginTop: 1, flexShrink: 0 }} />
-                  <Text style={s.explanationText}>{plannerResult.explanation}</Text>
-                </View>
-              ) : null}
-
-              {plannerResult.experiences?.length > 0 && (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={s.resultExpHeading}>Book matching adventures</Text>
-                  {renderExpCards(plannerResult.experiences)}
+              {loading && (
+                <View style={[s.msgRow, s.msgAI]}>
+                  <View style={s.aiBadge}><Text style={s.aiBadgeTxt}>AI</Text></View>
+                  <View style={[s.bubble, s.bubAI]}><TypingDots /></View>
                 </View>
               )}
-            </View>
-          )}
 
-          <View style={{ height: 32 }} />
-        </ScrollView>
-      )}
-    </SafeAreaView>
+              {!!error && (
+                <View style={s.errRow}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#f87171" />
+                  <Text style={{ fontSize: 12, color: '#f87171', flex: 1 }}>{error}</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Chat input bar */}
+            <View style={[s.inputBar, { paddingBottom: insets.bottom + 10 }]}>
+              <TextInput
+                style={s.chatInputField}
+                placeholder="Ask Wildvora anything..."
+                placeholderTextColor="rgba(255,255,255,0.32)"
+                value={input}
+                onChangeText={setInput}
+                onSubmitEditing={() => send()}
+                returnKeyType="send"
+                editable={!loading}
+                multiline
+              />
+              <TouchableOpacity
+                style={[s.sendBtn, (!input.trim() || loading) && s.sendBtnOff]}
+                onPress={() => send()}
+                disabled={!input.trim() || loading}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="send"
+                  size={16}
+                  color={input.trim() && !loading ? '#002115' : 'rgba(255,255,255,0.28)'}
+                />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Animated.View>
+
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.chatBg },
 
-  /* Header */
-  header: {
+  /* ══ LANDING ══ */
+
+  topNav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: C.surface,
-    borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '50',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
-      android: { elevation: 3 },
-    }),
+    paddingHorizontal: 20, paddingVertical: 20,
   },
-  backBtn: { width: 38, height: 38, justifyContent: 'center', alignItems: 'center' },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerAvatar: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: C.primary,
+  logo: {
+    fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5,
+  },
+  iconBtn: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center', alignItems: 'center',
   },
-  headerLabel: { fontSize: 15, fontWeight: '700', color: C.onSurface },
-  onlineRow:   { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  onlineDot:   { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
-  headerSub:   { fontSize: 11, color: C.onSurfaceVariant },
 
-  /* Tabs */
-  tabBar: {
-    flexDirection: 'row', backgroundColor: C.surface,
-    borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '50',
-  },
-  tabBtn: {
-    flex: 1, paddingVertical: 13, alignItems: 'center',
-    borderBottomWidth: 2.5, borderBottomColor: 'transparent',
-  },
-  tabBtnActive: { borderBottomColor: C.primary },
-  tabText:      { fontSize: 13, fontWeight: '600', color: C.onSurfaceVariant },
-  tabTextActive: { color: C.primary, fontWeight: '700' },
-
-  /* Chat */
-  scroll: { flex: 1, backgroundColor: C.chatBg },
-  scrollContent: { paddingHorizontal: 14, paddingTop: 16, gap: 10 },
-
-  msgRow:    { flexDirection: 'row', gap: 8, alignItems: 'flex-end', maxWidth: '85%' },
-  msgRowUser: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
-  msgRowAI:  { alignSelf: 'flex-start' },
-  msgCol:    { flex: 1, gap: 3 },
-
-  msgAvatar: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: C.primaryLight,
-    justifyContent: 'center', alignItems: 'center',
-    flexShrink: 0,
+  /* Bottom section holds card + search — matches HTML main pb-24 layout */
+  bottomSection: {
+    paddingHorizontal: 20,
+    gap: 0,
   },
 
-  bubble: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 18 },
-  bubbleUser: {
-    backgroundColor: C.primary,
-    borderTopRightRadius: 4,
-    ...Platform.select({
-      ios: { shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 5 },
-      android: { elevation: 2 },
-    }),
-  },
-  bubbleAI: {
-    backgroundColor: C.surface,
-    borderTopLeftRadius: 4,
+  /* Glass card — rgba(10,10,10,0.45) + animated border */
+  glassCard: {
+    backgroundColor: 'rgba(10,10,10,0.45)',
     borderWidth: 1,
-    borderColor: C.outlineVariant + '60',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 4 },
-      android: { elevation: 1 },
-    }),
+    borderRadius: 32,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 32,
+    marginBottom: 32,
+  },
+  cardCloseBtn: {
+    position: 'absolute', top: 18, right: 18,
+    padding: 4,
+  },
+  aiLabel: {
+    fontSize: 11, fontWeight: '700',
+    color: 'rgba(255,255,255,0.60)',
+    letterSpacing: 5, textTransform: 'uppercase',
+    marginBottom: 18,
+  },
+  examplePrompt: {
+    fontSize: 26, fontWeight: '700', color: '#fff',
+    lineHeight: 34, textAlign: 'center', letterSpacing: -0.4,
   },
 
-  timeLabel: { fontSize: 10, color: C.onSurfaceVariant + '90', marginHorizontal: 2, marginTop: 1 },
+  /* Search section — gap between search and chips */
+  searchSection: {
+    gap: 20,
+  },
 
-  /* Suggestion chips */
+  /* Search input row — h-20 (80px) in HTML → 72px on mobile */
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.20)',
+    borderRadius: 50, paddingLeft: 24, paddingRight: 6, height: 72,
+  },
+  searchInput: {
+    flex: 1, fontSize: 17, color: '#fff',
+  },
+  searchBtn: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: '#88D6B2',
+    justifyContent: 'center', alignItems: 'center',
+  },
+
+  /* Chips — px-6 py-2.5 in HTML */
   chip: {
-    paddingHorizontal: 14, paddingVertical: 9,
-    backgroundColor: C.surface,
-    borderRadius: 20, borderWidth: 1, borderColor: C.primary + '40',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
-      android: { elevation: 1 },
-    }),
+    paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 50,
   },
-  chipText: { fontSize: 12, color: C.primary, fontWeight: '600' },
+  chipTxt: {
+    fontSize: 13, color: 'rgba(255,255,255,0.82)', fontWeight: '600',
+    letterSpacing: 0.2,
+  },
 
-  /* Input bar */
+  /* ══ CHAT ══ */
+
+  chatHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  chatTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  chatSub:   { fontSize: 11, color: 'rgba(255,255,255,0.38)' },
+
+  chatList: { paddingHorizontal: 16, paddingTop: 24, gap: 14 },
+
+  msgRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-end', maxWidth: '90%' },
+  msgUser: { alignSelf: 'flex-end' },
+  msgAI:   { alignSelf: 'flex-start' },
+
+  aiBadge: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(136,214,178,0.1)',
+    borderWidth: 1, borderColor: 'rgba(136,214,178,0.25)',
+    justifyContent: 'center', alignItems: 'center', flexShrink: 0,
+  },
+  aiBadgeTxt: { fontSize: 9, color: '#88D6B2', fontWeight: '800', letterSpacing: 0.5 },
+
+  bubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 22, maxWidth: '88%' },
+  bubUser: { backgroundColor: '#1A5F45', borderBottomRightRadius: 5 },
+  bubAI: {
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderBottomLeftRadius: 5,
+  },
+  bubTxt: { fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.88)' },
+
+  followChip: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: 'rgba(136,214,178,0.08)',
+    borderWidth: 1, borderColor: 'rgba(136,214,178,0.2)',
+    borderRadius: 50,
+  },
+  followTxt: { fontSize: 12, color: '#88D6B2', fontWeight: '600' },
+
+  errRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: 'rgba(239,68,68,0.2)',
+  },
+
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 14, paddingTop: 10,
-    backgroundColor: C.surface,
-    borderTopWidth: 1, borderTopColor: C.outlineVariant + '60',
+    paddingHorizontal: 16, paddingTop: 12,
+    backgroundColor: '#0b1310',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)',
   },
-  input: {
-    flex: 1, minHeight: 44, maxHeight: 110,
-    backgroundColor: C.chatBg,
-    borderWidth: 1, borderColor: C.outlineVariant + '90',
-    borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11,
-    fontSize: 14, color: C.onSurface,
+  chatInputField: {
+    flex: 1, minHeight: 46, maxHeight: 100,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.11)',
+    borderRadius: 23, paddingHorizontal: 18, paddingVertical: 12,
+    fontSize: 15, color: '#fff',
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.primary,
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: '#88D6B2',
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
-    ...Platform.select({
-      ios: { shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 6 },
-      android: { elevation: 4 },
-    }),
   },
-  sendBtnOff: {
-    backgroundColor: C.outlineVariant,
-    ...Platform.select({ ios: { shadowOpacity: 0 }, android: { elevation: 0 } }),
-  },
+  sendBtnOff: { backgroundColor: 'rgba(255,255,255,0.08)' },
 
-  /* Error */
-  errorRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: '#fef2f2', borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: '#fecaca',
-  },
-  errorText: { fontSize: 12, color: '#dc2626', flex: 1 },
-
-  /* Experience cards */
+  /* ══ EXPERIENCE CARDS ══ */
   expCard: {
-    width: 185, backgroundColor: C.surface, borderRadius: 14, overflow: 'hidden',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6 },
-      android: { elevation: 3 },
-    }),
+    width: 200, height: 148, borderRadius: 16, overflow: 'hidden',
+    backgroundColor: '#1a2820',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
   },
-  expImg: { width: '100%', height: 102 },
-  expCategoryTag: {
-    position: 'absolute', top: 8, left: 8,
-    backgroundColor: 'rgba(0,0,0,0.52)',
-    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
+  expBody:     { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12 },
+  expCategory: {
+    fontSize: 9, color: 'rgba(255,255,255,0.55)', fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 3,
   },
-  expCategoryText: { fontSize: 10, color: '#fff', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  expBody:    { padding: 10 },
-  expTitle:   { fontSize: 13, fontWeight: '700', color: C.onSurface, lineHeight: 17 },
-  expLocRow:  { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
-  expLoc:     { fontSize: 11, color: C.onSurfaceVariant, flex: 1 },
-  expFooter:  {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.outlineVariant + '40',
-  },
-  expPrice:    { fontSize: 13, fontWeight: '800', color: C.primary },
-  expPricePer: { fontSize: 10, fontWeight: '500', color: C.onSurfaceVariant },
-  expCtaRow:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  expCtaText:  { fontSize: 11, fontWeight: '700', color: C.secondary },
-
-  /* Planner tab */
-  plannerContent: { padding: 20, paddingBottom: 40 },
-  plannerHeaderCard: {
-    flexDirection: 'row', gap: 12, alignItems: 'flex-start',
-    backgroundColor: C.surface, borderRadius: 14, padding: 14, marginBottom: 22,
-    borderWidth: 1, borderColor: C.outlineVariant + '50',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
-      android: { elevation: 1 },
-    }),
-  },
-  plannerIconWrap: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.primaryLight,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  plannerTitle: { fontSize: 16, fontWeight: '800', color: C.onSurface },
-  plannerSub:   { fontSize: 12, color: C.onSurfaceVariant, marginTop: 3, lineHeight: 17 },
-
-  formGroup: { marginBottom: 16 },
-  formLabel: {
-    fontSize: 11, fontWeight: '700', color: C.onSurface,
-    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6,
-  },
-  formInput: {
-    backgroundColor: C.surface, borderWidth: 1, borderColor: C.outlineVariant + '80',
-    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: C.onSurface,
-  },
-
-  levelRow: { flexDirection: 'row', gap: 8 },
-  levelBtn: {
-    flex: 1, paddingVertical: 11, borderRadius: 10,
-    borderWidth: 1.5, borderColor: C.outlineVariant + '90',
-    backgroundColor: C.surface, alignItems: 'center', gap: 5,
-  },
-  levelDot: {
-    width: 18, height: 18, borderRadius: 9,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  levelText: { fontSize: 11, fontWeight: '600', color: C.onSurfaceVariant },
-
-  errBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    backgroundColor: '#fef2f2', borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: '#fecaca', marginBottom: 14,
-  },
-  errBoxText: { fontSize: 13, color: '#dc2626', flex: 1 },
-
-  planBtn: {
-    backgroundColor: C.primary, paddingVertical: 15, borderRadius: 14,
-    alignItems: 'center', marginTop: 8,
-    ...Platform.select({
-      ios: { shadowColor: C.primary, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.28, shadowRadius: 10 },
-      android: { elevation: 5 },
-    }),
-  },
-  planBtnText: { color: C.white, fontWeight: '700', fontSize: 15 },
-
-  /* Result card */
-  resultCard: {
-    backgroundColor: C.surface, borderRadius: 18, padding: 18, marginTop: 24,
-    borderWidth: 1, borderColor: C.outlineVariant + '60',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.07, shadowRadius: 12 },
-      android: { elevation: 3 },
-    }),
-  },
-  resultBadgeRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
-  resultBadgeText: { fontSize: 10, fontWeight: '800', color: C.primary, letterSpacing: 0.9 },
-  resultTripName:  { fontSize: 21, fontWeight: '800', color: C.onSurface, lineHeight: 27, marginBottom: 16 },
-
-  statsRow: {
-    flexDirection: 'row', backgroundColor: C.primaryLight,
-    borderRadius: 12, paddingVertical: 16, marginBottom: 14,
-  },
-  statItem:  { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 13, fontWeight: '800', color: C.onSurface, marginBottom: 2 },
-  statLabel: {
-    fontSize: 10, color: C.onSurfaceVariant,
-    fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4,
-  },
-
-  explanationBox: {
-    flexDirection: 'row', gap: 8,
-    backgroundColor: '#F0F8F4', borderRadius: 10, padding: 12,
-    borderLeftWidth: 3, borderLeftColor: C.primary, marginBottom: 4,
-  },
-  explanationText: { fontSize: 13, color: C.onSurfaceVariant, lineHeight: 19, flex: 1 },
-
-  resultExpHeading: { fontSize: 13, fontWeight: '700', color: C.onSurface, marginBottom: 4 },
+  expTitle:    { fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 17 },
+  expLoc:      { fontSize: 11, color: 'rgba(255,255,255,0.55)' },
+  expPrice:    { fontSize: 11, color: '#88D6B2', fontWeight: '700' },
 });
