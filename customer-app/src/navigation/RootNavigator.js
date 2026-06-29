@@ -28,6 +28,7 @@ import TripDashboardScreen from '../screens/TripDashboardScreen';
 import ChatScreen from '../screens/ChatScreen';
 import InquiryChatScreen from '../screens/InquiryChatScreen';
 import OperatorProfileScreen from '../screens/OperatorProfileScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -81,9 +82,10 @@ function MainTabs() {
   );
 }
 
-function AppNavigator() {
+function AppNavigator({ initialRoute }) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRoute}>
+      <Stack.Screen name="Onboarding"       component={OnboardingScreen} />
       <Stack.Screen name="Main"             component={MainTabs} />
       <Stack.Screen name="ExperienceDetail" component={ExperienceDetailScreen} />
       <Stack.Screen name="Booking"          component={BookingScreen} />
@@ -105,7 +107,7 @@ function AppNavigator() {
 }
 
 export default function RootNavigator() {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -117,7 +119,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer>
-      <AppNavigator />
+      <AppNavigator initialRoute={user ? 'Main' : 'Onboarding'} />
     </NavigationContainer>
   );
 }
