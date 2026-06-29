@@ -245,7 +245,7 @@ export default function MyTripsScreen({ navigation }) {
   const { user } = useAuth();
 
   const [bookings,       setBookings]       = useState([]);
-  const [loading,        setLoading]        = useState(true);
+  const [loading,        setLoading]        = useState(!!user);
   const [refreshing,     setRefreshing]     = useState(false);
   const [activeTab,      setActiveTab]      = useState('All');
   const [uiTab,          setUiTab]          = useState('upcoming');
@@ -270,6 +270,7 @@ export default function MyTripsScreen({ navigation }) {
   };
 
   const fetchBookings = useCallback(async () => {
+    if (!user) { setLoading(false); setRefreshing(false); return; }
     try {
       const params = activeTab !== 'All' ? { status: activeTab } : {};
       const res = await bookingAPI.getMy(params);
@@ -280,7 +281,7 @@ export default function MyTripsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   useEffect(() => {
     fetchBookings();
@@ -341,10 +342,30 @@ export default function MyTripsScreen({ navigation }) {
 
   const upcomingBookings = bookings.filter(b => ['pending', 'confirmed', 'ongoing', 'postponed'].includes(b.status));
   const pastBookings     = bookings.filter(b => ['completed', 'cancelled'].includes(b.status));
-  // Countdown banner only for trips that haven't started yet
   const nextCountdownBooking = upcomingBookings.find(b => b.status === 'confirmed' || b.status === 'pending');
   const goToExp     = (b) => navigation.navigate('ExperienceDetail', { experienceId: b.experience?._id, bookingId: b._id });
   const goToDashboard = (b) => navigation.navigate('TripDashboard', { bookingId: b._id });
+
+  if (!user) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.appBar}>
+          <Text style={s.appBarLogo}>Wildvora</Text>
+        </View>
+        <View style={s.guestWrap}>
+          <MaterialCommunityIcons name="hiking" size={64} color="#D1D5DB" />
+          <Text style={s.guestTitle}>Your trips live here</Text>
+          <Text style={s.guestSub}>Sign in to view and manage your bookings, track upcoming adventures, and relive past trips.</Text>
+          <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
+            <Text style={s.guestPrimaryBtnText}>Create Account</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
+            <Text style={s.guestSecondaryBtnText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -630,4 +651,12 @@ const s = StyleSheet.create({
   submitBtnText:     { color: C.white, fontWeight: '700', fontSize: 16 },
   cancelModalBtn:    { alignItems: 'center', paddingVertical: 10 },
   cancelModalText:   { fontSize: 14, color: C.outline, fontWeight: '600' },
+
+  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  guestTitle:           { fontSize: 22, fontWeight: '800', color: C.onSurface, marginTop: 20, marginBottom: 10, textAlign: 'center', letterSpacing: -0.3 },
+  guestSub:             { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 21, marginBottom: 36 },
+  guestPrimaryBtn:      { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
+  guestPrimaryBtnText:  { fontSize: 15, fontWeight: '800', color: C.white },
+  guestSecondaryBtn:    { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 14, alignSelf: 'stretch', alignItems: 'center' },
+  guestSecondaryBtnText:{ fontSize: 15, fontWeight: '700', color: C.primary },
 });

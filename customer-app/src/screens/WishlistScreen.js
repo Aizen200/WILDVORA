@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { userAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   primary:             '#1A5F45',
@@ -32,11 +33,12 @@ const CATEGORY_IMAGES = {
 };
 
 export default function WishlistScreen({ navigation }) {
+  const { user } = useAuth();
   const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading]   = useState(!user ? false : true);
 
-  // ── Logic unchanged ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (!user) return;
     const fetch = async () => {
       try {
         const res = await userAPI.getProfile();
@@ -45,7 +47,7 @@ export default function WishlistScreen({ navigation }) {
       finally { setLoading(false); }
     };
     fetch();
-  }, []);
+  }, [user]);
 
   const handleRemove = async (id) => {
     await userAPI.toggleWishlist(id);
@@ -58,6 +60,31 @@ export default function WishlistScreen({ navigation }) {
       <View style={s.center}>
         <ActivityIndicator size="large" color={C.primary} />
       </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color={C.primary} />
+          </TouchableOpacity>
+          <Text style={s.title}>My Wishlist</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={s.guestWrap}>
+          <MaterialCommunityIcons name="heart-outline" size={64} color={C.outlineVariant} />
+          <Text style={s.guestTitle}>Save adventures for later</Text>
+          <Text style={s.guestSub}>Create an account to save your favourite experiences and access them anytime.</Text>
+          <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
+            <Text style={s.guestPrimaryBtnText}>Create Account</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
+            <Text style={s.guestSecondaryBtnText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -212,4 +239,12 @@ const s = StyleSheet.create({
   emptyText:      { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 20, marginBottom: 28 },
   exploreBtn:     { backgroundColor: C.primary, borderRadius: 50, paddingVertical: 13, paddingHorizontal: 28, ...Platform.select({ ios: { shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6 }, android: { elevation: 3 } }) },
   exploreBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  guestWrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 0 },
+  guestTitle:        { fontSize: 20, fontWeight: '800', color: C.onSurface, marginTop: 20, marginBottom: 10, textAlign: 'center' },
+  guestSub:          { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
+  guestPrimaryBtn:   { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 40, marginBottom: 12, alignSelf: 'stretch', alignItems: 'center' },
+  guestPrimaryBtnText:  { fontSize: 15, fontWeight: '800', color: '#fff' },
+  guestSecondaryBtn: { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40, alignSelf: 'stretch', alignItems: 'center' },
+  guestSecondaryBtnText: { fontSize: 15, fontWeight: '700', color: C.primary },
 });

@@ -37,6 +37,7 @@ export default function RegisterScreen({ navigation }) {
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`;
       await register(fullName, email.trim().toLowerCase(), password, phone.trim());
+      navigation.goBack();
     } catch (err) {
       Alert.alert('Registration Failed', err.response?.data?.message || 'Something went wrong');
     } finally {

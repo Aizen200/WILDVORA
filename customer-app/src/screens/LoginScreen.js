@@ -25,6 +25,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
+      navigation.goBack();
     } catch (err) {
       Alert.alert('Login Failed', err.response?.data?.message || 'Something went wrong');
     } finally {

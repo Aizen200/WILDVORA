@@ -8,8 +8,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 import { experienceAPI, userAPI } from '../services/api';
 import { getRecentlyViewed } from '../utils/recentlyViewed';
+import AuthPromptSheet from '../components/AuthPromptSheet';
 
 const { width } = Dimensions.get('window');
 
@@ -248,6 +250,7 @@ function WhyRow({ item, index, divider }) {
 export default function HomeScreen({ navigation }) {
   const { user }  = useAuth();
   const firstName = user?.name?.split(' ')[0] || 'Explorer';
+  const { requireAuth, promptVisible, hidePrompt } = useAuthGuard();
   const [search, setSearch]                 = useState('');
   const [category, setCategory]             = useState('All');
   const [activeFilter, setActiveFilter]     = useState(null);
@@ -288,7 +291,7 @@ export default function HomeScreen({ navigation }) {
   const goToExperience = item => navigation.navigate('ExperienceDetail', { experienceId: item._id });
   const handleSearch   = () => navigation.navigate('Search', { initialSearch: search });
 
-  const handleWishlist = async (item) => {
+  const handleWishlist = requireAuth(async (item) => {
     try {
       await userAPI.toggleWishlist(item._id);
       setWishlistIds(prev => {
@@ -297,7 +300,7 @@ export default function HomeScreen({ navigation }) {
         return next;
       });
     } catch {}
-  };
+  });
 
   const baseList = category === 'All'
     ? allExperiences
@@ -363,10 +366,15 @@ export default function HomeScreen({ navigation }) {
           <View style={s.headerOverlay} />
           <View style={s.headerNav}>
             <Text style={s.headerLogo}>wildvora</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={s.headerAvatar}>
+            <TouchableOpacity
+              onPress={() => user ? navigation.navigate('Profile') : navigation.navigate('Login')}
+              style={s.headerAvatar}
+            >
               {user?.avatar
                 ? <Image source={{ uri: user.avatar }} style={s.avatarImg} />
-                : <Text style={s.headerAvatarText}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>}
+                : user
+                  ? <Text style={s.headerAvatarText}>{user.name?.[0]?.toUpperCase()}</Text>
+                  : <MaterialCommunityIcons name="account-outline" size={20} color="#fff" />}
             </TouchableOpacity>
           </View>
           <View style={s.headerGreetWrap}>
@@ -665,6 +673,13 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity style={s.aiFab} onPress={() => navigation.navigate('AIChat')} activeOpacity={0.88}>
         <MaterialCommunityIcons name="robot-outline" size={22} color={C.white} />
       </TouchableOpacity>
+
+      <AuthPromptSheet
+        visible={promptVisible}
+        onDismiss={hidePrompt}
+        onSignUp={() => { hidePrompt(); navigation.navigate('Register'); }}
+        onSignIn={() => { hidePrompt(); navigation.navigate('Login'); }}
+      />
     </SafeAreaView>
   );
 }
