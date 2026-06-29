@@ -7,8 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { experienceAPI, reviewAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAuthGuard } from '../hooks/useAuthGuard';
 import Alert from '../utils/alert';
 import { addToRecentlyViewed } from '../utils/recentlyViewed';
+import AuthPromptSheet from '../components/AuthPromptSheet';
 
 const HERO_FALLBACK = require('../../assets/heroimage.png');
 
@@ -71,6 +73,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
   const { experienceId, bookingId } = route.params;
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { requireAuth, promptVisible, hidePrompt } = useAuthGuard();
 
   const [experience,     setExperience]    = useState(null);
   const [reviews,        setReviews]       = useState([]);
@@ -186,10 +189,10 @@ export default function ExperienceDetailScreen({ route, navigation }) {
     fetchData();
   }, [experienceId]);
 
-  const handleWishlist = async () => {
+  const handleWishlist = requireAuth(async () => {
     try { await userAPI.toggleWishlist(experienceId); setInWishlist(p => !p); }
     catch { Alert.alert('Error', 'Could not update wishlist'); }
-  };
+  });
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#1A5F45" /></View>;
   if (!experience) return null;
@@ -337,11 +340,11 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 <TouchableOpacity
                   style={styles.askHostBtn}
                   activeOpacity={0.8}
-                  onPress={() => navigation.navigate('InquiryChat', {
+                  onPress={requireAuth(() => navigation.navigate('InquiryChat', {
                     experienceId: experience._id,
                     hostName: experience.hostName,
                     experienceTitle: experience.title,
-                  })}
+                  }))}
                 >
                   <MaterialCommunityIcons name="chat-question-outline" size={13} color="#1A5F45" />
                   <Text style={styles.askHostBtnText}>Ask Host</Text>
@@ -428,7 +431,7 @@ export default function ExperienceDetailScreen({ route, navigation }) {
                 <TouchableOpacity
                   key={i}
                   style={styles.dateChip}
-                  onPress={() => navigation.navigate('Booking', { experience })}
+                  onPress={requireAuth(() => navigation.navigate('Booking', { experience }))}
                   activeOpacity={0.75}
                 >
                   <Text style={styles.dateChipText}>{fmtDate(ds)}</Text>
@@ -707,18 +710,25 @@ export default function ExperienceDetailScreen({ route, navigation }) {
             <Text style={styles.footerPrice}>₹{experience.price}</Text>
             <Text style={styles.footerPriceSub}>/ person</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Booking', { experience })} activeOpacity={0.8}>
+          <TouchableOpacity onPress={requireAuth(() => navigation.navigate('Booking', { experience }))} activeOpacity={0.8}>
             <Text style={styles.viewDatesText}>View all dates →</Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity
           style={styles.bookBtn}
-          onPress={() => navigation.navigate('Booking', { experience })}
+          onPress={requireAuth(() => navigation.navigate('Booking', { experience }))}
           activeOpacity={0.88}
         >
           <Text style={styles.bookBtnText}>Book Now</Text>
         </TouchableOpacity>
       </View>
+
+      <AuthPromptSheet
+        visible={promptVisible}
+        onDismiss={hidePrompt}
+        onSignUp={() => { hidePrompt(); navigation.navigate('Register'); }}
+        onSignIn={() => { hidePrompt(); navigation.navigate('Login'); }}
+      />
     </View>
   );
 }
