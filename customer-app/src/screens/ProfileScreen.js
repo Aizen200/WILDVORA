@@ -26,8 +26,8 @@ const C = {
   onSurfaceVariant:    '#717171',
   outline:             '#B0B0B0',
   outlineVariant:      '#E0E0E0',
-  tertiary:            '#C05621',
-  error:               '#C13515',
+  tertiary:            '#2D7A5A',
+  error:               '#1A5F45',
 };
 
 const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
@@ -427,7 +427,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={s.dialogBody}>
               Are you sure you want to log out of your Wildvora account?
             </Text>
-            <TouchableOpacity style={s.dialogConfirm} onPress={() => { setLogoutModal(false); logout(); }}>
+            <TouchableOpacity style={s.dialogConfirm} onPress={() => { setLogoutModal(false); logout();  navigation.reset({index: 0,routes: [{ name: 'Onboarding' }],});}}>
               <Text style={s.dialogConfirmText}>Log Out</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.dialogCancel} onPress={() => setLogoutModal(false)}>
