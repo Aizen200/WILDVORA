@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { bookingAPI } from '../services/api';
 import Alert from '../utils/alert';
 
@@ -24,6 +26,8 @@ const C = {
   white:               '#ffffff',
 };
 
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 const STATUS_CFG = {
   pending:   { bg: C.surfaceContainerLow, text: C.onSurfaceVariant, stripe: C.outline,  icon: 'clock-outline',        label: 'Pending',   tripLabel: 'Awaiting Confirmation' },
   confirmed: { bg: C.primary + '18',     text: C.primary,           stripe: C.primary,  icon: 'check-circle-outline', label: 'Confirmed', tripLabel: 'Upcoming'              },
@@ -32,6 +36,8 @@ const STATUS_CFG = {
   completed: { bg: C.primary + '18',     text: C.primary,           stripe: C.primary,  icon: 'check-circle',         label: 'Completed', tripLabel: 'Completed'             },
   cancelled: { bg: C.error + '14',       text: C.error,             stripe: C.error,    icon: 'close-circle-outline', label: 'Cancelled', tripLabel: 'Cancelled'             },
 };
+
+const PAYMENT_LABELS = { card: 'Credit Card', apple_pay: 'Apple Pay', google_pay: 'Google Pay' };
 
 const SUITABILITY_COLOR = { Good: C.primary, Moderate: C.onSurfaceVariant, 'Not Recommended': C.error };
 const SUITABILITY_BG    = { Good: C.primary + '14', Moderate: C.surfaceContainerLow, 'Not Recommended': C.error + '12' };
@@ -56,8 +62,58 @@ const getWeatherIcon = (iconCode, size = 22) => {
   }
 };
 
+// Trip start/end → "Adventure starts in X days" style countdown, derived from real booking dates.
+const getCountdownInfo = (booking) => {
+  if (!booking?.startDate || booking.status === 'cancelled') return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(booking.startDate); start.setHours(0, 0, 0, 0);
+  const end   = booking.endDate ? new Date(booking.endDate) : new Date(start); end.setHours(0, 0, 0, 0);
+  if (isNaN(start.getTime())) return null;
+
+  if (booking.status === 'completed' || today > end) {
+    return { text: 'Trip completed', icon: 'check-circle-outline' };
+  }
+  if (today >= start && today <= end) {
+    return { text: 'Your adventure is happening now', icon: 'map-marker-path' };
+  }
+  const diffDays = Math.round((start - today) / 86400000);
+  if (diffDays === 0) return { text: 'Adventure starts today!', icon: 'rocket-launch-outline' };
+  if (diffDays === 1) return { text: 'Adventure starts tomorrow', icon: 'rocket-launch-outline' };
+  return { text: `Adventure starts in ${diffDays} days`, icon: 'timer-sand' };
+};
+
+// Contextual packing/prep tip from real trip data — weather first, then difficulty, then checklist coverage.
+const getSmartTip = ({ weather, difficulty, essentialsCount }) => {
+  if (weather?.suitability === 'Not Recommended') {
+    return { icon: 'alert-circle-outline', text: 'Conditions look tough right now — confirm with your host before heading out.' };
+  }
+  if (weather?.suitability === 'Moderate') {
+    return { icon: 'umbrella-outline', text: 'Pack a light rain layer — conditions may shift during your trip.' };
+  }
+  if (['Hard', 'Difficult', 'Expert'].includes(difficulty)) {
+    return { icon: 'arm-flex-outline', text: 'This is a challenging trip — rest well and stay hydrated before you start.' };
+  }
+  if (essentialsCount === 0) {
+    return { icon: 'bag-personal-outline', text: 'Pack versatile layers and comfortable footwear — your host will share the full gear list soon.' };
+  }
+  return { icon: 'white-balance-sunny', text: 'Conditions look great — pack light and arrive a little early to settle in.' };
+};
+
+const formatShortDate = (dateStr) => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
+};
+
+const formatLongDate = (dateStr) => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return `${WEEK[d.getDay()]}, ${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+};
+
 // ── Section card ─────────────────────────────────────────────────────────────
-function SectionCard({ title, icon, iconColor = C.primary, children }) {
+function SectionCard({ title, icon, iconColor = C.primary, right, children }) {
   return (
     <View style={s.card}>
       <View style={s.cardHeader}>
@@ -65,10 +121,16 @@ function SectionCard({ title, icon, iconColor = C.primary, children }) {
           <MaterialCommunityIcons name={icon} size={19} color={iconColor} />
         </View>
         <Text style={s.cardTitle}>{title}</Text>
+        {right}
       </View>
       {children}
     </View>
   );
+}
+
+// ── Group label (lightweight section grouping, e.g. "SUPPORT") ────────────────
+function GroupLabel({ children }) {
+  return <Text style={s.groupLabel}>{children}</Text>;
 }
 
 // ── InfoRow ───────────────────────────────────────────────────────────────────
@@ -95,19 +157,6 @@ function InfoRow({ icon, label, value, onPress, last }) {
     : content;
 }
 
-// ── Stat chip ─────────────────────────────────────────────────────────────────
-function StatChip({ icon, value, label, color = C.primary }) {
-  return (
-    <View style={s.statChip}>
-      <View style={[s.statChipIcon, { backgroundColor: color + '15' }]}>
-        <MaterialCommunityIcons name={icon} size={18} color={color} />
-      </View>
-      <Text style={s.statChipVal}>{value}</Text>
-      <Text style={s.statChipLbl}>{label}</Text>
-    </View>
-  );
-}
-
 // ── Checklist item ────────────────────────────────────────────────────────────
 function EssentialItem({ text, index }) {
   return (
@@ -123,7 +172,7 @@ function EssentialItem({ text, index }) {
 // ── Chip list items (inclusions / exclusions) ─────────────────────────────────
 function ChipItem({ text, positive }) {
   return (
-    <View style={[s.chipItem, positive ? s.chipItemGreen : s.chipItemRed]}>
+    <View style={s.chipItem}>
       <MaterialCommunityIcons
         name={positive ? 'check' : 'close'}
         size={13}
@@ -143,6 +192,10 @@ export default function TripDashboardScreen({ route, navigation }) {
   const [weather,        setWeather]        = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [cancelling,     setCancelling]     = useState(false);
+
+  const [showWeatherDetails, setShowWeatherDetails] = useState(false);
+  const [showAllEssentials,  setShowAllEssentials]  = useState(false);
+  const [showIncExc,         setShowIncExc]         = useState(false);
 
   useEffect(() => { fetchBooking(); }, []);
 
@@ -234,6 +287,11 @@ export default function TripDashboardScreen({ route, navigation }) {
     );
   };
 
+  const toggleWeatherDetails = () => { Haptics.selectionAsync(); setShowWeatherDetails(v => !v); };
+  const toggleEssentials     = () => { Haptics.selectionAsync(); setShowAllEssentials(v => !v); };
+  const toggleIncExc         = () => { Haptics.selectionAsync(); setShowIncExc(v => !v); };
+  const handleQuickAction    = (fn) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); fn(); };
+
   // ── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -251,13 +309,27 @@ export default function TripDashboardScreen({ route, navigation }) {
   const essentials   = (exp.safetyChecklist?.length ? exp.safetyChecklist : exp.requirements) || [];
   const guideContact = exp.safetyInfo?.emergencyContact;
   const emergContact = exp.emergencyInfo?.contact;
-  const mapsLink     = exp.location?.googleMapsLink;
-  const meetingPoint = exp.location?.meetingPoint;
-  const canCancel    = ['pending', 'confirmed', 'postponed'].includes(booking?.status);
-  const hasOperator  = exp.operatorInfo && Object.values(exp.operatorInfo).some(Boolean);
-  const dateStr      = booking.endDate && booking.endDate !== booking.startDate
+  const mapsLink      = exp.location?.googleMapsLink;
+  const meetingPoint  = exp.location?.meetingPoint;
+  const canCancel     = ['pending', 'confirmed', 'postponed'].includes(booking?.status);
+  const hasOperator   = exp.operatorInfo && Object.values(exp.operatorInfo).some(Boolean);
+  const dateStr       = booking.endDate && booking.endDate !== booking.startDate
     ? `${booking.startDate}  →  ${booking.endDate}`
     : booking.startDate;
+  const heroDateStr   = booking.endDate && booking.endDate !== booking.startDate
+    ? `${formatShortDate(booking.startDate)} – ${formatShortDate(booking.endDate)}`
+    : formatShortDate(booking.startDate);
+  const locationStr   = [exp.location?.city, exp.location?.state, exp.location?.country].filter(Boolean).join(', ');
+
+  const countdown      = getCountdownInfo(booking);
+  const smartTip        = getSmartTip({ weather, difficulty: exp.difficulty, essentialsCount: essentials.length });
+  const visibleEssentials = showAllEssentials ? essentials : essentials.slice(0, 3);
+  const hiddenEssentialsCount = Math.max(essentials.length - 3, 0);
+  const paymentLabel    = PAYMENT_LABELS[booking.paymentMethod] || booking.paymentMethod || '—';
+  const paymentStatus   = booking.paymentStatus
+    ? booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)
+    : null;
+  const hasIncExc       = exp.includes?.length > 0 || exp.exclusions?.length > 0;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -269,115 +341,213 @@ export default function TripDashboardScreen({ route, navigation }) {
             ? <Image source={{ uri: heroImg }} style={StyleSheet.absoluteFill} resizeMode="cover" />
             : <View style={[StyleSheet.absoluteFill, { backgroundColor: C.primaryContainer }]} />
           }
-          {/* Multi-stop gradient overlay */}
           <View style={s.heroGradientTop} />
-          <View style={s.heroGradientBottom} />
 
           {/* Top bar */}
           <View style={s.heroTopBar}>
             <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
               <MaterialCommunityIcons name="arrow-left" size={20} color={C.white} />
             </TouchableOpacity>
-            <View style={s.heroBadge}>
-              <MaterialCommunityIcons name="map-legend" size={12} color={C.white} />
-              <Text style={s.heroBadgeText}>TRIP DASHBOARD</Text>
+            <View style={[s.statusPill, { backgroundColor: 'rgba(0,0,0,0.38)' }]}>
+              <MaterialCommunityIcons name={statusCfg.icon} size={12} color={C.white} />
+              <Text style={[s.statusPillText, { color: C.white }]}>{statusCfg.label}</Text>
             </View>
           </View>
 
           {/* Bottom content */}
           <View style={s.heroBottom}>
-            <View style={[s.statusPill, { backgroundColor: statusCfg.bg }]}>
-              <MaterialCommunityIcons name={statusCfg.icon} size={12} color={statusCfg.text} />
-              <Text style={[s.statusPillText, { color: statusCfg.text }]}>{statusCfg.label}</Text>
-            </View>
+            {countdown && (
+              <View style={s.countdownPill}>
+                <MaterialCommunityIcons name={countdown.icon} size={13} color={C.white} />
+                <Text style={s.countdownText}>{countdown.text}</Text>
+              </View>
+            )}
             <Text style={s.heroTitle} numberOfLines={2}>{exp.title || 'Adventure'}</Text>
             <View style={s.heroMetaRow}>
-              <MaterialCommunityIcons name="map-marker-outline" size={13} color="rgba(255,255,255,0.75)" />
-              <Text style={s.heroSub}>
-                {[exp.location?.city, exp.location?.state, exp.location?.country].filter(Boolean).join(', ')}
-              </Text>
+              <MaterialCommunityIcons name="calendar-blank-outline" size={13} color="rgba(255,255,255,0.85)" />
+              <Text style={s.heroSub}>{heroDateStr}</Text>
+              {!!locationStr && (
+                <>
+                  <View style={s.heroMetaDot} />
+                  <MaterialCommunityIcons name="map-marker-outline" size={13} color="rgba(255,255,255,0.85)" />
+                  <Text style={s.heroSub} numberOfLines={1}>{locationStr}</Text>
+                </>
+              )}
             </View>
           </View>
         </View>
 
-        {/* ── Quick Actions Strip ──────────────────────────────────────────── */}
-        <View style={s.quickActions}>
-          <TouchableOpacity 
-            style={s.quickBtn} 
-            onPress={() => navigation.navigate('Chat', {
-              bookingId: booking._id,
-              hostName: exp.hostName,
-              title: exp.title,
-            })} 
-            activeOpacity={0.8}
-          >
-            <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
-              <MaterialCommunityIcons name="chat-processing-outline" size={20} color={C.primary} />
-            </View>
-            <Text style={s.quickBtnText}>Message Host</Text>
-          </TouchableOpacity>
-          {mapsLink && (
-            <TouchableOpacity style={s.quickBtn} onPress={() => Linking.openURL(mapsLink)} activeOpacity={0.8}>
-              <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
-                <MaterialCommunityIcons name="map-marker-outline" size={20} color={C.primary} />
-              </View>
-              <Text style={s.quickBtnText}>Directions</Text>
-            </TouchableOpacity>
-          )}
-          {guideContact && (
-            <TouchableOpacity style={s.quickBtn} onPress={() => Linking.openURL(`tel:${guideContact}`)} activeOpacity={0.8}>
-              <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
-                <MaterialCommunityIcons name="phone-outline" size={20} color={C.primary} />
-              </View>
-              <Text style={s.quickBtnText}>Call Guide</Text>
-            </TouchableOpacity>
-          )}
-          {emergContact && (
-            <TouchableOpacity style={s.quickBtn} onPress={() => Linking.openURL(`tel:${emergContact}`)} activeOpacity={0.8}>
-              <View style={[s.quickBtnIcon, { backgroundColor: C.error + '14' }]}>
-                <MaterialCommunityIcons name="phone-alert-outline" size={20} color="#b91c1c" />
-              </View>
-              <Text style={s.quickBtnText}>Emergency</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
         <View style={s.content}>
 
-          {/* ── Booking Summary ──────────────────────────────────────────────── */}
-          <View style={[s.card, s.summaryCard]}>
-            {/* Status stripe */}
-            <View style={[s.summaryStripe, { backgroundColor: statusCfg.stripe }]}>
-              <MaterialCommunityIcons name={statusCfg.icon} size={14} color={C.white} />
-              <Text style={s.summaryStripeText}>{statusCfg.label.toUpperCase()}</Text>
-              <View style={{ flex: 1 }} />
-              <Text style={s.summaryStripeId}>#{shortId}</Text>
-            </View>
+          {/* ── Quick Actions ─────────────────────────────────────────────── */}
+          <View style={s.quickActionsCard}>
+            <TouchableOpacity
+              style={s.quickBtn}
+              onPress={() => handleQuickAction(() => navigation.navigate('Chat', {
+                bookingId: booking._id,
+                hostName: exp.hostName,
+                title: exp.title,
+              }))}
+              activeOpacity={0.8}
+            >
+              <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
+                <MaterialCommunityIcons name="chat-processing-outline" size={20} color={C.primary} />
+              </View>
+              <Text style={s.quickBtnText}>Message Host</Text>
+            </TouchableOpacity>
+            {mapsLink && (
+              <TouchableOpacity style={s.quickBtn} onPress={() => handleQuickAction(() => Linking.openURL(mapsLink))} activeOpacity={0.8}>
+                <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={20} color={C.primary} />
+                </View>
+                <Text style={s.quickBtnText}>Directions</Text>
+              </TouchableOpacity>
+            )}
+            {guideContact && (
+              <TouchableOpacity style={s.quickBtn} onPress={() => handleQuickAction(() => Linking.openURL(`tel:${guideContact}`))} activeOpacity={0.8}>
+                <View style={[s.quickBtnIcon, { backgroundColor: C.primary + '18' }]}>
+                  <MaterialCommunityIcons name="phone-outline" size={20} color={C.primary} />
+                </View>
+                <Text style={s.quickBtnText}>Call Guide</Text>
+              </TouchableOpacity>
+            )}
+            {emergContact && (
+              <TouchableOpacity style={s.quickBtn} onPress={() => handleQuickAction(() => Linking.openURL(`tel:${emergContact}`))} activeOpacity={0.8}>
+                <View style={[s.quickBtnIcon, { backgroundColor: C.error + '14' }]}>
+                  <MaterialCommunityIcons name="phone-alert-outline" size={20} color="#b91c1c" />
+                </View>
+                <Text style={s.quickBtnText}>Emergency</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-            {/* 2×2 grid */}
-            <View style={s.summaryGrid}>
-              <View style={s.summaryCell}>
-                <Text style={s.summaryCellLabel}>Trip Status</Text>
-                <Text style={[s.summaryCellValue, { color: statusCfg.text }]}>{statusCfg.tripLabel}</Text>
-              </View>
-              <View style={[s.summaryCell, s.summaryCellRight]}>
-                <Text style={s.summaryCellLabel}>Guests</Text>
-                <Text style={s.summaryCellValue}>
-                  {booking.adults} adult{booking.adults !== 1 ? 's' : ''}
-                  {booking.children > 0 ? ` + ${booking.children} child${booking.children !== 1 ? 'ren' : ''}` : ''}
-                </Text>
-              </View>
-              <View style={[s.summaryCell, s.summaryCellTop]}>
-                <Text style={s.summaryCellLabel}>Trip Date</Text>
-                <Text style={s.summaryCellValue}>{dateStr}</Text>
-              </View>
-              <View style={[s.summaryCell, s.summaryCellRight, s.summaryCellTop]}>
-                <Text style={s.summaryCellLabel}>Duration</Text>
-                <Text style={s.summaryCellValue}>{exp.duration || '—'}</Text>
-              </View>
-            </View>
+          {/* ── Trip Essentials ──────────────────────────────────────────────── */}
+          <SectionCard title="Trip Essentials" icon="compass-outline" iconColor={C.primary}>
+            {/* Weather summary row (tap to expand) */}
+            {(weatherLoading || weather) && (
+              <TouchableOpacity
+                style={[s.infoRow, s.infoRowBorder]}
+                onPress={weather ? toggleWeatherDetails : undefined}
+                activeOpacity={weather ? 0.7 : 1}
+              >
+                <View style={s.infoIconWrap}>
+                  {weatherLoading
+                    ? <ActivityIndicator size="small" color={C.primary} />
+                    : getWeatherIcon(weather.iconCode, 16)}
+                </View>
+                <View style={s.infoContent}>
+                  <Text style={s.infoLabel}>Weather</Text>
+                  <Text style={s.infoValue}>
+                    {weatherLoading ? 'Checking conditions…' : `${weather.temp} · ${weather.condition}`}
+                  </Text>
+                </View>
+                {weather && (
+                  <View style={s.weatherRowRight}>
+                    <View style={[s.suitBadgeSmall, { backgroundColor: SUITABILITY_BG[weather.suitability] }]}>
+                      <Text style={[s.suitBadgeSmallText, { color: SUITABILITY_COLOR[weather.suitability] }]}>
+                        {weather.suitability}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={showWeatherDetails ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={C.outline}
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
 
-            {/* Paid row */}
+            {showWeatherDetails && weather && (
+              <Animated.View
+                entering={FadeIn.duration(220)}
+                exiting={FadeOut.duration(150)}
+                layout={LinearTransition.springify().damping(18)}
+                style={s.weatherExpanded}
+              >
+                <View style={s.weatherStats}>
+                  {[
+                    { icon: 'water-percent',    val: weather.humidity,   lbl: 'Humidity'   },
+                    { icon: 'weather-windy',    val: weather.windSpeed,  lbl: 'Wind'       },
+                    { icon: 'umbrella-outline', val: weather.rainProb,   lbl: 'Rain'       },
+                    { icon: 'eye-outline',      val: weather.visibility, lbl: 'Visibility' },
+                  ].map(({ icon, val, lbl }) => (
+                    <View key={lbl} style={s.weatherStat}>
+                      <MaterialCommunityIcons name={icon} size={18} color={C.onSurfaceVariant} />
+                      <Text style={s.weatherStatVal}>{val}</Text>
+                      <Text style={s.weatherStatLbl}>{lbl}</Text>
+                    </View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+
+            {meetingPoint && (
+              <InfoRow icon="map-marker-radius-outline" label="Meeting Point" value={meetingPoint} />
+            )}
+
+            <InfoRow icon="calendar-arrow-right" label="Departure" value={formatLongDate(booking.startDate)} />
+
+            {mapsLink && (
+              <TouchableOpacity style={s.mapsBtn} onPress={() => Linking.openURL(mapsLink)} activeOpacity={0.82}>
+                <MaterialCommunityIcons name="google-maps" size={20} color={C.white} />
+                <Text style={s.mapsBtnText}>Open in Google Maps</Text>
+                <MaterialCommunityIcons name="chevron-right" size={18} color="rgba(255,255,255,0.8)" />
+              </TouchableOpacity>
+            )}
+
+            <View style={s.tipBox}>
+              <View style={s.tipIconWrap}>
+                <MaterialCommunityIcons name={smartTip.icon} size={16} color={C.secondary} />
+              </View>
+              <Text style={s.tipText}>{smartTip.text}</Text>
+            </View>
+          </SectionCard>
+
+          {/* ── Packing Checklist ────────────────────────────────────────────── */}
+          <SectionCard title="Packing Checklist" icon="bag-personal-outline" iconColor={C.primary}>
+            {essentials.length > 0 ? (
+              <Animated.View layout={LinearTransition.springify().damping(18)}>
+                {visibleEssentials.map((item, i) => (
+                  <EssentialItem key={i} text={item} index={i} />
+                ))}
+                {hiddenEssentialsCount > 0 && (
+                  <TouchableOpacity style={s.viewMoreBtn} onPress={toggleEssentials} activeOpacity={0.7}>
+                    <Text style={s.viewMoreText}>
+                      {showAllEssentials ? 'Show Less' : `View Full Checklist (${hiddenEssentialsCount} more)`}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={showAllEssentials ? 'chevron-up' : 'chevron-down'}
+                      size={16}
+                      color={C.primary}
+                    />
+                  </TouchableOpacity>
+                )}
+              </Animated.View>
+            ) : (
+              <View style={s.emptySection}>
+                <MaterialCommunityIcons name="bag-personal-outline" size={28} color={C.outlineVariant} />
+                <Text style={s.emptySectionText}>No checklist provided by the operator yet.</Text>
+                <Text style={s.emptySectionSub}>Check back closer to your trip date.</Text>
+              </View>
+            )}
+          </SectionCard>
+
+          {/* ── Booking Details ──────────────────────────────────────────────── */}
+          <SectionCard title="Booking Details" icon="ticket-confirmation-outline" iconColor={C.primary}>
+            <InfoRow icon="pound" label="Booking ID" value={`#${shortId}`} />
+            <InfoRow
+              icon="account-group-outline"
+              label="Guests"
+              value={`${booking.adults} adult${booking.adults !== 1 ? 's' : ''}${booking.children > 0 ? ` + ${booking.children} child${booking.children !== 1 ? 'ren' : ''}` : ''}`}
+            />
+            <InfoRow icon="timer-outline" label="Duration" value={exp.duration || '—'} />
+            <InfoRow
+              icon="credit-card-outline"
+              label="Payment"
+              value={paymentStatus ? `${paymentLabel} · ${paymentStatus}` : paymentLabel}
+              last
+            />
             <View style={s.summaryPaidRow}>
               <MaterialCommunityIcons name="currency-inr" size={16} color={C.primary} />
               <Text style={s.summaryPaidLabel}>Total Paid</Text>
@@ -385,25 +555,77 @@ export default function TripDashboardScreen({ route, navigation }) {
                 ₹{booking.totalPrice?.toLocaleString('en-IN') ?? '—'}
               </Text>
             </View>
-          </View>
+          </SectionCard>
 
-          {/* ── Meeting & Location ──────────────────────────────────────────── */}
-          {(meetingPoint || mapsLink) && (
-            <SectionCard title="Meeting & Location" icon="map-marker-radius-outline" iconColor={C.primary}>
-              {meetingPoint && (
-                <InfoRow icon="map-marker-outline" label="Meeting Point" value={meetingPoint} last={!mapsLink} />
-              )}
-              {mapsLink && (
-                <TouchableOpacity style={s.mapsBtn} onPress={() => Linking.openURL(mapsLink)} activeOpacity={0.82}>
-                  <MaterialCommunityIcons name="google-maps" size={20} color={C.white} />
-                  <Text style={s.mapsBtnText}>Open in Google Maps</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={18} color="rgba(255,255,255,0.8)" />
+          {/* ── Special Instructions ─────────────────────────────────────────── */}
+          {booking.specialRequests?.trim() && (
+            <SectionCard title="Special Instructions" icon="note-text-outline" iconColor={C.primary}>
+              <View style={s.noteBox}>
+                <MaterialCommunityIcons name="format-quote-open" size={22} color={C.outlineVariant} style={{ marginBottom: 4 }} />
+                <Text style={s.noteText}>{booking.specialRequests}</Text>
+              </View>
+            </SectionCard>
+          )}
+
+          {/* ── Included / Not Included ──────────────────────────────────────── */}
+          {hasIncExc && (
+            <SectionCard
+              title="What's Included"
+              icon="format-list-checks"
+              iconColor={C.primary}
+              right={
+                <TouchableOpacity style={s.detailsToggle} onPress={toggleIncExc} activeOpacity={0.7}>
+                  <Text style={s.detailsToggleText}>{showIncExc ? 'Hide' : 'View Details'}</Text>
+                  <MaterialCommunityIcons
+                    name={showIncExc ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={C.primary}
+                  />
                 </TouchableOpacity>
+              }
+            >
+              <View style={s.incExcSummaryRow}>
+                {exp.includes?.length > 0 && (
+                  <View style={s.incExcSummaryChip}>
+                    <MaterialCommunityIcons name="check-circle-outline" size={14} color={C.primary} />
+                    <Text style={[s.incExcSummaryText, { color: C.primary }]}>{exp.includes.length} included</Text>
+                  </View>
+                )}
+                {exp.exclusions?.length > 0 && (
+                  <View style={s.incExcSummaryChip}>
+                    <MaterialCommunityIcons name="close-circle-outline" size={14} color={C.error} />
+                    <Text style={[s.incExcSummaryText, { color: C.error }]}>{exp.exclusions.length} not included</Text>
+                  </View>
+                )}
+              </View>
+
+              {showIncExc && (
+                <Animated.View
+                  entering={FadeIn.duration(220)}
+                  exiting={FadeOut.duration(150)}
+                  layout={LinearTransition.springify().damping(18)}
+                  style={s.incExcExpanded}
+                >
+                  {exp.includes?.length > 0 && (
+                    <View style={s.incExcCol}>
+                      <Text style={[s.incExcColTitle, { color: C.primary }]}>Included</Text>
+                      {exp.includes.map((item, i) => <ChipItem key={i} text={item} positive />)}
+                    </View>
+                  )}
+                  {exp.exclusions?.length > 0 && (
+                    <View style={s.incExcCol}>
+                      <Text style={[s.incExcColTitle, { color: C.error }]}>Not Included</Text>
+                      {exp.exclusions.map((item, i) => <ChipItem key={i} text={item} positive={false} />)}
+                    </View>
+                  )}
+                </Animated.View>
               )}
             </SectionCard>
           )}
 
-          {/* ── Operator & Contacts ─────────────────────────────────────────── */}
+          {/* ── Support ───────────────────────────────────────────────────────── */}
+          <GroupLabel>Support</GroupLabel>
+
           <SectionCard title="Operator & Contacts" icon="account-tie-outline" iconColor={C.primary}>
             <InfoRow icon="office-building-outline" label="Operator / Host" value={exp.hostName || '—'} last={!hasOperator && !guideContact && !emergContact} />
             {hasOperator && <>
@@ -432,115 +654,6 @@ export default function TripDashboardScreen({ route, navigation }) {
             )}
           </SectionCard>
 
-          {/* ── Weather ─────────────────────────────────────────────────────── */}
-          {(weatherLoading || weather) && (
-            <View style={[s.card, s.weatherCard]}>
-              <View style={s.cardHeader}>
-                <View style={[s.cardIconWrap, { backgroundColor: C.primary + '18' }]}>
-                  <MaterialCommunityIcons name="weather-partly-cloudy" size={19} color={C.primary} />
-                </View>
-                <Text style={s.cardTitle}>Weather at Destination</Text>
-                {weather && (
-                  <View style={[s.suitBadge, { backgroundColor: SUITABILITY_BG[weather.suitability] }]}>
-                    <Text style={[s.suitBadgeText, { color: SUITABILITY_COLOR[weather.suitability] }]}>
-                      {weather.suitability}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {weatherLoading ? (
-                <View style={s.weatherLoading}>
-                  <ActivityIndicator size="small" color={C.primary} />
-                  <Text style={s.weatherLoadingText}>Fetching live weather…</Text>
-                </View>
-              ) : weather && (
-                <>
-                  <View style={s.weatherMain}>
-                    <View style={s.weatherLeft}>
-                      {getWeatherIcon(weather.iconCode, 56)}
-                      <View>
-                        <Text style={s.weatherTemp}>{weather.temp}</Text>
-                        <Text style={s.weatherFeels}>Feels {weather.feelsLike}</Text>
-                      </View>
-                    </View>
-                    <View style={s.weatherRight}>
-                      <Text style={s.weatherCond}>{weather.condition}</Text>
-                    </View>
-                  </View>
-
-                  <View style={s.weatherStats}>
-                    {[
-                      { icon: 'water-percent',    val: weather.humidity,   lbl: 'Humidity'   },
-                      { icon: 'weather-windy',    val: weather.windSpeed,  lbl: 'Wind'       },
-                      { icon: 'umbrella-outline', val: weather.rainProb,   lbl: 'Rain'       },
-                      { icon: 'eye-outline',      val: weather.visibility, lbl: 'Visibility' },
-                    ].map(({ icon, val, lbl }) => (
-                      <View key={lbl} style={s.weatherStat}>
-                        <MaterialCommunityIcons name={icon} size={20} color={C.onSurfaceVariant} />
-                        <Text style={s.weatherStatVal}>{val}</Text>
-                        <Text style={s.weatherStatLbl}>{lbl}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              )}
-            </View>
-          )}
-
-          {/* ── Must-Carry Essentials ────────────────────────────────────────── */}
-          <SectionCard title="Must-Carry Essentials" icon="bag-personal-outline" iconColor={C.primary}>
-            {essentials.length > 0 ? (
-              <>
-                <Text style={s.sectionNote}>Pack these before leaving for your adventure.</Text>
-                {essentials.map((item, i) => (
-                  <EssentialItem key={i} text={item} index={i} />
-                ))}
-              </>
-            ) : (
-              <View style={s.emptySection}>
-                <MaterialCommunityIcons name="bag-personal-outline" size={28} color={C.outlineVariant} />
-                <Text style={s.emptySectionText}>No checklist provided by the operator yet.</Text>
-                <Text style={s.emptySectionSub}>Check back closer to your trip date.</Text>
-              </View>
-            )}
-          </SectionCard>
-
-          {/* ── Inclusions & Exclusions side-by-side ────────────────────────── */}
-          {(exp.includes?.length > 0 || exp.exclusions?.length > 0) && (
-            <View style={s.incExcRow}>
-              {exp.includes?.length > 0 && (
-                <View style={[s.incExcCard, { flex: exp.exclusions?.length > 0 ? 1 : 2 }]}>
-                  <View style={s.incExcHeader}>
-                    <MaterialCommunityIcons name="check-circle-outline" size={15} color={C.primary} />
-                    <Text style={[s.incExcTitle, { color: C.primary }]}>Included</Text>
-                  </View>
-                  {exp.includes.map((item, i) => <ChipItem key={i} text={item} positive />)}
-                </View>
-              )}
-              {exp.exclusions?.length > 0 && (
-                <View style={[s.incExcCard, { flex: exp.includes?.length > 0 ? 1 : 2 }]}>
-                  <View style={s.incExcHeader}>
-                    <MaterialCommunityIcons name="close-circle-outline" size={15} color="#b91c1c" />
-                    <Text style={[s.incExcTitle, { color: C.error }]}>Not Included</Text>
-                  </View>
-                  {exp.exclusions.map((item, i) => <ChipItem key={i} text={item} positive={false} />)}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* ── Special Instructions ─────────────────────────────────────────── */}
-          {booking.specialRequests?.trim() && (
-            <SectionCard title="Special Instructions" icon="note-text-outline" iconColor={C.primary}>
-              <View style={s.noteBox}>
-                <MaterialCommunityIcons name="format-quote-open" size={22} color={C.outlineVariant} style={{ marginBottom: 4 }} />
-                <Text style={s.noteText}>{booking.specialRequests}</Text>
-              </View>
-            </SectionCard>
-          )}
-
-          {/* ── Cancellation Policy ──────────────────────────────────────────── */}
           {exp.cancellationPolicy && (
             <SectionCard title="Cancellation Policy" icon="shield-alert-outline" iconColor={C.error}>
               <View style={s.policyBox}>
@@ -561,7 +674,7 @@ export default function TripDashboardScreen({ route, navigation }) {
               </Text>
               <TouchableOpacity
                 style={[s.cancelBtn, cancelling && { opacity: 0.6 }]}
-                onPress={handleCancel}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleCancel(); }}
                 disabled={cancelling}
                 activeOpacity={0.82}
               >
@@ -586,34 +699,37 @@ export default function TripDashboardScreen({ route, navigation }) {
 const s = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: C.background },
   loadingText: { marginTop: 12, color: C.onSurfaceVariant, fontSize: 14 },
-  content:     { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
+  content:     { paddingHorizontal: 16, paddingTop: 14, gap: 12 },
 
   /* Hero */
-  hero:             { height: 330, position: 'relative', overflow: 'hidden' },
-  heroGradientTop:  { position: 'absolute', top: 0, left: 0, right: 0, height: 100, backgroundColor: 'transparent',
-                      backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)' },
-  heroGradientBottom:{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180,
-                       backgroundColor: 'rgba(0,0,0,0.0)',
-                       /* fallback for RN */ },
+  hero:             { height: 290, position: 'relative', overflow: 'hidden' },
+  heroGradientTop:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.0)' },
   heroTopBar:       { position: 'absolute', top: 14, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backBtn:          { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.38)', justifyContent: 'center', alignItems: 'center' },
-  heroBadge:        { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.38)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50 },
-  heroBadgeText:    { fontSize: 10, fontWeight: '800', color: C.white, letterSpacing: 1.2 },
-  heroBottom:       { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20,
-                      paddingBottom: 24, backgroundColor: 'rgba(0,0,0,0.0)',
-                      backgroundImage: 'linear-gradient(to top, rgba(0,0,0,0.72), transparent)' },
-  statusPill:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 50, alignSelf: 'flex-start', marginBottom: 10 },
+  heroBottom:       { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 22,
+                      backgroundColor: 'rgba(0,0,0,0.42)' },
+  countdownPill:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.16)',
+                      paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, alignSelf: 'flex-start', marginBottom: 10 },
+  countdownText:    { fontSize: 12, fontWeight: '800', color: C.white, letterSpacing: 0.2 },
+  statusPill:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 50 },
   statusPillText:   { fontSize: 11, fontWeight: '800' },
-  heroTitle:        { fontSize: 26, fontWeight: '800', color: C.white, lineHeight: 32, marginBottom: 6, letterSpacing: -0.5,
+  heroTitle:        { fontSize: 25, fontWeight: '800', color: C.white, lineHeight: 31, marginBottom: 8, letterSpacing: -0.5,
                       textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
-  heroMetaRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  heroSub:          { fontSize: 13, color: 'rgba(255,255,255,0.8)' },
+  heroMetaRow:      { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  heroSub:          { fontSize: 12.5, color: 'rgba(255,255,255,0.88)', fontWeight: '600' },
+  heroMetaDot:      { width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.6)', marginHorizontal: 2 },
 
   /* Quick actions */
-  quickActions: { flexDirection: 'row', backgroundColor: C.white, paddingVertical: 18, paddingHorizontal: 20, gap: 8, justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
+  quickActionsCard: { flexDirection: 'row', backgroundColor: C.white, borderRadius: 18, borderWidth: 1,
+                      borderColor: C.outlineVariant + '40', paddingVertical: 16, paddingHorizontal: 10, gap: 4,
+                      justifyContent: 'space-around', shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
   quickBtn:     { flex: 1, alignItems: 'center', gap: 6 },
-  quickBtnIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  quickBtnText: { fontSize: 11, fontWeight: '700', color: C.onSurfaceVariant, textAlign: 'center' },
+  quickBtnIcon: { width: 46, height: 46, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  quickBtnText: { fontSize: 10.5, fontWeight: '700', color: C.onSurfaceVariant, textAlign: 'center' },
+
+  /* Group label */
+  groupLabel: { fontSize: 11, fontWeight: '800', color: C.outline, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2, marginBottom: -4, marginLeft: 4 },
 
   /* Card */
   card:        { backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.outlineVariant + '50', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
@@ -621,17 +737,7 @@ const s = StyleSheet.create({
   cardIconWrap:{ width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   cardTitle:   { fontSize: 15, fontWeight: '700', color: C.onSurface, flex: 1, letterSpacing: -0.2 },
 
-  /* Summary card */
-  summaryCard:      { },
-  summaryStripe:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  summaryStripeText:{ fontSize: 12, fontWeight: '800', color: C.white, letterSpacing: 1, flex: 1 },
-  summaryStripeId:  { fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.82)', letterSpacing: 0.5 },
-  summaryGrid:      { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 14 },
-  summaryCell:      { width: '50%', paddingBottom: 14, paddingRight: 14 },
-  summaryCellRight: { paddingRight: 0, paddingLeft: 14, borderLeftWidth: 1, borderLeftColor: C.outlineVariant + '40' },
-  summaryCellTop:   { borderTopWidth: 1, borderTopColor: C.outlineVariant + '40', paddingTop: 14 },
-  summaryCellLabel: { fontSize: 10, color: C.outline, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 4 },
-  summaryCellValue: { fontSize: 13, fontWeight: '700', color: C.onSurface, lineHeight: 18 },
+  /* Booking details / paid row */
   summaryPaidRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 16, marginTop: 4, backgroundColor: C.primary + '0C', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
   summaryPaidLabel: { fontSize: 13, color: C.onSurfaceVariant, fontWeight: '600', flex: 1 },
   summaryPaidValue: { fontSize: 18, fontWeight: '800', color: C.primary, letterSpacing: -0.3 },
@@ -647,47 +753,47 @@ const s = StyleSheet.create({
   infoCallText:  { fontSize: 12, fontWeight: '700', color: C.primary },
 
   /* Maps button */
-  mapsBtn:     { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primary, marginHorizontal: 16, marginBottom: 14, marginTop: 4, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16 },
+  mapsBtn:     { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primary, marginHorizontal: 16, marginBottom: 14, marginTop: 14, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 16 },
   mapsBtnText: { fontSize: 14, fontWeight: '700', color: C.white, flex: 1 },
 
-  /* Suitability badge in card header */
-  suitBadge:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50, marginLeft: 'auto' },
-  suitBadgeText: { fontSize: 11, fontWeight: '800' },
+  /* Weather (compact row + expandable) */
+  weatherRowRight:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  suitBadgeSmall:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50 },
+  suitBadgeSmallText:{ fontSize: 10.5, fontWeight: '800' },
+  weatherExpanded:   { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '35' },
+  weatherStats:      { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: C.surfaceContainerLow, borderRadius: 14, paddingVertical: 14, marginBottom: 12 },
+  weatherStat:       { alignItems: 'center', gap: 4 },
+  weatherStatVal:    { fontSize: 13, fontWeight: '700', color: C.onSurface },
+  weatherStatLbl:    { fontSize: 10, color: C.outline, fontWeight: '600' },
 
-  /* Weather */
-  weatherCard:      { },
-  weatherLoading:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingBottom: 14 },
-  weatherLoadingText:{ color: C.onSurfaceVariant, fontSize: 13 },
-  weatherMain:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 14 },
-  weatherLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  weatherTemp:      { fontSize: 48, fontWeight: '700', color: C.onSurface, letterSpacing: -2 },
-  weatherFeels:     { fontSize: 12, color: C.outline, marginTop: 2 },
-  weatherRight:     { flex: 1, paddingLeft: 4 },
-  weatherCond:      { fontSize: 15, fontWeight: '600', color: C.onSurface },
-  weatherStats:     { flexDirection: 'row', justifyContent: 'space-around', marginHorizontal: 16, marginBottom: 16, backgroundColor: C.surfaceContainerLow, borderRadius: 14, paddingVertical: 14 },
-  weatherStat:      { alignItems: 'center', gap: 4 },
-  weatherStatVal:   { fontSize: 13, fontWeight: '700', color: C.onSurface },
-  weatherStatLbl:   { fontSize: 10, color: C.outline, fontWeight: '600' },
+  /* Smart tip */
+  tipBox:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: C.secondary + '0C',
+                marginHorizontal: 16, marginBottom: 16, marginTop: 4, borderRadius: 12, padding: 12 },
+  tipIconWrap:{ width: 28, height: 28, borderRadius: 8, backgroundColor: C.secondary + '16', justifyContent: 'center', alignItems: 'center' },
+  tipText:    { fontSize: 13, color: C.onSurfaceVariant, lineHeight: 19, flex: 1, paddingTop: 4 },
 
   /* Essentials */
-  sectionNote:     { fontSize: 12, color: C.outline, paddingHorizontal: 16, marginBottom: 10, fontStyle: 'italic' },
   emptySection:    { alignItems: 'center', paddingHorizontal: 16, paddingBottom: 20, paddingTop: 4, gap: 6 },
   emptySectionText:{ fontSize: 14, color: C.onSurfaceVariant, fontWeight: '500', textAlign: 'center' },
   emptySectionSub: { fontSize: 12, color: C.outline, textAlign: 'center' },
-  essentialItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
-  essentialNum:  { width: 26, height: 26, borderRadius: 8, backgroundColor: C.primary + '14', justifyContent: 'center', alignItems: 'center' },
+  essentialItem:   { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
+  essentialNum:    { width: 26, height: 26, borderRadius: 8, backgroundColor: C.primary + '14', justifyContent: 'center', alignItems: 'center' },
   essentialNumText:{ fontSize: 12, fontWeight: '800', color: C.primary },
-  essentialText: { fontSize: 14, color: C.onSurface, flex: 1, lineHeight: 20 },
+  essentialText:   { fontSize: 14, color: C.onSurface, flex: 1, lineHeight: 20 },
+  viewMoreBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 14 },
+  viewMoreText:    { fontSize: 13, fontWeight: '700', color: C.primary },
 
   /* Inclusions / Exclusions */
-  incExcRow:    { flexDirection: 'row', gap: 10 },
-  incExcCard:   { backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.outlineVariant + '50', paddingBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2, overflow: 'hidden' },
-  incExcHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
-  incExcTitle:  { fontSize: 13, fontWeight: '700' },
-  chipItem:     { flexDirection: 'row', alignItems: 'flex-start', gap: 7, paddingHorizontal: 14, paddingVertical: 7 },
-  chipItemGreen:{ },
-  chipItemRed:  { },
-  chipItemText: { fontSize: 13, flex: 1, lineHeight: 18 },
+  detailsToggle:     { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  detailsToggleText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  incExcSummaryRow:  { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16 },
+  incExcSummaryChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surfaceContainerLow, borderRadius: 50, paddingHorizontal: 12, paddingVertical: 7 },
+  incExcSummaryText: { fontSize: 12, fontWeight: '700' },
+  incExcExpanded:    { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: C.outlineVariant + '30', paddingTop: 14 },
+  incExcCol:         { flex: 1, gap: 2 },
+  incExcColTitle:    { fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  chipItem:          { flexDirection: 'row', alignItems: 'flex-start', gap: 7, paddingVertical: 5 },
+  chipItemText:      { fontSize: 12.5, flex: 1, lineHeight: 17 },
 
   /* Note / policy */
   noteBox:   { paddingHorizontal: 16, paddingBottom: 16 },
@@ -702,10 +808,4 @@ const s = StyleSheet.create({
   cancelZoneDesc:   { fontSize: 13, color: C.onSurfaceVariant, lineHeight: 20, marginBottom: 16 },
   cancelBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.error, borderRadius: 12, paddingVertical: 13 },
   cancelBtnText:    { fontSize: 14, fontWeight: '700', color: C.error },
-
-  /* Stat chip (unused but kept for parity) */
-  statChip:    { alignItems: 'center', gap: 4 },
-  statChipIcon:{ width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  statChipVal: { fontSize: 13, fontWeight: '700', color: C.onSurface },
-  statChipLbl: { fontSize: 10, color: C.outline },
 });
