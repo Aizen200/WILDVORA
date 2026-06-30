@@ -4,6 +4,7 @@ import {
   TextInput, ActivityIndicator, Modal, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { userAPI, reviewAPI } from '../services/api';
@@ -11,7 +12,7 @@ import Alert from '../utils/alert';
 
 const C = {
   primary:             '#1A5F45',
-  primaryDark:         '#154d38',
+  primaryDark:         '#103B2A',
   primaryLight:        '#e8f5ee',
   primaryContainer:    '#2D7A5A',
   onPrimaryContainer:  '#FFFFFF',
@@ -28,20 +29,32 @@ const C = {
   outlineVariant:      '#E0E0E0',
   tertiary:            '#2D7A5A',
   error:               '#1A5F45',
+  danger:              '#DC2626',
+  blue:                '#0a6687',
+  purple:              '#6d28d9',
+  amber:               '#b45309',
+  rose:                '#dc2626',
+  teal:                '#0f766e',
 };
 
 const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
 const MENU_ITEMS = [
-  { icon: 'map-marker-distance', label: 'Track Journey',             key: 'track_journey', screen: null },
-  { icon: 'hiking',              label: 'My Adventures',             key: 'my_adventures', screen: 'Trips' },
-  { icon: 'ticket-percent-outline', label: 'My Coupons & Gift Cards', key: 'coupons',      screen: null },
-  { icon: 'trophy-outline',      label: 'My Rewards',                key: 'rewards',       screen: null },
-  { icon: 'heart-outline',       label: 'Favourites',                key: 'favourites',    screen: 'Wishlist' },
-  { icon: 'wallet-outline',      label: 'My Wallet',                 key: 'wallet',        screen: null },
-  { icon: 'history',             label: 'Review History',            key: 'reviews',       screen: 'ReviewHistory' },
-  { icon: 'gift-outline',        label: 'Referral Program',          key: 'referral',      screen: null, sub: 'Earn ₹4,000 per invite' },
-  { icon: 'help-circle-outline', label: 'Help Center',               key: 'help',          screen: 'HelpCenter' },
+  { icon: 'map-marker-distance', label: 'Track Journey',             key: 'track_journey', screen: null,          color: C.blue   },
+  { icon: 'hiking',              label: 'My Adventures',             key: 'my_adventures', screen: 'Trips',       color: C.primary },
+  { icon: 'heart-outline',       label: 'Favourites',                key: 'favourites',    screen: 'Wishlist',    color: C.rose   },
+  { icon: 'history',             label: 'Review History',            key: 'reviews',       screen: 'ReviewHistory', color: C.blue },
+  { icon: 'ticket-percent-outline', label: 'My Coupons & Gift Cards', key: 'coupons',      screen: null,          color: C.amber  },
+  { icon: 'trophy-outline',      label: 'My Rewards',                key: 'rewards',       screen: null,          color: C.purple },
+  { icon: 'wallet-outline',      label: 'My Wallet',                 key: 'wallet',        screen: null,          color: C.teal   },
+  { icon: 'gift-outline',        label: 'Referral Program',          key: 'referral',      screen: null, sub: 'Earn ₹4,000 per invite', color: C.amber },
+  { icon: 'help-circle-outline', label: 'Help Center',               key: 'help',          screen: 'HelpCenter',  color: C.onSurfaceVariant },
+];
+
+const MENU_SECTIONS = [
+  { title: 'My Activity',      keys: ['track_journey', 'my_adventures', 'favourites', 'reviews'] },
+  { title: 'Wallet & Rewards', keys: ['coupons', 'rewards', 'wallet', 'referral'] },
+  { title: 'Support',          keys: ['help'] },
 ];
 
 function StarRow({ count, total = 5 }) {
@@ -76,7 +89,7 @@ function FieldInput({ label, value, onChangeText, placeholder, keyboardType, mul
   return (
     <View style={s.fieldWrap}>
       <Text style={s.inputLabel}>
-        {label}{required && <Text style={{ color: C.error }}> *</Text>}
+        {label}{required && <Text style={{ color: C.danger }}> *</Text>}
       </Text>
       <TextInput
         style={[s.input, multiline && { height: 90, textAlignVertical: 'top', paddingTop: 12 }]}
@@ -88,6 +101,22 @@ function FieldInput({ label, value, onChangeText, placeholder, keyboardType, mul
         multiline={!!multiline}
       />
     </View>
+  );
+}
+
+function MenuRow({ item, isLast, onPress }) {
+  return (
+    <TouchableOpacity style={s.menuRow} onPress={onPress} activeOpacity={0.6}>
+      <View style={[s.menuIconChip, { backgroundColor: item.color + '17' }]}>
+        <MaterialCommunityIcons name={item.icon} size={19} color={item.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.menuLabel}>{item.label}</Text>
+        {!!item.sub && <Text style={s.menuSub}>{item.sub}</Text>}
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={20} color="#C4C9C5" />
+      {!isLast && <View style={s.menuRowDivider} />}
+    </TouchableOpacity>
   );
 }
 
@@ -228,6 +257,13 @@ export default function ProfileScreen({ navigation }) {
   if (!user) {
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
+        <LinearGradient
+          colors={[C.primaryDark, C.primary, C.primaryContainer]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={s.guestHero}
+        >
+          <MaterialCommunityIcons name="compass-outline" size={210} color="rgba(255,255,255,0.07)" style={s.guestDecor} />
+        </LinearGradient>
         <View style={s.guestWrap}>
           <View style={s.guestAvatarRing}>
             <MaterialCommunityIcons name="account-outline" size={44} color={C.primary} />
@@ -257,98 +293,125 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      {/* ── Header ── */}
-      <View style={s.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity 
-            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')} 
-            style={s.headerBackBtn}
-          >
-            <Ionicons name="arrow-back" size={24} color="#111827" style={{ marginRight: 8 }} />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>My Profile</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={s.headerSettingsBtn}>
-          <Ionicons name="settings-outline" size={24} color="#111827" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} bounces style={{ flex: 1 }}>
 
-        {/* ── Profile Summary Card ── */}
-        <View style={s.profileCard}>
-          {/* Left Column: Avatar + Name + Location */}
-          <View style={s.profileLeftCol}>
-            <TouchableOpacity 
-              activeOpacity={0.85} 
-              onPress={() => setAvatarModal(true)} 
-              style={s.avatarContainer}
+        {/* ── Hero ── */}
+        <LinearGradient
+          colors={[C.primaryDark, C.primary, C.primaryContainer]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={s.heroBg}
+        >
+          <MaterialCommunityIcons name="compass-outline" size={170} color="rgba(255,255,255,0.07)" style={s.heroDecor} />
+          <View style={s.heroTopRow}>
+            <TouchableOpacity
+              onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Home')}
+              style={s.navBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              {displayUser?.avatar ? (
-                <Image source={{ uri: displayUser.avatar }} style={s.avatarImg} />
-              ) : (
-                <View style={s.avatarPlaceholder}>
-                  <MaterialCommunityIcons name="camera-plus-outline" size={32} color="#9CA3AF" />
-                </View>
-              )}
-              <View style={s.avatarCameraOverlay}>
-                <MaterialCommunityIcons name="camera" size={14} color="#FFFFFF" />
-              </View>
+              <Ionicons name="arrow-back" size={21} color="#fff" />
             </TouchableOpacity>
+            <Text style={s.heroTopTitle}>My Profile</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Settings')}
+              style={s.navBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="settings-outline" size={21} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {/* ── Profile Summary ── */}
+        <View style={s.profileCardWrap}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setAvatarModal(true)}
+            style={s.avatarRing}
+          >
+            {displayUser?.avatar ? (
+              <Image source={{ uri: displayUser.avatar }} style={s.avatarImg} />
+            ) : (
+              <View style={s.avatarPlaceholder}>
+                <Text style={s.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+            <View style={s.avatarCameraOverlay}>
+              <MaterialCommunityIcons name="camera" size={13} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+
+          <View style={s.nameRow}>
             <Text style={s.profileName}>{displayUser?.name || 'Explorer'}</Text>
-            <Text style={s.profileLoc}>{displayUser?.city || 'Pune, Maharashtra'}</Text>
+            {!!avgRating && (
+              <View style={s.ratingPill}>
+                <MaterialCommunityIcons name="star" size={12} color="#FFB400" />
+                <Text style={s.ratingPillText}>{avgRating}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Right Column: Stats + Edit Button */}
-          <View style={s.profileRightCol}>
-            <TouchableOpacity style={s.editProfileIconBtn} onPress={() => setEditModal(true)}>
-              <MaterialCommunityIcons name="square-edit-outline" size={20} color="#6B7280" />
-            </TouchableOpacity>
+          <View style={s.locRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={13} color={C.onSurfaceVariant} />
+            <Text style={s.profileLoc}>{displayUser?.city || 'Pune, Maharashtra'}</Text>
+            {!!joinYear && (
+              <>
+                <View style={s.locDot} />
+                <Text style={s.profileLoc}>Member since {joinYear}</Text>
+              </>
+            )}
+          </View>
 
-            <View style={s.statsList}>
-              <View style={s.statItemVertical}>
-                <Text style={s.statValue}>{completedTrips}</Text>
-                <Text style={s.statLabelVertical}>Adventures</Text>
-              </View>
-              <View style={s.statItemVertical}>
-                <Text style={s.statValue}>107</Text>
-                <Text style={s.statLabelVertical}>Followers</Text>
-              </View>
-              <View style={s.statItemVertical}>
-                <Text style={s.statValue}>288</Text>
-                <Text style={s.statLabelVertical}>Following</Text>
-              </View>
+          <TouchableOpacity style={s.editPillBtn} onPress={() => setEditModal(true)} activeOpacity={0.8}>
+            <MaterialCommunityIcons name="square-edit-outline" size={15} color={C.primary} />
+            <Text style={s.editPillText}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <View style={s.statsCard}>
+            <View style={s.statItem}>
+              <Text style={s.statValue}>{completedTrips}</Text>
+              <Text style={s.statLabel}>ADVENTURES</Text>
+            </View>
+            <View style={s.statDivider} />
+            <View style={s.statItem}>
+              <Text style={s.statValue}>107</Text>
+              <Text style={s.statLabel}>FOLLOWERS</Text>
+            </View>
+            <View style={s.statDivider} />
+            <View style={s.statItem}>
+              <Text style={s.statValue}>288</Text>
+              <Text style={s.statLabel}>FOLLOWING</Text>
             </View>
           </View>
         </View>
 
-        {/* ── Menu List ── */}
-        <View style={s.menuSection}>
-          {MENU_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item.key}
-              style={s.menuRow}
-              onPress={() => handleMenuPress(item)}
-              activeOpacity={0.6}
-            >
-              <View style={s.menuIconOutline}>
-                <MaterialCommunityIcons
-                  name={item.icon}
-                  size={18}
-                  color="#4B5563"
-                />
+        {/* ── Menu Sections ── */}
+        {MENU_SECTIONS.map((section) => {
+          const items = MENU_ITEMS.filter(i => section.keys.includes(i.key));
+          if (items.length === 0) return null;
+          return (
+            <View key={section.title} style={s.menuSectionBlock}>
+              <Text style={s.sectionLabel}>{section.title}</Text>
+              <View style={s.menuCard}>
+                {items.map((item, idx) => (
+                  <MenuRow
+                    key={item.key}
+                    item={item}
+                    isLast={idx === items.length - 1}
+                    onPress={() => handleMenuPress(item)}
+                  />
+                ))}
               </View>
-              <Text style={s.menuLabel}>{item.label}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
+          );
+        })}
 
         {/* ── Logout ── */}
         <TouchableOpacity style={s.logoutRow} onPress={() => setLogoutModal(true)} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="logout" size={18} color={C.error} />
+          <MaterialCommunityIcons name="logout" size={17} color={C.danger} />
           <Text style={s.logoutText}>Log out</Text>
         </TouchableOpacity>
+
+        <Text style={s.versionText}>Wildvora v1.0.0</Text>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -421,7 +484,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={s.dialogOverlay}>
           <View style={s.dialog}>
             <View style={s.dialogIconWrap}>
-              <MaterialCommunityIcons name="logout" size={26} color={C.error} />
+              <MaterialCommunityIcons name="logout" size={26} color={C.danger} />
             </View>
             <Text style={s.dialogTitle}>Log out?</Text>
             <Text style={s.dialogBody}>
@@ -747,134 +810,221 @@ const s = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: C.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  /* Header */
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  /* Hero */
+  heroBg: {
+    paddingTop: 6,
+    paddingBottom: 64,
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    backgroundColor: '#FFFFFF',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  headerSettingsBtn: {
-    padding: 4,
-  },
-
-  /* Profile Card */
-  profileCard: {
-    flexDirection: 'row',
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  profileLeftCol: {
-    alignItems: 'center',
-    width: '45%',
-  },
-  avatarContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#E5E7EB',
     overflow: 'hidden',
+    position: 'relative',
+  },
+  heroDecor: {
+    position: 'absolute',
+    top: -28,
+    right: -36,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  navBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  },
+  heroTopTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+
+  /* Profile Summary */
+  profileCardWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: -56,
+  },
+  avatarRing: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: '#FFFFFF',
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOW,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
   avatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: 45,
+    borderRadius: 50,
   },
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    borderRadius: 45,
-    backgroundColor: '#E5E7EB',
+    borderRadius: 50,
+    backgroundColor: C.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarInitial: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: C.primary,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 14,
+  },
   profileName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#111827',
-    marginTop: 10,
-    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFF7E6',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  ratingPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92660B',
+  },
+  locRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
   },
   profileLoc: {
     fontSize: 13,
     color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
+  },
+  locDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 1,
+  },
+  editPillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.3,
+    borderColor: C.primary,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 16,
+  },
+  editPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.primary,
   },
 
-  /* Right Column (Stats) */
-  profileRightCol: {
+  /* Stats */
+  statsCard: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    marginTop: 20,
+    paddingVertical: 16,
+    width: '100%',
+    ...SHADOW,
+  },
+  statItem: {
     flex: 1,
-    paddingLeft: 20,
-    justifyContent: 'center',
-    position: 'relative',
+    alignItems: 'center',
   },
-  editProfileIconBtn: {
-    position: 'absolute',
-    top: -5,
-    right: 0,
-    padding: 6,
-  },
-  statsList: {
-    gap: 14,
-    marginTop: 10,
-  },
-  statItemVertical: {
-    flexDirection: 'column',
+  statDivider: {
+    width: 1,
+    backgroundColor: '#EEF0EE',
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111827',
   },
-  statLabelVertical: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.6,
+    marginTop: 4,
   },
 
-  /* Menu Section */
-  menuSection: {
+  /* Menu Sections */
+  menuSectionBlock: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  menuCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
+    ...SHADOW,
+    shadowOpacity: 0.04,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    position: 'relative',
   },
-  menuIconOutline: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+  menuIconChip: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 13,
   },
   menuLabel: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 14.5,
     color: '#1F2937',
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  menuSub: {
+    fontSize: 11.5,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  menuRowDivider: {
+    position: 'absolute',
+    bottom: 0,
+    left: 65,
+    right: 0,
+    height: 1,
+    backgroundColor: '#F3F4F6',
   },
 
   /* Logout */
@@ -882,14 +1032,24 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 18,
+    paddingVertical: 16,
     justifyContent: 'center',
-    marginBottom: 4,
+    marginTop: 28,
+    marginHorizontal: 20,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 16,
   },
   logoutText: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: C.error,
+    color: C.danger,
+  },
+  versionText: {
+    fontSize: 11,
+    color: '#C4C9C5',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 16,
   },
 
   /* Edit modal */
@@ -925,30 +1085,27 @@ const s = StyleSheet.create({
   /* Logout dialog */
   dialogOverlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 28 },
   dialog:           { backgroundColor: C.white, borderRadius: 24, padding: 28, width: '100%', alignItems: 'center' },
-  dialogIconWrap:   { width: 60, height: 60, borderRadius: 30, backgroundColor: C.error + '14', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  dialogIconWrap:   { width: 60, height: 60, borderRadius: 30, backgroundColor: C.danger + '14', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   dialogTitle:      { fontSize: 20, fontWeight: '700', color: C.onSurface, marginBottom: 8 },
   dialogBody:       { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', marginBottom: 24, lineHeight: 21 },
-  dialogConfirm:    { backgroundColor: C.error, borderRadius: 50, paddingVertical: 14, width: '100%', alignItems: 'center', marginBottom: 10 },
+  dialogConfirm:    { backgroundColor: C.danger, borderRadius: 50, paddingVertical: 14, width: '100%', alignItems: 'center', marginBottom: 10 },
   dialogConfirmText:{ color: C.white, fontWeight: '700', fontSize: 14, letterSpacing: 0.3 },
   dialogCancel:     { paddingVertical: 14, width: '100%', alignItems: 'center' },
   dialogCancelText: { color: C.onSurfaceVariant, fontWeight: '600', fontSize: 14 },
 
-  /* Header Back button */
-  headerBackBtn: {
-    padding: 4,
-  },
-
   /* Camera overlay on profile avatar */
   avatarCameraOverlay: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 4,
+    right: 4,
+    backgroundColor: C.primary,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
 
   /* Feature Detail Sheet */
@@ -1458,8 +1615,10 @@ const s = StyleSheet.create({
 
   dialogCancelText: { color: C.onSurfaceVariant, fontWeight: '600', fontSize: 14 },
 
-  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  guestAvatarRing:      { width: 96, height: 96, borderRadius: 48, backgroundColor: C.primaryLight, borderWidth: 2, borderColor: '#A7F3D0', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  guestHero:            { height: 200, overflow: 'hidden', position: 'relative' },
+  guestDecor:           { position: 'absolute', top: -24, right: -34 },
+  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, marginTop: -52 },
+  guestAvatarRing:      { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, ...SHADOW, shadowOpacity: 0.16, shadowRadius: 12, elevation: 7 },
   guestTitle:           { fontSize: 24, fontWeight: '800', color: C.onSurface, marginBottom: 10, textAlign: 'center', letterSpacing: -0.4 },
   guestSub:             { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 21, marginBottom: 36 },
   guestPrimaryBtn:      { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
