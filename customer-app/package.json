@@ -11,6 +11,7 @@
     "axios": "^1.9.0",
     "expo": "~56.0.6",
     "expo-blur": "~56.0.3",
+    "expo-haptics": "~56.0.3",
     "expo-linear-gradient": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "expo-video": "~56.1.4",
@@ -29,5 +30,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "babel-preset-expo": "~56.0.13"
+  }
 }
