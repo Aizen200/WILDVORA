@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Image,
@@ -8,9 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { experienceAPI } from '../services/api';
+import { experienceAPI, aiAPI } from '../services/api';
 
-/* Local fallbacks — used only when an experience has no image at all */
+/* Local fallbacks — used whenever an experience has no usable image */
 const LOCAL_CARD_IMAGES = [
   require('../../assets/browse/weekend.jpg'),
   require('../../assets/browse/women.jpg'),
@@ -41,95 +41,77 @@ const PROMPTS = [
     { t: '."' },
   ],
   [
-    { t: '"Hidden gems off the beaten path in ' },
-    { t: 'South India', hl: true },
-    { t: '."' },
+    { t: '"How is ' },
+    { t: 'Pachmarhi', hl: true },
+    { t: ' in ' },
+    { t: 'July', hl: true },
+    { t: '?"' },
   ],
 ];
 
-const TRY_ASKING = [
-  'Weekend trip under ₹5,000',
-  'Beginner-friendly Himalayan trek',
-  'Best camping near Bangalore',
-  'Family adventure for 3 days',
-  'Monsoon road trips',
-  'Hidden gems in Uttarakhand',
-  'Solo women-friendly trips',
-  'Adventure near Pune',
-];
+/* ─── Image resolution — checks every possible image field, validates the   ─
+ ─ URL, and always falls back to a stable local asset so a card never shows ─
+ ─ a blank/broken image.                                                    ─ */
+function isValidImageUrl(url) {
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  return /^(https?:\/\/|data:image\/)/i.test(trimmed);
+}
 
-const FOLLOW_UP_CHIPS = [
-  'Budget under ₹3,000',
-  'Top rated picks',
-  'Weekend getaways',
-  'Adventure treks',
-  'Family friendly',
-];
+function pickExperienceImageUri(exp) {
+  const candidates = [
+    exp?.coverImage,
+    ...(Array.isArray(exp?.images) ? exp.images : []),
+    ...(Array.isArray(exp?.adventureImages) ? exp.adventureImages : []),
+  ];
+  const found = candidates.find(isValidImageUrl);
+  return found ? found.trim() : null;
+}
 
-const STOP_WORDS = new Set([
-  'for', 'the', 'and', 'near', 'from', 'with', 'this', 'that', 'are',
-  'find', 'show', 'me', 'some', 'any', 'a', 'an', 'in', 'on', 'at',
-  'to', 'of', 'its', 'my', 'plan', 'get', 'what', 'how', 'where',
-  'when', 'which', 'travel', 'want', 'looking', 'trips', 'under',
-  'above', 'below', 'pick', 'picks', 'rated', 'rating',
-]);
+function localFallbackFor(exp) {
+  const seed = `${exp?.category || ''}${exp?._id || ''}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return LOCAL_CARD_IMAGES[hash % LOCAL_CARD_IMAGES.length];
+}
 
-function filterExperiences(experiences, query) {
-  const q = query.toLowerCase().trim();
+/* ─── Dynamic suggestion chips — built from the real catalogue so every    ─
+ ─ chip is guaranteed to return at least one result before it is shown.    ─ */
+function buildDynamicChips(experiences, max = 6) {
+  if (!experiences || experiences.length === 0) return [];
 
-  // Extract max budget: "under ₹5,000", "below 3000", "upto 2000"
-  const budgetMatch = q.match(
-    /(?:under|below|within|upto?|less\s+than)\s*[₹₨rs.]?\s*([\d,]+)/i
-  );
-  const maxBudget = budgetMatch
-    ? parseInt(budgetMatch[1].replace(/,/g, ''), 10)
-    : null;
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = (label, test) => {
+    const key = label.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ label, test });
+  };
 
-  const wantsTopRated = /\b(top|best|highest?[\s-]?rated?|popular)\b/i.test(q);
+  [...new Set(experiences.map(e => e.category).filter(Boolean))]
+    .forEach(cat => addCandidate(`${cat} adventures`, e => e.category === cat));
 
-  const keywords = q
-    .replace(/[₹₨,.\-!?'"]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 2 && !STOP_WORDS.has(w));
+  [...new Set(experiences.map(e => e.location?.city).filter(Boolean))]
+    .slice(0, 4)
+    .forEach(city => addCandidate(`Trips in ${city}`, e => e.location?.city === city));
 
-  const scored = experiences
-    .filter(exp => {
-      if (maxBudget && (exp.price || 0) > maxBudget) return false;
-      if (wantsTopRated && parseFloat(exp.rating || 0) < 4.0) return false;
-      if (keywords.length === 0) return true;
+  const prices = experiences.map(e => e.price).filter(p => typeof p === 'number' && p > 0).sort((a, b) => a - b);
+  if (prices.length > 0) {
+    const budget = prices[Math.floor(prices.length * 0.4)];
+    addCandidate(`Budget under ₹${budget.toLocaleString('en-IN')}`, e => (e.price || 0) <= budget);
+  }
 
-      const haystack = [
-        exp.title,
-        exp.location?.city,
-        exp.location?.state,
-        exp.location?.country,
-        exp.description,
-        exp.category,
-        exp.difficulty,
-        exp.type,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+  addCandidate('Top rated picks', e => parseFloat(e.rating || 0) >= 4.5);
+  addCandidate('Beginner friendly', e => (e.difficulty || '').toLowerCase() === 'easy');
+  addCandidate('Weekend getaways', e => /weekend|1\s*day|2\s*day/i.test(e.duration || ''));
+  addCandidate('Family friendly', e => (e.minGroupSize || 1) <= 2 && (e.maxGroupSize || 12) >= 4);
 
-      return keywords.some(kw => haystack.includes(kw));
-    })
-    .map(exp => {
-      const haystack = [exp.title, exp.location?.city, exp.description]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      const score = keywords.filter(k => haystack.includes(k)).length;
-      return { exp, score };
-    });
-
-  scored.sort((a, b) =>
-    a.score !== b.score
-      ? b.score - a.score
-      : parseFloat(b.exp.rating || 0) - parseFloat(a.exp.rating || 0)
-  );
-
-  return scored.slice(0, 4).map(x => x.exp);
+  return candidates
+    .filter(c => experiences.some(c.test))
+    .slice(0, max)
+    .map(c => c.label);
 }
 
 /* ─── LoadingCard ───────────────────────────────────────────── */
@@ -197,14 +179,37 @@ function GlassAICard({ promptIdx, promptOpacity }) {
   );
 }
 
+/* ─── AIAnswerCard — the assistant's conversational reply ──── */
+function AIAnswerCard({ text, isTravelRelated }) {
+  return (
+    <View
+      style={[s.answerCard, !isTravelRelated && s.answerCardMuted]}
+      accessibilityRole="text"
+      accessibilityLabel={`Wildvora AI says: ${text}`}
+    >
+      <View style={s.answerHeaderRow}>
+        <Ionicons
+          name={isTravelRelated ? 'sparkles' : 'compass-outline'}
+          size={15}
+          color={isTravelRelated ? '#a3f3cd' : 'rgba(255,255,255,0.55)'}
+        />
+        <Text style={s.answerLabel}>Wildvora AI</Text>
+      </View>
+      <Text style={s.answerText}>{text}</Text>
+    </View>
+  );
+}
+
 /* ─── ExperienceCard ────────────────────────────────────────── */
-function ExperienceCard({ exp, onView }) {
+function ExperienceCard({ exp, reason, onView }) {
   const [imgErr, setImgErr] = useState(false);
-  const imgUrl = exp.coverImage || exp.images?.[0];
-  const src =
-    imgUrl && !imgErr ? { uri: imgUrl } : LOCAL_CARD_IMAGES[0];
-  const rating = parseFloat(exp.rating || 4.9);
-  const stars = Math.round(rating);
+  const remoteUri = useMemo(() => pickExperienceImageUri(exp), [exp]);
+  const fallback = useMemo(() => localFallbackFor(exp), [exp]);
+  const src = !imgErr && remoteUri ? { uri: remoteUri } : fallback;
+
+  const ratingValue = parseFloat(exp.rating || 0);
+  const hasRating = ratingValue > 0;
+  const stars = Math.round(ratingValue);
 
   return (
     <View style={s.expShadow}>
@@ -216,6 +221,7 @@ function ExperienceCard({ exp, onView }) {
             style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
             onError={() => setImgErr(true)}
+            accessibilityLabel={`Photo of ${exp.title || 'experience'}`}
           />
           <LinearGradient
             colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.72)']}
@@ -248,6 +254,14 @@ function ExperienceCard({ exp, onView }) {
             {exp.title}
           </Text>
 
+          {/* Why this was recommended */}
+          {!!reason && (
+            <View style={s.reasonRow}>
+              <Ionicons name="sparkles-outline" size={13} color="#a3f3cd" />
+              <Text style={s.reasonText} numberOfLines={2}>{reason}</Text>
+            </View>
+          )}
+
           {/* Duration + difficulty meta pills */}
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {exp.duration && (
@@ -272,27 +286,35 @@ function ExperienceCard({ exp, onView }) {
             )}
           </View>
 
-          {/* Star rating */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <Ionicons
-                key={i}
-                name={i < stars ? 'star' : 'star-outline'}
-                size={12}
-                color={i < stars ? '#f59e0b' : 'rgba(255,255,255,0.22)'}
-              />
-            ))}
-            <Text style={s.ratingNum}>{rating.toFixed(1)}</Text>
-            {exp.reviewCount > 0 && (
-              <Text style={s.reviewCount}>({exp.reviewCount})</Text>
-            )}
-          </View>
+          {/* Star rating, or an honest "New listing" badge when unrated */}
+          {hasRating ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Ionicons
+                  key={i}
+                  name={i < stars ? 'star' : 'star-outline'}
+                  size={12}
+                  color={i < stars ? '#f59e0b' : 'rgba(255,255,255,0.22)'}
+                />
+              ))}
+              <Text style={s.ratingNum}>{ratingValue.toFixed(1)}</Text>
+              {exp.reviewCount > 0 && (
+                <Text style={s.reviewCount}>({exp.reviewCount})</Text>
+              )}
+            </View>
+          ) : (
+            <View style={s.newBadge}>
+              <Text style={s.newBadgeText}>New listing</Text>
+            </View>
+          )}
 
           {/* CTA */}
           <TouchableOpacity
             style={s.ctaBtn}
             onPress={onView}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${exp.title}`}
           >
             <Text style={s.ctaTxt}>View Experience</Text>
             <Ionicons name="arrow-forward" size={15} color="#002115" />
@@ -303,30 +325,39 @@ function ExperienceCard({ exp, onView }) {
   );
 }
 
-/* ─── EmptyState ────────────────────────────────────────────── */
-function EmptyState({ query, onReset }) {
+/* ─── ErrorState — friendly recovery UI, never a dead end ──── */
+function ErrorState({ message, onRetry, onReset }) {
   return (
-    <View style={s.emptyWrap}>
-      <Ionicons
-        name="telescope-outline"
-        size={42}
-        color="rgba(255,255,255,0.22)"
-      />
-      <Text style={s.emptyTitle}>No experiences found</Text>
-      <Text style={s.emptySubtitle}>
-        Nothing in our catalogue matches "{query}".{'\n'}
-        Try "trekking", "camping", or a city name.
+    <View style={s.stateWrap}>
+      <Ionicons name="cloud-offline-outline" size={40} color="rgba(255,255,255,0.30)" />
+      <Text style={s.stateTitle}>Couldn't reach Wildvora AI</Text>
+      <Text style={s.stateSubtitle}>
+        {message || 'Something went wrong. Please check your connection and try again.'}
       </Text>
-      <TouchableOpacity
-        onPress={onReset}
-        style={s.emptyBtn}
-        activeOpacity={0.75}
-      >
-        <Text style={s.emptyBtnText}>Clear search</Text>
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+        <TouchableOpacity
+          onPress={onRetry}
+          style={s.stateBtn}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Retry search"
+        >
+          <Text style={s.stateBtnText}>Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onReset}
+          style={[s.stateBtn, s.stateBtnSecondary]}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+        >
+          <Text style={[s.stateBtnText, s.stateBtnSecondaryText]}>Clear</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
+
 export default function AIChatScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { width: W, height: H } = useWindowDimensions();
@@ -334,11 +365,15 @@ export default function AIChatScreen({ navigation }) {
 
   /* state */
   const [allExperiences, setAllExperiences] = useState([]);
-  const [appState, setAppState] = useState('idle'); // 'idle' | 'loading' | 'answered'
-  const [responses, setResponses] = useState([]);   // [{ query, experiences: Experience[] }]
+  const [appState, setAppState] = useState('idle'); // 'idle' | 'loading' | 'answered' | 'error'
+  const [result, setResult] = useState(null);        // { query, text, isTravelRelated, cards: [{exp, reason}] }
   const [input, setInput]         = useState('');
-  const [error, setError]         = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [promptIdx, setPromptIdx] = useState(0);
+
+  /* conversation context for the AI (not rendered) + last query for retry */
+  const conversationRef = useRef([]);
+  const lastQueryRef    = useRef('');
 
   /* animations */
   const revealOpacity = useRef(new Animated.Value(0)).current;
@@ -349,7 +384,7 @@ export default function AIChatScreen({ navigation }) {
   const respOpacity   = useRef(new Animated.Value(0)).current;
   const searchLift    = useRef(new Animated.Value(0)).current;
 
-  /* pre-load all experiences on mount so filtering is instant */
+  /* pre-load all experiences on mount so chips + cards resolve instantly */
   useEffect(() => {
     experienceAPI
       .getAll({ limit: 100 })
@@ -393,7 +428,7 @@ export default function AIChatScreen({ navigation }) {
   useEffect(() => {
     if (appState === 'answered' && scrollRef.current)
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 350);
-  }, [responses, appState]);
+  }, [result, appState]);
 
   const onFocus = () =>
     Animated.timing(searchLift, { toValue: -3, duration: 160, useNativeDriver: true }).start();
@@ -402,19 +437,21 @@ export default function AIChatScreen({ navigation }) {
 
   const resetToIdle = () => {
     setAppState('idle');
-    setResponses([]);
+    setResult(null);
     setInput('');
-    setError('');
+    setErrorMessage('');
+    conversationRef.current = [];
+    lastQueryRef.current = '';
     Animated.timing(cardFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     respOpacity.setValue(0);
     respSlideY.setValue(48);
   };
 
-  const submitSearch = async (query) => {
-    const q = (query || input).trim();
+  const submitSearch = async (queryText) => {
+    const q = (queryText ?? input).trim();
     if (!q || appState === 'loading') return;
     setInput('');
-    setError('');
+    lastQueryRef.current = q;
 
     Animated.timing(cardFade, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     setAppState('loading');
@@ -429,22 +466,56 @@ export default function AIChatScreen({ navigation }) {
       } catch (_) {}
     }
 
-    const matched = filterExperiences(exps, q);
-    setResponses(prev => [...prev, { query: q, experiences: matched }]);
-    setAppState('answered');
+    conversationRef.current = [...conversationRef.current, { role: 'user', content: q }].slice(-8);
 
-    respSlideY.setValue(48);
-    respOpacity.setValue(0);
-    Animated.parallel([
-      Animated.timing(respSlideY, {
-        toValue: 0, duration: 500,
-        easing: Easing.out(Easing.cubic), useNativeDriver: true,
-      }),
-      Animated.timing(respOpacity, {
-        toValue: 1, duration: 450, useNativeDriver: true,
-      }),
-    ]).start();
+    try {
+      const res = await aiAPI.getTripPlan({ messages: conversationRef.current });
+      const plan = res.data?.tripPlan;
+      if (!plan || typeof plan.text !== 'string') throw new Error('Invalid AI response');
+
+      const isTravelRelated = plan.isTravelRelated !== false;
+      const recs = Array.isArray(plan.recommendations) ? plan.recommendations : [];
+
+      const cards = recs
+        .map(r => {
+          const exp = exps.find(e => e._id === r.id || e._id?.toString() === r.id);
+          return exp ? { exp, reason: r.reason || '' } : null;
+        })
+        .filter(Boolean)
+        .slice(0, 4);
+
+      conversationRef.current.push({ role: 'assistant', content: plan.text });
+
+      setResult({ query: q, text: plan.text, isTravelRelated, cards });
+      setAppState('answered');
+
+      respSlideY.setValue(48);
+      respOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(respSlideY, {
+          toValue: 0, duration: 500,
+          easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        }),
+        Animated.timing(respOpacity, {
+          toValue: 1, duration: 450, useNativeDriver: true,
+        }),
+      ]).start();
+    } catch (err) {
+      setErrorMessage("Wildvora AI couldn't respond right now. Please check your connection and try again.");
+      setAppState('error');
+    }
   };
+
+  /* dynamic, pre-validated suggestion chips */
+  const idleChips = useMemo(() => buildDynamicChips(allExperiences, 6), [allExperiences]);
+  const followChips = useMemo(() => {
+    if (appState !== 'answered' || !result) return [];
+    const usedCategories = new Set(result.cards.map(c => c.exp.category));
+    const freshPool = allExperiences.filter(e => !usedCategories.has(e.category));
+    const fresh = buildDynamicChips(freshPool.length > 0 ? freshPool : allExperiences, 5);
+    return fresh.length > 0 ? fresh : buildDynamicChips(allExperiences, 5);
+  }, [appState, result, allExperiences]);
+  const chips = appState === 'answered' ? followChips : idleChips;
 
   const safeBottom = Math.max(insets.bottom, 16) + 12;
 
@@ -475,6 +546,8 @@ export default function AIChatScreen({ navigation }) {
                 <TouchableOpacity
                   onPress={resetToIdle}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Start a new search"
                 >
                   <Ionicons
                     name="refresh-outline"
@@ -486,6 +559,8 @@ export default function AIChatScreen({ navigation }) {
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close AI search"
               >
                 <Ionicons name="close" size={28} color="rgba(255,255,255,0.80)" />
               </TouchableOpacity>
@@ -500,76 +575,94 @@ export default function AIChatScreen({ navigation }) {
             {appState === 'loading' && (
               <View style={{
                 flex: 1, justifyContent: 'flex-end',
-                paddingHorizontal: 24, paddingBottom: 14,
+                paddingHorizontal: 24, paddingBottom: 14, gap: 10,
               }}>
+                <View style={s.thinkingRow} accessibilityLabel="Wildvora AI is thinking">
+                  <ActivityIndicator size="small" color="#a3f3cd" />
+                  <Text style={s.thinkingText}>Wildvora AI is thinking…</Text>
+                </View>
                 <LoadingCard />
               </View>
             )}
 
-            {appState === 'answered' && (
+            {appState === 'error' && (
+              <View style={{
+                flex: 1, justifyContent: 'flex-end',
+                paddingHorizontal: 24, paddingBottom: 14,
+              }}>
+                <ErrorState
+                  message={errorMessage}
+                  onRetry={() => submitSearch(lastQueryRef.current)}
+                  onReset={resetToIdle}
+                />
+              </View>
+            )}
+
+            {appState === 'answered' && result && (
               <ScrollView
                 ref={scrollRef}
                 style={{ flex: 1 }}
+                keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                   flexGrow: 1,
                   justifyContent: 'flex-end',
                   paddingHorizontal: 24,
                   paddingTop: 8,
                   paddingBottom: 10,
-                  gap: 20,
+                  gap: 16,
                 }}
                 showsVerticalScrollIndicator={false}
               >
-                {responses.map((item, idx) => (
-                  <View key={idx}>
-                    {/* Query badge for follow-up searches */}
-                    {idx > 0 && (
-                      <View style={s.queryBadge}>
-                        <Ionicons
-                          name="search-outline"
-                          size={11}
-                          color="rgba(255,255,255,0.55)"
-                        />
-                        <Text style={s.queryText} numberOfLines={1}>
-                          {item.query}
-                        </Text>
-                      </View>
-                    )}
+                <View style={s.queryBadge}>
+                  <Ionicons
+                    name="search-outline"
+                    size={11}
+                    color="rgba(255,255,255,0.55)"
+                  />
+                  <Text style={s.queryText} numberOfLines={2}>
+                    {result.query}
+                  </Text>
+                </View>
 
-                    {item.experiences.length === 0 ? (
-                      <Animated.View
-                        style={
-                          idx === responses.length - 1
-                            ? { opacity: respOpacity, transform: [{ translateY: respSlideY }] }
-                            : {}
-                        }
-                      >
-                        <EmptyState query={item.query} onReset={resetToIdle} />
-                      </Animated.View>
-                    ) : (
-                      <Animated.View
-                        style={[
-                          { gap: 14 },
-                          idx === responses.length - 1
-                            ? { opacity: respOpacity, transform: [{ translateY: respSlideY }] }
-                            : {},
-                        ]}
-                      >
-                        {item.experiences.map(exp => (
-                          <ExperienceCard
-                            key={exp._id}
-                            exp={exp}
-                            onView={() =>
-                              navigation.navigate('ExperienceDetail', {
-                                experienceId: exp._id,
-                              })
-                            }
-                          />
-                        ))}
-                      </Animated.View>
-                    )}
-                  </View>
-                ))}
+                <Animated.View
+                  style={{
+                    opacity: respOpacity,
+                    transform: [{ translateY: respSlideY }],
+                    gap: 16,
+                  }}
+                >
+                  <AIAnswerCard text={result.text} isTravelRelated={result.isTravelRelated} />
+
+                  {result.cards.length > 0 && (
+                    <View style={{ gap: 14 }}>
+                      {result.cards.map(({ exp, reason }) => (
+                        <ExperienceCard
+                          key={exp._id}
+                          exp={exp}
+                          reason={reason}
+                          onView={() =>
+                            navigation.navigate('ExperienceDetail', {
+                              experienceId: exp._id,
+                            })
+                          }
+                        />
+                      ))}
+                    </View>
+                  )}
+
+                  {result.isTravelRelated && result.cards.length === 0 && (
+                    <TouchableOpacity
+                      style={s.browseBtn}
+                      onPress={() => navigation.navigate('Main', { screen: 'Search' })}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Browse all experiences"
+                    >
+                      <Ionicons name="compass-outline" size={16} color="#a3f3cd" />
+                      <Text style={s.browseBtnText}>Browse all experiences</Text>
+                    </TouchableOpacity>
+                  )}
+                </Animated.View>
               </ScrollView>
             )}
           </View>
@@ -593,19 +686,22 @@ export default function AIChatScreen({ navigation }) {
               </Animated.View>
             )}
 
-            {/* ── Suggestion pills — sit ABOVE the search bar ── */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingRight: 4 }}
-            >
-              {(appState !== 'answered' ? TRY_ASKING : FOLLOW_UP_CHIPS).map(
-                chip => (
+            {/* ── Suggestion pills — dynamic, only shown when they have real results ── */}
+            {chips.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ gap: 10, paddingRight: 4 }}
+              >
+                {chips.map(chip => (
                   <TouchableOpacity
                     key={chip}
                     style={appState !== 'answered' ? s.chip : s.followChip}
                     onPress={() => submitSearch(chip)}
                     activeOpacity={0.70}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Search: ${chip}`}
                   >
                     <Text
                       style={
@@ -615,9 +711,9 @@ export default function AIChatScreen({ navigation }) {
                       {chip}
                     </Text>
                   </TouchableOpacity>
-                )
-              )}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            )}
 
             {/* ── Search bar ── */}
             <Animated.View style={{ transform: [{ translateY: searchLift }] }}>
@@ -632,8 +728,8 @@ export default function AIChatScreen({ navigation }) {
                   style={s.searchInput}
                   placeholder={
                     appState === 'idle'
-                      ? 'Search experiences...'
-                      : 'Search again...'
+                      ? 'Ask about a trip, trek, or destination...'
+                      : 'Ask a follow-up...'
                   }
                   placeholderTextColor="#9ca3af"
                   value={input}
@@ -644,6 +740,7 @@ export default function AIChatScreen({ navigation }) {
                   returnKeyType="search"
                   selectionColor="#11694b"
                   editable={appState !== 'loading'}
+                  accessibilityLabel="Ask Wildvora AI about travel and adventures"
                 />
                 {appState === 'loading' ? (
                   <ActivityIndicator
@@ -656,26 +753,14 @@ export default function AIChatScreen({ navigation }) {
                     style={s.sendBtn}
                     onPress={() => submitSearch()}
                     activeOpacity={0.82}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send"
                   >
                     <Ionicons name="arrow-up" size={20} color="#002115" />
                   </TouchableOpacity>
                 )}
               </View>
             </Animated.View>
-
-            {/* Error */}
-            {!!error && (
-              <View style={s.errorRow}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={13}
-                  color="#f87171"
-                />
-                <Text style={{ fontSize: 12, color: '#f87171', flex: 1 }}>
-                  {error}
-                </Text>
-              </View>
-            )}
 
           </Animated.View>
 
@@ -729,6 +814,37 @@ const s = StyleSheet.create({
   dividerRow:  { marginTop: 20, alignItems: 'center' },
   divider:     { height: 4, width: 48, backgroundColor: 'rgba(255,255,255,0.20)', borderRadius: 9999 },
 
+  /* ── Thinking row ─────────────────────────────────────────── */
+  thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  thinkingText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.2 },
+
+  /* ── AI answer card ───────────────────────────────────────── */
+  answerCard: {
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderRadius: 20, padding: 18, gap: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+  },
+  answerCardMuted: {
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  answerHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  answerLabel: {
+    fontSize: 11, fontWeight: '700',
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 1.6, textTransform: 'uppercase',
+  },
+  answerText: { fontSize: 15.5, color: '#fff', lineHeight: 23 },
+
+  /* ── Browse CTA (no recommendations, still travel-related) ── */
+  browseBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: 'rgba(163,243,205,0.12)',
+    borderWidth: 1, borderColor: 'rgba(163,243,205,0.30)',
+    borderRadius: 16, paddingVertical: 13,
+  },
+  browseBtnText: { fontSize: 14, fontWeight: '700', color: '#a3f3cd' },
+
   /* ── Search bar ──────────────────────────────────────────── */
   searchBar: {
     height: 58,
@@ -749,14 +865,6 @@ const s = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: '#a3f3cd',
     justifyContent: 'center', alignItems: 'center', flexShrink: 0,
-  },
-
-  /* Error */
-  errorRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(239,68,68,0.10)',
-    borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.20)',
   },
 
   /* ── Suggestion pills ────────────────────────────────────── */
@@ -787,12 +895,12 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7,
-    alignSelf: 'flex-start', marginBottom: 8,
+    alignSelf: 'flex-start',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)',
   },
   queryText: {
     fontSize: 13, color: 'rgba(255,255,255,0.68)',
-    fontWeight: '500', maxWidth: 260,
+    fontWeight: '500', maxWidth: 280,
   },
 
   /* ── Experience card ─────────────────────────────────────── */
@@ -829,6 +937,13 @@ const s = StyleSheet.create({
     fontSize: 20, fontWeight: '700', color: '#fff',
     letterSpacing: -0.3, lineHeight: 27,
   },
+  reasonRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: 'rgba(163,243,205,0.10)',
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+    borderWidth: 1, borderColor: 'rgba(163,243,205,0.22)',
+  },
+  reasonText: { fontSize: 12.5, color: '#a3f3cd', fontWeight: '600', flex: 1, lineHeight: 17 },
   metaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(255,255,255,0.10)',
@@ -838,6 +953,13 @@ const s = StyleSheet.create({
   metaText:    { fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '500' },
   ratingNum:   { fontSize: 12.5, fontWeight: '700', color: '#f59e0b', marginLeft: 4 },
   reviewCount: { fontSize: 11.5, color: 'rgba(255,255,255,0.45)' },
+  newBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
+  },
+  newBadgeText: { fontSize: 11.5, fontWeight: '600', color: 'rgba(255,255,255,0.65)' },
   ctaBtn: {
     backgroundColor: '#a3f3cd', borderRadius: 13,
     paddingVertical: 14, paddingHorizontal: 16,
@@ -846,24 +968,29 @@ const s = StyleSheet.create({
   },
   ctaTxt: { fontSize: 15, fontWeight: '700', color: '#002115' },
 
-  /* ── Empty state ─────────────────────────────────────────── */
-  emptyWrap: {
+  /* ── Error / info state ──────────────────────────────────── */
+  stateWrap: {
     alignItems: 'center', padding: 28, gap: 12,
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 22,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
   },
-  emptyTitle:    { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
-  emptySubtitle: {
+  stateTitle:    { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
+  stateSubtitle: {
     fontSize: 13.5, color: 'rgba(255,255,255,0.52)',
     textAlign: 'center', lineHeight: 21,
   },
-  emptyBtn: {
-    marginTop: 4, paddingHorizontal: 24, paddingVertical: 11,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+  stateBtn: {
+    paddingHorizontal: 24, paddingVertical: 11,
+    backgroundColor: '#a3f3cd',
+    borderRadius: 20,
   },
-  emptyBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  stateBtnText: { fontSize: 14, fontWeight: '700', color: '#002115' },
+  stateBtnSecondary: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+  },
+  stateBtnSecondaryText: { color: '#fff' },
 
   /* ── Loading skeleton ────────────────────────────────────── */
   loadCard: {
