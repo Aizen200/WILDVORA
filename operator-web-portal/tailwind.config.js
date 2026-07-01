@@ -12,7 +12,7 @@ export default {
           dark:    '#145038',
           light:   '#2E7D52',
         },
-        cream: '#F5F0EB',
+        cream: '#f7faf6',
         brand: '#1A1A1A',
       },
       fontFamily: {

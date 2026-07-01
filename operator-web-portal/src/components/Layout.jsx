@@ -7,7 +7,7 @@ export default function Layout({ children, compact = false }) {
   const navigate = useNavigate();
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-[#f7faf6] overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}

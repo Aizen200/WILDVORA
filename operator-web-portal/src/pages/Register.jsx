@@ -62,7 +62,7 @@ export default function Register() {
       </div>
 
       {/* ── Right Panel ── */}
-      <div className="w-full lg:w-[520px] bg-[#F5F0EB] flex flex-col items-center justify-center px-8 py-8 overflow-y-auto">
+      <div className="w-full lg:w-[520px] bg-[#f7faf6] flex flex-col items-center justify-center px-8 py-8 overflow-y-auto">
         <div className="w-full max-w-[420px]">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             {/* Logo */}

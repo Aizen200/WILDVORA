@@ -63,7 +63,7 @@ export default function Login() {
       </div>
 
       {/* ── Right Panel ── */}
-      <div className="w-full lg:w-[480px] bg-[#F5F0EB] flex flex-col items-center justify-center px-8 py-12 overflow-y-auto">
+      <div className="w-full lg:w-[480px] bg-[#f7faf6] flex flex-col items-center justify-center px-8 py-12 overflow-y-auto">
         <div className="w-full max-w-[380px]">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
             <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Welcome Back</h2>
