@@ -1075,7 +1075,7 @@ const s = StyleSheet.create({
   },
 
   /* Edit modal */
-  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderColor: C.outlineVariant },
+  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.outlineVariant },
   modalCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surfaceContainer, justifyContent: 'center', alignItems: 'center' },
   modalTitle:    { fontSize: 16, fontWeight: '700', color: C.onSurface },
   modalSaveBtn:  { backgroundColor: C.primary, borderRadius: 50, paddingHorizontal: 18, paddingVertical: 8 },
@@ -1097,7 +1097,7 @@ const s = StyleSheet.create({
   sheet:            { backgroundColor: C.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingHorizontal: 20, paddingBottom: 36 },
   sheetHandle:      { width: 36, height: 4, borderRadius: 2, backgroundColor: C.outlineVariant, alignSelf: 'center', marginBottom: 16 },
   sheetTitle:       { fontSize: 16, fontWeight: '700', color: C.onSurface, marginBottom: 8 },
-  sheetOption:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderColor: C.outlineVariant },
+  sheetOption:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: C.outlineVariant },
   sheetOptionText:  { fontSize: 15, color: C.onSurface },
 
   /* Picker btn */

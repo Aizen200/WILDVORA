@@ -182,7 +182,7 @@ export default function ReviewHistoryScreen({ navigation }) {
 
 const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: '#f7faf6' },
-  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#f7faf6', borderBottomWidth: 1, borderColor: C.outlineVariant + '40' },
+  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#f7faf6', borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '40' },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   appBarTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, letterSpacing: -0.2 },
 

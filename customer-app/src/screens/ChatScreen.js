@@ -208,7 +208,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderColor: C.outlineVariant + '40',
+    borderBottomColor: C.outlineVariant + '40',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -345,7 +345,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderColor: C.outlineVariant + '40',
+    borderTopColor: C.outlineVariant + '40',
   },
   input: {
     flex: 1,

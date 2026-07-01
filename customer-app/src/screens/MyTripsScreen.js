@@ -127,8 +127,15 @@ function UpcomingCard({ booking, index, onPress, onViewDetails, onContactHost })
         <View style={s.upCardMeta}>
           <MaterialCommunityIcons name="calendar-outline" size={15} color={C.onSurfaceVariant} />
           <Text style={s.metaText}>
-            {booking.startDate} · {booking.experience?.duration || `${booking.adults} guest${booking.adults > 1 ? 's' : ''}`}
+            {booking.startDate}{booking.endDate ? ` – ${booking.endDate}` : ''}
           </Text>
+          {!!booking.experience?.location?.city && (
+            <>
+              <Text style={s.metaDot}>·</Text>
+              <MaterialCommunityIcons name="map-marker-outline" size={14} color={C.onSurfaceVariant} />
+              <Text style={s.metaText}>{booking.experience.location.city}</Text>
+            </>
+          )}
         </View>
 
         {booking.status === 'postponed' && booking.statusNote && (
@@ -467,42 +474,55 @@ export default function MyTripsScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             ) : (
-              upcomingBookings.map((b, i) => (
-                <UpcomingCard
-                  key={b._id}
-                  booking={b}
-                  index={i}
-                  onPress={() => goToExp(b)}
-                  onViewDetails={() => goToDashboard(b)}
-                  onContactHost={() => navigation.navigate('Chat', {
-                    bookingId: b._id,
-                    hostName: b.experience?.hostName,
-                    title: b.experience?.title,
-                  })}
-                />
-              ))
+              <>
+                <View style={s.sectionLabel}>
+                  <Text style={s.sectionLabelText}>{upcomingBookings.length} upcoming {upcomingBookings.length === 1 ? 'trip' : 'trips'}</Text>
+                </View>
+                {upcomingBookings.map((b, i) => (
+                  <UpcomingCard
+                    key={b._id}
+                    booking={b}
+                    index={i}
+                    onPress={() => goToExp(b)}
+                    onViewDetails={() => goToDashboard(b)}
+                    onContactHost={() => navigation.navigate('Chat', {
+                      bookingId: b._id,
+                      hostName: b.experience?.hostName,
+                      title: b.experience?.title,
+                    })}
+                  />
+                ))}
+              </>
             )}
           </>
         ) : (
           <>
             {pastBookings.length === 0 ? (
               <View style={s.empty}>
-                <MaterialCommunityIcons name="history" size={56} color={C.outlineVariant} style={{ marginBottom: 16 }} />
-                <Text style={s.emptyTitle}>No past trips</Text>
-                <Text style={s.emptyText}>Completed adventures will appear here.</Text>
+                <MaterialCommunityIcons name="image-filter-hdr" size={56} color={C.outlineVariant} style={{ marginBottom: 16 }} />
+                <Text style={s.emptyTitle}>No past trips yet</Text>
+                <Text style={s.emptyText}>Completed adventures will show up here once you've taken your first trip.</Text>
+                <TouchableOpacity style={s.exploreBtn} onPress={() => navigation.navigate('Home')}>
+                  <Text style={s.exploreBtnText}>Explore Experiences</Text>
+                </TouchableOpacity>
               </View>
             ) : (
-              pastBookings.map((b, i) => (
-                <PastCard
-                  key={b._id}
-                  booking={b}
-                  index={i}
-                  onPress={() => goToExp(b)}
-                  hasReviewed={reviewedExpIds.has(b.experience?._id)}
-                  onReview={() => openReviewModal(b)}
-                  onViewDetails={() => goToDashboard(b)}
-                />
-              ))
+              <>
+                <View style={s.sectionLabel}>
+                  <Text style={s.sectionLabelText}>{pastBookings.length} past {pastBookings.length === 1 ? 'trip' : 'trips'}</Text>
+                </View>
+                {pastBookings.map((b, i) => (
+                  <PastCard
+                    key={b._id}
+                    booking={b}
+                    index={i}
+                    onPress={() => goToExp(b)}
+                    hasReviewed={reviewedExpIds.has(b.experience?._id)}
+                    onReview={() => openReviewModal(b)}
+                    onViewDetails={() => goToDashboard(b)}
+                  />
+                ))}
+              </>
             )}
           </>
         )}
@@ -580,7 +600,7 @@ const s = StyleSheet.create({
   center: { paddingTop: 60, alignItems: 'center' },
 
   /* App bar */
-  appBar:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 14, backgroundColor: C.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.outlineVariant },
+  appBar:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 14, backgroundColor: C.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.outlineVariant },
   appBarLogo:       { fontSize: 22, fontWeight: '800', color: C.primary, letterSpacing: -0.5 },
   appBarAvatar:     { width: 38, height: 38, borderRadius: 19, backgroundColor: C.surfaceContainerLow, borderWidth: 2, borderColor: C.primary + '40', justifyContent: 'center', alignItems: 'center' },
   appBarAvatarText: { fontSize: 14, fontWeight: '700', color: C.primary },
@@ -612,27 +632,32 @@ const s = StyleSheet.create({
   countdownExpSub:   { fontSize: 13, color: 'rgba(255,255,255,0.70)' },
 
   /* Upcoming card */
-  upCard:           { marginHorizontal: 22, backgroundColor: C.white, borderRadius: 22, overflow: 'hidden', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.09, shadowRadius: 10, elevation: 4 },
+  upCard:           { marginHorizontal: 22, backgroundColor: C.white, borderRadius: 22, overflow: 'hidden', marginBottom: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
   upCardImgWrap:    { position: 'relative' },
-  upCardImg:        { width: '100%', height: 220 },
-  upCardImgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.16)' },
-  upCardBadge:      { position: 'absolute', top: 14, right: 14, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 50 },
-  upCardBadgeText:  { fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
-  upCardBody:       { padding: 18, paddingTop: 16 },
-  upCardTitle:      { fontSize: 20, fontWeight: '800', color: C.onSurface, lineHeight: 27, letterSpacing: -0.3, marginBottom: 10 },
-  upCardMeta:       { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 16 },
-  metaText:         { fontSize: 14, color: C.onSurfaceVariant, fontWeight: '500' },
+  upCardImg:        { width: '100%', height: 210 },
+  upCardImgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.12)' },
+  upCardBadge:      { position: 'absolute', top: 14, right: 14, paddingHorizontal: 13, paddingVertical: 6, borderRadius: 50 },
+  upCardBadgeText:  { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
+  upCardBody:       { padding: 18, paddingTop: 15 },
+  upCardTitle:      { fontSize: 19, fontWeight: '800', color: C.onSurface, lineHeight: 26, letterSpacing: -0.4, marginBottom: 9 },
+  upCardMeta:       { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
+  metaText:         { fontSize: 13, color: C.onSurfaceVariant, fontWeight: '500' },
+  metaDot:          { fontSize: 13, color: C.outlineVariant },
   upCardActions:    { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  dirBtn:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, borderRadius: 50, paddingVertical: 13, shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6, elevation: 3 },
-  dirBtnText:       { color: C.white, fontWeight: '700', fontSize: 14 },
-  hostBtn:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.primary + '55', borderRadius: 50, paddingVertical: 13 },
-  hostBtnText:      { color: C.primary, fontWeight: '700', fontSize: 14 },
-  detailsBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1.5, borderColor: C.outlineVariant, borderRadius: 50, paddingVertical: 13, marginTop: 2 },
-  detailsBtnText:   { color: C.onSurfaceVariant, fontWeight: '700', fontSize: 14 },
+  dirBtn:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, borderRadius: 50, paddingVertical: 13, shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.22, shadowRadius: 6, elevation: 3 },
+  dirBtnText:       { color: C.white, fontWeight: '700', fontSize: 13 },
+  hostBtn:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.primary + '70', borderRadius: 50, paddingVertical: 13 },
+  hostBtnText:      { color: C.primary, fontWeight: '700', fontSize: 13 },
+  detailsBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1.5, borderColor: C.primary + '40', borderRadius: 50, paddingVertical: 12, marginTop: 2, backgroundColor: C.primary + '08' },
+  detailsBtnText:   { color: C.primary, fontWeight: '700', fontSize: 13 },
   statusNoteRow:    { flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: '#FFF8E1', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14 },
   statusNoteText:   { fontSize: 13, color: '#7C5800', flex: 1, lineHeight: 19 },
   ongoingBanner:    { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#E3F2FD', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, marginBottom: 12 },
   ongoingBannerText:{ fontSize: 14, fontWeight: '600', color: '#0D47A1' },
+
+  /* Section label above card list */
+  sectionLabel:     { paddingHorizontal: 22, marginBottom: 14 },
+  sectionLabelText: { fontSize: 13, fontWeight: '700', color: C.onSurfaceVariant, letterSpacing: 0.2, textTransform: 'uppercase' },
 
   /* Past card — horizontal layout */
   pastCard:               { marginHorizontal: 22, backgroundColor: C.white, borderRadius: 20, overflow: 'hidden', marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 3 },
@@ -651,8 +676,8 @@ const s = StyleSheet.create({
   reviewBtnText:          { fontSize: 12, fontWeight: '700', color: C.primary },
   reviewedBadge:          { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0', alignSelf: 'flex-start', marginBottom: 10 },
   reviewedText:           { fontSize: 12, fontWeight: '600', color: '#15803d' },
-  pastDetailsBtn:         { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  pastDetailsBtnText:     { fontSize: 13, fontWeight: '700', color: C.primary },
+  pastDetailsBtn:         { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  pastDetailsBtnText:     { fontSize: 13, fontWeight: '700', color: C.primary, letterSpacing: 0.1 },
 
   /* Empty state */
   empty:         { alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 },

@@ -208,7 +208,7 @@ export default function HelpCenterScreen({ navigation }) {
 
 const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: '#f7faf6' },
-  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#f7faf6', borderBottomWidth: 1, borderColor: C.outlineVariant + '40' },
+  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#f7faf6', borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '40' },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   appBarTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, letterSpacing: -0.2 },
 
@@ -227,7 +227,7 @@ const s = StyleSheet.create({
   catLabel:     { fontSize: 13, fontWeight: '700', color: C.onSurface },
 
   faqCard:    { backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.outlineVariant + '45', overflow: 'hidden', marginBottom: 28, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  faqDivider: { borderBottomWidth: 1, borderColor: C.outlineVariant + '30' },
+  faqDivider: { borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
   faqItem:    { padding: 16 },
   faqRow:     { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   faqQ:       { flex: 1, fontSize: 14, fontWeight: '600', color: C.onSurface, lineHeight: 20 },

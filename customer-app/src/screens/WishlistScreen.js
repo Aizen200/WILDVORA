@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Image, Platform,
+  ActivityIndicator, Image, Platform, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,6 +32,87 @@ const CATEGORY_IMAGES = {
   Skiing:        'https://images.unsplash.com/photo-1482867996988-2faec3cbb4f9?auto=format&fit=crop&w=400&q=80',
 };
 
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80';
+
+// ── Per-card component so each card holds its own animation refs ──────────────
+function WishlistCard({ item, onNavigate, onRemove }) {
+  const heartBtnScale = useRef(new Animated.Value(1)).current;
+  const cardOpacity   = useRef(new Animated.Value(1)).current;
+
+  const imgUri = item.images?.[0] || CATEGORY_IMAGES[item.category] || FALLBACK_IMG;
+
+  const handleRemoveTap = () => {
+    // 1. Bounce the heart: scale up then snap to 0
+    Animated.sequence([
+      Animated.spring(heartBtnScale, {
+        toValue: 1.5, tension: 400, friction: 5, useNativeDriver: true,
+      }),
+      Animated.spring(heartBtnScale, {
+        toValue: 0, tension: 300, friction: 10, useNativeDriver: true,
+      }),
+    ]).start();
+
+    // 2. Fade out the whole card, then fire remove callback
+    setTimeout(() => {
+      Animated.timing(cardOpacity, {
+        toValue: 0, duration: 240, useNativeDriver: true,
+      }).start(() => onRemove(item._id));
+    }, 160);
+  };
+
+  return (
+    <Animated.View style={{ opacity: cardOpacity }}>
+      <TouchableOpacity
+        style={s.card}
+        onPress={() => onNavigate(item._id)}
+        activeOpacity={0.88}
+      >
+        {/* Image */}
+        <View style={s.cardImgWrap}>
+          <Image source={{ uri: imgUri }} style={s.cardImg} resizeMode="cover" />
+          <View style={s.categoryBadge}>
+            <Text style={s.categoryBadgeText}>{item.category}</Text>
+          </View>
+        </View>
+
+        {/* Body */}
+        <View style={s.cardBody}>
+          <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
+          <View style={s.cardMetaRow}>
+            <Ionicons name="location-outline" size={13} color={C.outline} />
+            <Text style={s.cardMeta}>{item.location?.city}, {item.location?.country}</Text>
+          </View>
+          <View style={s.cardFooter}>
+            <Text style={s.cardPrice}>
+              <Text style={s.cardPriceNum}>₹{item.price}</Text>
+              <Text style={s.cardPriceSub}>/person</Text>
+            </Text>
+            {item.rating > 0 && (
+              <View style={s.ratingRow}>
+                <Ionicons name="star" size={12} color={C.primary} />
+                <Text style={s.ratingText}>{item.rating}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Remove button — heart bounces then disappears */}
+        <TouchableOpacity
+          style={s.removeBtn}
+          onPress={handleRemoveTap}
+          activeOpacity={0.75}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Animated.View style={{ transform: [{ scale: heartBtnScale }] }}>
+            <Ionicons name="heart" size={22} color={C.error} />
+          </Animated.View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 export default function WishlistScreen({ navigation }) {
   const { user } = useAuth();
   const [wishlist, setWishlist] = useState([]);
@@ -53,7 +134,6 @@ export default function WishlistScreen({ navigation }) {
     await userAPI.toggleWishlist(id);
     setWishlist((prev) => prev.filter((e) => e._id !== id));
   };
-  // ─────────────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -105,55 +185,13 @@ export default function WishlistScreen({ navigation }) {
         keyExtractor={(i) => i._id}
         contentContainerStyle={s.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const imgUri = item.images?.[0] || CATEGORY_IMAGES[item.category] || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=400&q=80';
-          return (
-            <TouchableOpacity
-              style={s.card}
-              onPress={() => navigation.navigate('ExperienceDetail', { experienceId: item._id })}
-              activeOpacity={0.88}
-            >
-              {/* Image */}
-              <View style={s.cardImgWrap}>
-                <Image source={{ uri: imgUri }} style={s.cardImg} resizeMode="cover" />
-                <View style={s.categoryBadge}>
-                  <Text style={s.categoryBadgeText}>{item.category}</Text>
-                </View>
-              </View>
-
-              {/* Body */}
-              <View style={s.cardBody}>
-                <Text style={s.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={s.cardMetaRow}>
-                  <Ionicons name="location-outline" size={13} color={C.outline} />
-                  <Text style={s.cardMeta}>{item.location?.city}, {item.location?.country}</Text>
-                </View>
-                <View style={s.cardFooter}>
-                  <Text style={s.cardPrice}>
-                    <Text style={s.cardPriceNum}>₹{item.price}</Text>
-                    <Text style={s.cardPriceSub}>/person</Text>
-                  </Text>
-                  {item.rating > 0 && (
-                    <View style={s.ratingRow}>
-                      <Ionicons name="star" size={12} color={C.primary} />
-                      <Text style={s.ratingText}>{item.rating}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* Remove (heart icon) */}
-              <TouchableOpacity
-                style={s.removeBtn}
-                onPress={() => handleRemove(item._id)}
-                activeOpacity={0.75}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="heart" size={22} color={C.error} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={({ item }) => (
+          <WishlistCard
+            item={item}
+            onNavigate={(id) => navigation.navigate('ExperienceDetail', { experienceId: id })}
+            onRemove={handleRemove}
+          />
+        )}
         ListEmptyComponent={
           <View style={s.empty}>
             <MaterialCommunityIcons
@@ -188,7 +226,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: C.background,
-    borderBottomWidth: 1, borderColor: 'rgba(190,201,193,0.3)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(190,201,193,0.3)',
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,

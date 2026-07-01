@@ -150,14 +150,14 @@ export default function SettingsScreen({ navigation }) {
 
 const s = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: C.background },
-  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderColor: C.outlineVariant + '40' },
+  appBar:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '40' },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   appBarTitle: { fontSize: 18, fontWeight: '700', color: C.onSurface, letterSpacing: -0.2 },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: C.onSurfaceVariant, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10, marginLeft: 4 },
   card:    { backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.outlineVariant + '45', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  row:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: C.outlineVariant + '30' },
+  row:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.outlineVariant + '30' },
   rowDanger: { backgroundColor: C.error + '06' },
   iconBox: { width: 38, height: 38, borderRadius: 10, backgroundColor: C.surfaceContainer, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   iconBoxDanger: { backgroundColor: C.error + '15' },

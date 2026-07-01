@@ -206,7 +206,7 @@ const s = StyleSheet.create({
     paddingVertical:  12,
     backgroundColor:  C.surface,
     borderBottomWidth: 1,
-    borderColor:      C.outlineVariant + '40',
+    borderBottomColor: C.outlineVariant + '40',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -227,7 +227,7 @@ const s = StyleSheet.create({
     gap: 6,
     backgroundColor: '#fffbeb',
     borderBottomWidth: 1,
-    borderColor: '#fde68a',
+    borderBottomColor: '#fde68a',
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -270,7 +270,7 @@ const s = StyleSheet.create({
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end',
     backgroundColor: C.surface, paddingHorizontal: 12, paddingTop: 8,
-    borderTopWidth: 1, borderColor: C.outlineVariant + '40',
+    borderTopWidth: 1, borderTopColor: C.outlineVariant + '40',
   },
   input: {
     flex: 1, backgroundColor: C.chatBg + '60',

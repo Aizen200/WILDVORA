@@ -157,12 +157,32 @@ function FeaturedCard({ item, index, isActive, onPress, onWishlist, isWishlisted
   const scaleVal = useRef(new Animated.Value(isActive ? 1.0 : 0.92)).current;
   const opacVal  = useRef(new Animated.Value(isActive ? 1.0 : 0.65)).current;
 
+  const heartScale   = useRef(new Animated.Value(0)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const [showHeart, setShowHeart] = useState(false);
+
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleVal, { toValue: isActive ? 1.0 : 0.92, tension: 280, friction: 18, useNativeDriver: true }),
       Animated.timing(opacVal,  { toValue: isActive ? 1.0 : 0.65, duration: 200, useNativeDriver: true }),
     ]).start();
   }, [isActive]);
+
+  const handleWishlistPress = () => {
+    const adding = !isWishlisted;
+    onWishlist(item);
+    if (adding) {
+      setShowHeart(true);
+      heartScale.setValue(0);
+      heartOpacity.setValue(1);
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.25, tension: 180, friction: 5, useNativeDriver: true }),
+        Animated.spring(heartScale, { toValue: 1.0,  tension: 250, friction: 8, useNativeDriver: true }),
+        Animated.delay(300),
+        Animated.timing(heartOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+      ]).start(() => setShowHeart(false));
+    }
+  };
 
   return (
     <Animated.View style={{ width: PORTRAIT_W, transform: [{ scale: scaleVal }], opacity: opacVal }}>
@@ -171,13 +191,21 @@ function FeaturedCard({ item, index, isActive, onPress, onWishlist, isWishlisted
         <View style={s.featGrad1} />
         <View style={s.featGrad2} />
         <View style={s.featGrad3} />
+        {showHeart && (
+          <Animated.View
+            pointerEvents="none"
+            style={[s.heartOverlay, { opacity: heartOpacity, transform: [{ scale: heartScale }] }]}
+          >
+            <MaterialCommunityIcons name="heart" size={90} color="rgba(255,255,255,0.95)" />
+          </Animated.View>
+        )}
         {verified && (
           <View style={s.featVerifiedBadge}>
             <MaterialCommunityIcons name="shield-check" size={10} color={C.primary} />
             <Text style={s.featVerifiedText}>Verified</Text>
           </View>
         )}
-        <TouchableOpacity style={s.featWishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
+        <TouchableOpacity style={s.featWishBtn} onPress={handleWishlistPress} activeOpacity={0.8}>
           <MaterialCommunityIcons
             name={isWishlisted ? 'heart' : 'heart-outline'}
             size={18}
@@ -221,6 +249,10 @@ function DiscoveryCard({ item, index, isActive, onPress, onWishlist, isWishliste
   const scaleVal = useRef(new Animated.Value(isActive ? 1.0 : 0.93)).current;
   const opacVal  = useRef(new Animated.Value(isActive ? 1.0 : 0.70)).current;
 
+  const heartScale   = useRef(new Animated.Value(0)).current;
+  const heartOpacity = useRef(new Animated.Value(0)).current;
+  const [showHeart, setShowHeart] = useState(false);
+
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleVal, { toValue: isActive ? 1.0 : 0.93, tension: 300, friction: 20, useNativeDriver: true }),
@@ -228,12 +260,36 @@ function DiscoveryCard({ item, index, isActive, onPress, onWishlist, isWishliste
     ]).start();
   }, [isActive]);
 
+  const handleWishlistPress = () => {
+    const adding = !isWishlisted;
+    onWishlist(item);
+    if (adding) {
+      setShowHeart(true);
+      heartScale.setValue(0);
+      heartOpacity.setValue(1);
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.25, tension: 180, friction: 5, useNativeDriver: true }),
+        Animated.spring(heartScale, { toValue: 1.0,  tension: 250, friction: 8, useNativeDriver: true }),
+        Animated.delay(300),
+        Animated.timing(heartOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+      ]).start(() => setShowHeart(false));
+    }
+  };
+
   return (
     <Animated.View style={{ width: CARD_W, transform: [{ scale: scaleVal }], opacity: opacVal }}>
       <TouchableOpacity onPress={() => onPress(item)} activeOpacity={0.93} style={s.discCardInner}>
         <Image source={{ uri: img.uri }} style={s.discImg} resizeMode="cover" onError={img.onError} />
         <View style={s.discGrad1} />
         <View style={s.discGrad2} />
+        {showHeart && (
+          <Animated.View
+            pointerEvents="none"
+            style={[s.heartOverlay, { opacity: heartOpacity, transform: [{ scale: heartScale }] }]}
+          >
+            <MaterialCommunityIcons name="heart" size={60} color="rgba(255,255,255,0.95)" />
+          </Animated.View>
+        )}
         {verified && (
           <View style={s.discVerifiedBadge}>
             <MaterialCommunityIcons name="shield-check" size={9} color={C.primary} />
@@ -241,7 +297,7 @@ function DiscoveryCard({ item, index, isActive, onPress, onWishlist, isWishliste
           </View>
         )}
         {onWishlist && (
-          <TouchableOpacity style={s.discWishBtn} onPress={() => onWishlist(item)} activeOpacity={0.8}>
+          <TouchableOpacity style={s.discWishBtn} onPress={handleWishlistPress} activeOpacity={0.8}>
             <MaterialCommunityIcons
               name={isWishlisted ? 'heart' : 'heart-outline'}
               size={15}
@@ -968,6 +1024,13 @@ const s = StyleSheet.create({
   proBody:    { fontSize: 14, color: 'rgba(255,255,255,0.72)', textAlign: 'center', lineHeight: 22, marginBottom: 26 },
   proBtn:     { paddingVertical: 14, paddingHorizontal: 36, backgroundColor: C.white, borderRadius: 12 },
   proBtnText: { color: C.primary, fontWeight: '800', fontSize: 14 },
+
+  /* ── Heart overlay (Instagram-style add animation) ── */
+  heartOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   /* ── AI FAB ── */
   aiFab: {
