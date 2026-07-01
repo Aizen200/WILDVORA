@@ -105,6 +105,24 @@ mongoose
       console.error('Seeding destinations failed:', e);
     }
 
+    // Seed guides if empty
+    try {
+      const Guide = require('./models/Guide');
+      const count = await Guide.countDocuments();
+      if (count === 0) {
+        console.log('Seeding initial guides...');
+        await Guide.create([
+          { name: 'Arjun Sharma', languages: ['Hindi', 'English'], specialty: 'Alpine Trekking', rating: 4.9, activeTrips: 1, avatar: 'AS' },
+          { name: 'Priya Patel', languages: ['English', 'Gujarati'], specialty: 'Desert & Safari', rating: 4.8, activeTrips: 2, avatar: 'PP' },
+          { name: 'Vikram Singh', languages: ['Hindi', 'English', 'Punjabi'], specialty: 'Rock Climbing', rating: 5.0, activeTrips: 0, avatar: 'VS' },
+          { name: 'Rahul Verma', languages: ['Hindi', 'English'], specialty: 'Camping & Wildlife', rating: 4.7, activeTrips: 1, avatar: 'RV' },
+        ]);
+        console.log('Guides seeded successfully!');
+      }
+    } catch (e) {
+      console.error('Seeding guides failed:', e);
+    }
+
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })

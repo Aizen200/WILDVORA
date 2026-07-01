@@ -30,6 +30,8 @@ export const hostAPI = {
   getPayouts:          ()           => api.get('/operator/payouts'),
   getBookings:         (params)     => api.get('/operator/bookings', { params }),
   updateBookingStatus: (id, status, statusNote = '') => api.patch(`/operator/bookings/${id}/status`, { status, statusNote }),
+  getGuides:           ()           => api.get('/operator/guides'),
+  assignGuide:         (id, guideId) => api.patch(`/operator/bookings/${id}/assign-guide`, { guideId }),
   getReviews:          ()           => api.get('/operator/reviews'),
   respondToReview:     (id, text)   => api.patch(`/operator/reviews/${id}/reply`, { hostReply: text }),
 };

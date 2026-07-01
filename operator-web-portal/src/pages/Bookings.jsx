@@ -70,6 +70,107 @@ export default function Bookings() {
   const [updating,  setUpdating]  = useState(false);
   const [page,      setPage]      = useState(1);
 
+  // Scheduling & Calendar states
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'timeline'
+  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 6, 1)); // Default: July 2026 (index 6)
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [bookingIdDragging, setBookingIdDragging] = useState(null);
+
+  // Real guides state loaded from DB
+  const [guides, setGuides] = useState([]);
+
+  // Fetch guides
+  const fetchGuides = async () => {
+    try {
+      const res = await hostAPI.getGuides();
+      if (res.data.success) {
+        setGuides(res.data.guides || []);
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    fetchGuides();
+  }, []);
+
+  // Load Google Fonts Material Symbols dynamically
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
+  const handleAssignGuide = async (bookingId, guideId) => {
+    if (!bookingId) return;
+    try {
+      const res = await hostAPI.assignGuide(bookingId, guideId);
+      if (res.data.success) {
+        setBookings(prev => prev.map(b => b._id === bookingId ? res.data.booking : b));
+        if (selected?._id === bookingId) {
+          setSelected(res.data.booking);
+        }
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to assign guide');
+    }
+  };
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const getBookingLayout = (booking, year, month) => {
+    if (!booking.startDate) return null;
+    const start = new Date(booking.startDate);
+    const end = new Date(booking.endDate || booking.startDate);
+    
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    
+    if (end < monthStart || start > monthEnd) return null;
+    
+    const displayStart = start < monthStart ? monthStart : start;
+    const displayEnd = end > monthEnd ? monthEnd : end;
+    
+    const startDay = displayStart.getDate();
+    const endDay = displayEnd.getDate();
+    
+    return {
+      startDay,
+      duration: endDay - startDay + 1
+    };
+  };
+
+  const checkOverlap = (guideBookings) => {
+    for (let i = 0; i < guideBookings.length; i++) {
+      for (let j = i + 1; j < guideBookings.length; j++) {
+        const b1 = guideBookings[i];
+        const b2 = guideBookings[j];
+        if (b1.startDate && b2.startDate) {
+          const s1 = new Date(b1.startDate);
+          const e1 = new Date(b1.endDate || b1.startDate);
+          const s2 = new Date(b2.startDate);
+          const e2 = new Date(b2.endDate || b2.startDate);
+          if (s1 <= e2 && s2 <= e1) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
   // Note modal state
   const [noteModal, setNoteModal] = useState(null); // { bookingId, targetStatus }
   const [note,      setNote]      = useState('');
@@ -224,173 +325,389 @@ export default function Bookings() {
           <div className="flex justify-between items-start mb-6">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage and update trip statuses for all your bookings.</p>
+              <p className="text-sm text-gray-500 mt-1">Manage, schedule, and assign guides to your adventure bookings.</p>
             </div>
-            <button
-              onClick={handleExportBookings}
-              className="flex items-center gap-2 bg-[#1A5F45] hover:bg-[#145038] text-white font-semibold rounded-xl px-4 py-2.5 text-sm shadow-sm transition"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V3m0 0L8 7m4-4l4 4"/>
-              </svg>
-              Export CSV
-            </button>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</div>
-          )}
-
-          {/* Metric cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[
-              { label: 'Total Bookings', value: bookings.length, accent: 'border-l-[#1A5F45]' },
-              { label: 'Pending Review', value: pendingCount,    accent: 'border-l-amber-400' },
-              { label: 'Active Trips',   value: ongoingCount,    accent: 'border-l-blue-400' },
-              { label: 'Completed',      value: bookings.filter(b => b.status === 'completed').length, accent: 'border-l-purple-400' },
-            ].map(m => (
-              <div key={m.label} className={`bg-white p-5 rounded-2xl border-l-4 ${m.accent} shadow-sm`}>
-                <span className="text-[11px] font-bold text-gray-400 tracking-wider uppercase">{m.label}</span>
-                <div className="text-2xl font-bold text-gray-900 mt-1">{m.value}</div>
+            <div className="flex items-center gap-2.5">
+              {/* View Switcher Toggle */}
+              <div className="flex bg-gray-100 rounded-xl p-1 shrink-0 border border-gray-200/40">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'list' ? 'bg-white text-[#1A5F45] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">list</span>
+                  List View
+                </button>
+                <button
+                  onClick={() => setViewMode('timeline')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'timeline' ? 'bg-white text-[#1A5F45] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">calendar_month</span>
+                  Timeline
+                </button>
               </div>
-            ))}
-          </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Search Bar */}
-            <div className="px-6 pt-4 pb-3 border-b border-gray-50">
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
-                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              {/* Sync Trigger */}
+              <button
+                onClick={() => setShowSyncModal(true)}
+                className="flex items-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl px-4 py-2.5 text-sm shadow-sm transition"
+              >
+                <span className="material-symbols-outlined text-[18px] text-gray-500">sync</span>
+                Sync Calendar
+              </button>
+
+              <button
+                onClick={handleExportBookings}
+                className="flex items-center gap-2 bg-[#1A5F45] hover:bg-[#145038] text-white font-semibold rounded-xl px-4 py-2.5 text-sm shadow-sm transition"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V3m0 0L8 7m4-4l4 4"/>
                 </svg>
-                <input
-                  type="text"
-                  placeholder="Search by customer, experience, or booking ID…"
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); setPage(1); }}
-                  className="flex-1 text-sm bg-transparent text-gray-700 placeholder-gray-400 outline-none"
-                />
-                {search && (
-                  <button onClick={() => { setSearch(''); setPage(1); }} className="text-gray-400 hover:text-gray-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                  </button>
-                )}
-              </div>
+                Export CSV
+              </button>
             </div>
+          </div>
 
-            {/* Tabs */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
-              <div className="flex gap-6">
-                {TABS.map(t => (
-                  <button key={t}
-                    onClick={() => { setTab(t); setPage(1); setSelected(null); setSearch(''); }}
-                    className={`pb-1 text-sm font-semibold border-b-2 transition ${
-                      tab === t ? 'border-[#1A5F45] text-[#1A5F45]' : 'border-transparent text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    {t}
-                    {t === 'Pending' && pendingCount > 0 && (
-                      <span className="ml-1.5 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
-                    )}
-                  </button>
+          {viewMode === 'list' ? (
+            <>
+              {error && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</div>
+              )}
+
+              {/* Metric cards */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: 'Total Bookings', value: bookings.length, accent: 'border-l-[#1A5F45]' },
+                  { label: 'Pending Review', value: pendingCount,    accent: 'border-l-amber-400' },
+                  { label: 'Active Trips',   value: ongoingCount,    accent: 'border-l-blue-400' },
+                  { label: 'Completed',      value: bookings.filter(b => b.status === 'completed').length, accent: 'border-l-purple-400' },
+                ].map(m => (
+                  <div key={m.label} className={`bg-white p-5 rounded-2xl border-l-4 ${m.accent} shadow-sm`}>
+                    <span className="text-[11px] font-bold text-gray-400 tracking-wider uppercase">{m.label}</span>
+                    <div className="text-2xl font-bold text-gray-900 mt-1">{m.value}</div>
+                  </div>
                 ))}
               </div>
-              <span className="text-xs font-semibold text-gray-400">
-                Showing {searchFiltered.length === 0 ? 0 : (page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, searchFiltered.length)} of {searchFiltered.length}
-              </span>
-            </div>
 
-            {loading ? (
-              <div className="p-12 text-center">
-                <div className="w-7 h-7 border-4 border-[#1A5F45] border-t-transparent rounded-full animate-spin mx-auto" />
-              </div>
-            ) : paginated.length === 0 ? (
-              <div className="p-12 text-center text-gray-400 text-sm">
-                {search ? `No bookings match "${search}".` : 'No bookings found.'}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      {['Customer', 'Booking ID', 'Experience', 'Dates', 'Amount', 'Status', ''].map(h => (
-                        <th key={h} className="py-3 px-5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {paginated.map(b => (
-                      <tr key={b._id}
-                        onClick={() => setSelected(b)}
-                        className={`hover:bg-gray-50/60 cursor-pointer transition ${selected?._id === b._id ? 'bg-gray-50' : ''}`}
+              {/* Table */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Search Bar */}
+                <div className="px-6 pt-4 pb-3 border-b border-gray-50">
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search by customer, experience, or booking ID…"
+                      value={search}
+                      onChange={e => { setSearch(e.target.value); setPage(1); }}
+                      className="flex-1 text-sm bg-transparent text-gray-700 placeholder-gray-400 outline-none"
+                    />
+                    {search && (
+                      <button onClick={() => { setSearch(''); setPage(1); }} className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100">
+                  <div className="flex gap-6">
+                    {TABS.map(t => (
+                      <button key={t}
+                        onClick={() => { setTab(t); setPage(1); setSelected(null); setSearch(''); }}
+                        className={`pb-1 text-sm font-semibold border-b-2 transition ${
+                          tab === t ? 'border-[#1A5F45] text-[#1A5F45]' : 'border-transparent text-gray-400 hover:text-gray-600'
+                        }`}
                       >
-                        <td className="py-4 px-5">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getAvatarCls(b.user?.name)}`}>
-                              {b.user?.name?.[0]?.toUpperCase() || '?'}
+                        {t}
+                        {t === 'Pending' && pendingCount > 0 && (
+                          <span className="ml-1.5 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-400">
+                    Showing {searchFiltered.length === 0 ? 0 : (page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, searchFiltered.length)} of {searchFiltered.length}
+                  </span>
+                </div>
+
+                {loading ? (
+                  <div className="p-12 text-center">
+                    <div className="w-7 h-7 border-4 border-[#1A5F45] border-t-transparent rounded-full animate-spin mx-auto" />
+                  </div>
+                ) : paginated.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 text-sm">
+                    {search ? `No bookings match "${search}".` : 'No bookings found.'}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {['Customer', 'Booking ID', 'Experience', 'Dates', 'Amount', 'Status', ''].map(h => (
+                            <th key={h} className="py-3 px-5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {paginated.map(b => (
+                          <tr key={b._id}
+                            onClick={() => setSelected(b)}
+                            className={`hover:bg-gray-50/60 cursor-pointer transition ${selected?._id === b._id ? 'bg-gray-50' : ''}`}
+                          >
+                            <td className="py-4 px-5">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${getAvatarCls(b.user?.name)}`}>
+                                  {b.user?.name?.[0]?.toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-semibold text-gray-800">{b.user?.name || '—'}</div>
+                                  <div className="text-[11px] text-gray-400">{b.user?.email || ''}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-5 text-xs font-semibold text-gray-400 font-mono">
+                              #WV-{b._id.slice(-4).toUpperCase()}
+                            </td>
+                            <td className="py-4 px-5 text-sm font-semibold text-gray-700 max-w-[200px] truncate">
+                              {b.experience?.title || '—'}
+                            </td>
+                            <td className="py-4 px-5 text-xs text-gray-600">
+                              <div>{b.startDate || '—'}</div>
+                              {b.endDate && b.endDate !== b.startDate && <div className="text-gray-400">&rarr; {b.endDate}</div>}
+                            </td>
+                            <td className="py-4 px-5 text-sm font-bold text-gray-900">&#8377;{(b.totalPrice || 0).toLocaleString()}</td>
+                            <td className="py-4 px-5">
+                              <StatusBadge status={b.status} />
+                              {b.statusNote && (
+                                <p className="text-[10px] text-gray-400 mt-1 max-w-[140px] truncate" title={b.statusNote}>{b.statusNote}</p>
+                              )}
+                            </td>
+                            <td className="py-4 px-5 text-right" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => setSelected(b)} className="text-gray-300 hover:text-gray-500 transition">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path d="M9 5l7 7-7 7"/>
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-between items-center px-6 py-4 border-t border-gray-100 bg-gray-50/40">
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 transition">
+                      Previous
+                    </button>
+                    <div className="flex gap-1.5">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                        <button key={n} onClick={() => setPage(n)}
+                          className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition ${
+                            page === n ? 'bg-[#1A5F45] text-white' : 'text-gray-600 hover:bg-gray-100'
+                          }`}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 transition">
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Month Header Navigation */}
+              <div className="flex items-center justify-between mb-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm select-none">
+                <div className="flex items-center gap-3">
+                  <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-50 rounded-lg border border-gray-200 transition">
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                  </button>
+                  <span className="text-sm font-bold text-gray-800 min-w-32 text-center">
+                    {currentMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-50 rounded-lg border border-gray-200 transition">
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wide mr-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" /> Confirmed
+                    <span className="w-2 h-2 rounded-full bg-blue-500 ml-2" /> Ongoing
+                    <span className="w-2 h-2 rounded-full bg-amber-500 ml-2" /> Pending
+                  </div>
+                </div>
+              </div>
+
+              {/* Gantt Timeline Grid */}
+              <div className="overflow-x-auto border border-gray-100 rounded-2xl bg-white shadow-sm">
+                <div style={{ minWidth: `${220 + daysInMonth * 40}px` }}>
+                  
+                  {/* Grid Header Row */}
+                  <div className="flex border-b border-gray-100 bg-gray-50/50">
+                    <div className="w-[220px] shrink-0 p-4 font-bold text-[10px] text-gray-400 uppercase tracking-wider border-r border-gray-100">
+                      Guide / Host
+                    </div>
+                    <div className="flex flex-1">
+                      {days.map(d => {
+                        const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d);
+                        const weekday = date.toLocaleString('en-US', { weekday: 'short' });
+                        return (
+                          <div key={d} className="w-[40px] shrink-0 text-center py-2 border-r border-gray-100 last:border-r-0 flex flex-col items-center justify-center">
+                            <span className="text-[10px] font-bold text-gray-700">{d}</span>
+                            <span className="text-[8px] font-semibold text-gray-400 uppercase mt-0.5">{weekday}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Rows */}
+                  <div className="divide-y divide-gray-100">
+                    {/* Guides Rows */}
+                    {guides.map(guide => {
+                      const guideBookings = bookings.filter(b => (b.assignedGuide?._id || b.assignedGuide) === guide._id);
+                      const hasConflict = checkOverlap(guideBookings);
+                      return (
+                        <div
+                          key={guide._id}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={() => handleAssignGuide(bookingIdDragging, guide._id)}
+                          className="flex hover:bg-gray-50/20 transition group"
+                        >
+                          <div className="w-[220px] shrink-0 p-4 border-r border-gray-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-[#EEF6F1] text-[#1A5F45] flex items-center justify-center text-[10px] font-bold">
+                                {guide.avatar}
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold text-gray-800">{guide.name}</div>
+                                <div className="text-[9px] text-gray-400 font-semibold">{guide.specialty}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-sm font-semibold text-gray-800">{b.user?.name || '—'}</div>
-                              <div className="text-[11px] text-gray-400">{b.user?.email || ''}</div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {hasConflict && (
+                                <span className="text-[8px] font-bold bg-red-50 text-red-600 border border-red-200 px-1 py-0.5 rounded-lg animate-pulse">
+                                  CONFLICT
+                                </span>
+                              )}
+                              <span className="text-[9px] font-bold text-gray-400">★ {guide.rating}</span>
                             </div>
                           </div>
-                        </td>
-                        <td className="py-4 px-5 text-xs font-semibold text-gray-400 font-mono">
-                          #WV-{b._id.slice(-6).toUpperCase()}
-                        </td>
-                        <td className="py-4 px-5 text-sm font-semibold text-gray-700 max-w-[200px] truncate">
-                          {b.experience?.title || '—'}
-                        </td>
-                        <td className="py-4 px-5 text-xs text-gray-600">
-                          <div>{b.startDate || '—'}</div>
-                          {b.endDate && b.endDate !== b.startDate && <div className="text-gray-400">&rarr; {b.endDate}</div>}
-                        </td>
-                        <td className="py-4 px-5 text-sm font-bold text-gray-900">&#8377;{(b.totalPrice || 0).toLocaleString()}</td>
-                        <td className="py-4 px-5">
-                          <StatusBadge status={b.status} />
-                          {b.statusNote && (
-                            <p className="text-[10px] text-gray-400 mt-1 max-w-[140px] truncate" title={b.statusNote}>{b.statusNote}</p>
-                          )}
-                        </td>
-                        <td className="py-4 px-5 text-right" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => setSelected(b)} className="text-gray-300 hover:text-gray-500 transition">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                              <path d="M9 5l7 7-7 7"/>
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-between items-center px-6 py-4 border-t border-gray-100 bg-gray-50/40">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="text-xs font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 transition">
-                  Previous
-                </button>
-                <div className="flex gap-1.5">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                    <button key={n} onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition ${
-                        page === n ? 'bg-[#1A5F45] text-white' : 'text-gray-600 hover:bg-gray-100'
-                      }`}>
-                      {n}
-                    </button>
-                  ))}
+                          
+                          {/* Timeline day cells */}
+                          <div className="flex-1 flex relative h-16 items-center">
+                            {days.map(d => (
+                              <div key={d} className="w-[40px] h-full shrink-0 border-r border-gray-100 last:border-r-0" />
+                            ))}
+                            
+                            {/* Absolute booking blocks */}
+                            {guideBookings.map(b => {
+                              const layout = getBookingLayout(b, currentMonth.getFullYear(), currentMonth.getMonth());
+                              if (!layout) return null;
+                              const left = (layout.startDay - 1) * 40;
+                              const width = layout.duration * 40;
+                              const isSelected = selected?._id === b._id;
+                              
+                              return (
+                                <div
+                                  key={b._id}
+                                  draggable
+                                  onDragStart={() => setBookingIdDragging(b._id)}
+                                  onClick={() => setSelected(b)}
+                                  style={{ left: `${left + 4}px`, width: `${width - 8}px` }}
+                                  className={`absolute h-10 rounded-xl px-2.5 flex items-center gap-1.5 cursor-pointer border shadow-sm transition-all duration-200 z-10 hover:scale-[1.02] active:scale-[0.98] ${
+                                    isSelected
+                                      ? 'border-[#1A5F45] ring-2 ring-[#1A5F45]/15'
+                                      : ''
+                                  } ${
+                                    b.status === 'confirmed'
+                                      ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+                                      : b.status === 'ongoing'
+                                      ? 'bg-blue-50/95 border-blue-200 text-blue-800'
+                                      : 'bg-amber-50/95 border-amber-200 text-amber-800'
+                                  }`}
+                                >
+                                  <div className="flex flex-col min-w-0 flex-1 leading-tight justify-center select-none">
+                                    <span className="text-[10px] font-bold truncate">{b.experience?.title}</span>
+                                    <span className="text-[8px] font-medium opacity-80 truncate mt-0.5">{b.user?.name}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Unassigned Row */}
+                    {(() => {
+                      const unassignedBookings = bookings.filter(b => !b.assignedGuide);
+                      return (
+                        <div
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={() => handleAssignGuide(bookingIdDragging, 'unassigned')}
+                          className="flex bg-gray-50/30 hover:bg-gray-50/50 transition group"
+                        >
+                          <div className="w-[220px] shrink-0 p-4 border-r border-gray-100 flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
+                              <span className="material-symbols-outlined text-[18px]">person_off</span>
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-gray-500">Unassigned Trips</div>
+                              <div className="text-[9px] text-gray-400 font-semibold">Needs Guide Assignment</div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 flex relative h-16 items-center">
+                            {days.map(d => (
+                              <div key={d} className="w-[40px] h-full shrink-0 border-r border-gray-100 last:border-r-0" />
+                            ))}
+                            
+                            {unassignedBookings.map(b => {
+                              const layout = getBookingLayout(b, currentMonth.getFullYear(), currentMonth.getMonth());
+                              if (!layout) return null;
+                              const left = (layout.startDay - 1) * 40;
+                              const width = layout.duration * 40;
+                              const isSelected = selected?._id === b._id;
+                              
+                              return (
+                                <div
+                                  key={b._id}
+                                  draggable
+                                  onDragStart={() => setBookingIdDragging(b._id)}
+                                  onClick={() => setSelected(b)}
+                                  style={{ left: `${left + 4}px`, width: `${width - 8}px` }}
+                                  className={`absolute h-10 rounded-xl px-2.5 flex items-center gap-1.5 cursor-pointer border border-dashed border-gray-300 bg-white/95 text-gray-600 shadow-sm transition-all duration-200 z-10 hover:scale-[1.02] active:scale-[0.98] ${
+                                    isSelected ? 'ring-2 ring-[#1A5F45]/20 border-[#1A5F45]' : ''
+                                  }`}
+                                >
+                                  <div className="flex flex-col min-w-0 flex-1 leading-tight justify-center select-none">
+                                    <span className="text-[10px] font-bold truncate text-gray-700">{b.experience?.title}</span>
+                                    <span className="text-[8px] font-semibold text-[#1A5F45] truncate mt-0.5">Assign Guide</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="text-xs font-semibold text-gray-500 hover:text-gray-700 disabled:opacity-40 transition">
-                  Next
-                </button>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Detail Drawer */}
@@ -462,6 +779,34 @@ export default function Bookings() {
                     <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Amount Paid</span>
                     <strong className="text-xs text-gray-800">&#8377;{(selected.totalPrice || 0).toLocaleString()}</strong>
                   </div>
+                </div>
+
+                {/* Guide Assignment Section */}
+                <div className="mb-5 pb-5 border-b border-gray-100">
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Assigned Guide</label>
+                  <select
+                    value={selected.assignedGuide?._id || selected.assignedGuide || 'unassigned'}
+                    onChange={e => handleAssignGuide(selected._id, e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-semibold text-gray-700 outline-none focus:ring-1 focus:ring-[#1A5F45] focus:border-[#1A5F45] transition cursor-pointer"
+                  >
+                    <option value="unassigned">⚠️ Unassigned (Select a guide...)</option>
+                    {guides.map(g => (
+                      <option key={g._id} value={g._id}>
+                        👤 {g.name} ({g.specialty} | ★{g.rating})
+                      </option>
+                    ))}
+                  </select>
+                  {(selected.assignedGuide?._id || selected.assignedGuide) && (() => {
+                    const guideId = selected.assignedGuide?._id || selected.assignedGuide;
+                    const guide = guides.find(g => g._id === guideId);
+                    if (!guide) return null;
+                    const assignedCount = bookings.filter(b => (b.assignedGuide?._id || b.assignedGuide) === guide._id).length;
+                    return (
+                      <div className="mt-2 text-[10px] text-gray-500 bg-[#EEF6F1] text-[#1A5F45] rounded-lg p-2.5 border border-[#1A5F45]/10 leading-relaxed">
+                        <strong>Credentials:</strong> Languages: {guide.languages.join(', ')} • Rating: ★{guide.rating} • Capacity: {guide.activeTrips + (assignedCount - 1)}/3 trips active this month.
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="mb-5">
@@ -643,6 +988,141 @@ export default function Bookings() {
           </div>
         </div>
       )}
+      {/* Calendar Sync Modal */}
+      {showSyncModal && <CalendarSyncModal onClose={() => setShowSyncModal(false)} />}
     </Layout>
+  );
+}
+
+function CalendarSyncModal({ onClose }) {
+  const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [syncStates, setSyncStates] = useState({
+    google: true,
+    apple: false,
+    outlook: false,
+  });
+
+  const iCalUrl = "https://api.wildvora.com/operator/sync/WV-5928x.ics";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(iCalUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleForceSync = () => {
+    setSyncing(true);
+    setSuccess(false);
+    setTimeout(() => {
+      setSyncing(false);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    }, 1800);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 border border-gray-100 animate-fade-in-up">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-base font-bold text-gray-900">Calendar Sync Integration</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+          Sync your Wildvora bookings and guide schedule directly to Google Calendar, Apple Calendar, or Microsoft Outlook. Keep your team on the same page.
+        </p>
+
+        {/* iCal Link Field */}
+        <div className="mb-5">
+          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">iCal / feed URL</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={iCalUrl}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-600 outline-none select-all font-mono"
+            />
+            <button
+              onClick={handleCopy}
+              className="px-4 py-2.5 bg-gray-105 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition flex items-center gap-1.5 shrink-0"
+            >
+              {copied ? (
+                <>
+                  <span className="material-symbols-outlined text-[16px] text-emerald-600">done</span>
+                  Copied
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Auto Sync Toggles */}
+        <div className="space-y-3 mb-6">
+          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider">Auto-Sync Services</label>
+          
+          {[
+            { id: 'google', name: 'Google Calendar Integration', desc: 'Syncs every 15 minutes automatically' },
+            { id: 'apple', name: 'Apple Calendar (iCal)', desc: 'Pull-based scheduling for Apple devices' },
+            { id: 'outlook', name: 'Outlook / Office 365', desc: 'Enterprise calendar scheduling sync' },
+          ].map(s => (
+            <label key={s.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 cursor-pointer hover:bg-gray-50/80 transition">
+              <div>
+                <p className="text-xs font-bold text-gray-800">{s.name}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{s.desc}</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={syncStates[s.id]}
+                onChange={() => setSyncStates(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
+                className="w-4 h-4 accent-[#1A5F45] cursor-pointer rounded"
+              />
+            </label>
+          ))}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 pt-3 border-t border-gray-100">
+          <button
+            onClick={handleForceSync}
+            disabled={syncing}
+            className="flex-1 py-3 bg-[#1A5F45] hover:bg-[#145038] disabled:bg-[#1A5F45]/60 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2"
+          >
+            {syncing ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Syncing...
+              </>
+            ) : success ? (
+              <>
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                Sync Complete!
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-[16px]">sync</span>
+                Force Sync Now
+              </>
+            )}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 border border-gray-200 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-50 transition"
+          >
+            Close Settings
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

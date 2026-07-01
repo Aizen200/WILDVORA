@@ -81,6 +81,11 @@ const bookingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    assignedGuide: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Guide',
+      default: null,
+    },
   },
   { timestamps: true }
 );

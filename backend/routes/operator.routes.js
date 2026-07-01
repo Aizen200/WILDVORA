@@ -18,6 +18,8 @@ const {
   respondToReview,
   getInquiries,
   getMessageThreads,
+  getGuides,
+  assignGuide,
 } = require('../controllers/OperatorController');
 
 // All operator routes are protected and restricted to operators/hosts
@@ -39,5 +41,7 @@ router.get('/reviews', getReviews);
 router.patch('/reviews/:id/reply', respondToReview);
 router.get('/inquiries', getInquiries);
 router.get('/message-threads', getMessageThreads);
+router.get('/guides', getGuides);
+router.patch('/bookings/:id/assign-guide', assignGuide);
 
 module.exports = router;

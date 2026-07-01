@@ -2,6 +2,7 @@ const Experience = require('../models/Experience');
 const Booking = require('../models/Booking');
 const Review = require('../models/Review');
 const User = require('../models/User');
+const Guide = require('../models/Guide');
 const Payout = require('../models/Payout');
 const Notification = require('../models/Notification');
 const Inquiry = require('../models/Inquiry');
@@ -306,6 +307,7 @@ const getBookings = async (req, res) => {
     const bookings = await Booking.find(query)
       .populate('experience', 'title images price location duration')
       .populate('user', 'name email phone avatar')
+      .populate('assignedGuide')
       .sort({ createdAt: -1 });
 
     res.json({ success: true, count: bookings.length, bookings });
@@ -667,6 +669,53 @@ const getInquiries = async (req, res) => {
   }
 };
 
+// @route GET /api/operator/guides
+const getGuides = async (req, res) => {
+  try {
+    const guides = await Guide.find({});
+    res.json({ success: true, count: guides.length, guides });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// @route PATCH /api/operator/bookings/:id/assign-guide
+const assignGuide = async (req, res) => {
+  try {
+    const { guideId } = req.body;
+
+    const booking = await Booking.findById(req.params.id).populate('experience');
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.experience.host.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Unauthorized access to this booking' });
+    }
+
+    if (!guideId || guideId === 'unassigned') {
+      booking.assignedGuide = null;
+    } else {
+      const guide = await Guide.findById(guideId);
+      if (!guide) {
+        return res.status(404).json({ success: false, message: 'Guide not found' });
+      }
+      booking.assignedGuide = guideId;
+    }
+
+    await booking.save();
+    
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate('experience', 'title images price location duration')
+      .populate('user', 'name email phone avatar')
+      .populate('assignedGuide');
+
+    res.json({ success: true, booking: updatedBooking });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getStats,
   getListings,
@@ -683,4 +732,6 @@ module.exports = {
   respondToReview,
   getInquiries,
   getMessageThreads,
+  getGuides,
+  assignGuide,
 };
