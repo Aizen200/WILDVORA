@@ -38,9 +38,7 @@ const FALLBACK_IMG = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c
 function WishlistCard({ item, onNavigate, onRemove }) {
   const heartBtnScale = useRef(new Animated.Value(1)).current;
   const cardOpacity   = useRef(new Animated.Value(1)).current;
-
   const imgUri = item.images?.[0] || CATEGORY_IMAGES[item.category] || FALLBACK_IMG;
-
   const handleRemoveTap = () => {
     // 1. Bounce the heart: scale up then snap to 0
     Animated.sequence([
@@ -267,9 +265,7 @@ const s = StyleSheet.create({
   cardPriceSub:{ fontSize: 11, color: C.outline, fontWeight: '400' },
   ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingText:  { fontSize: 12, fontWeight: '700', color: C.onSurface },
-
   removeBtn: { paddingHorizontal: 14 },
-
   empty: {
     alignItems: 'center', paddingTop: 80, paddingHorizontal: 32,
   },

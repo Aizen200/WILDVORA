@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Image,
+  StyleSheet, Image, Platform,
   Animated, Easing, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +57,16 @@ function isValidImageUrl(url) {
   const trimmed = url.trim();
   if (!trimmed) return false;
   return /^(https?:\/\/|data:image\/)/i.test(trimmed);
+}
+
+// On Android emulator `localhost` routes to the emulator itself, not the host
+// machine. Rewrite stored localhost URLs so images load on every platform.
+function platformUrl(url) {
+  if (!url) return url;
+  if (Platform.OS === 'android') {
+    return url.replace(/http:\/\/localhost:/gi, 'http://10.0.2.2:');
+  }
+  return url;
 }
 
 function pickExperienceImageUri(exp) {
@@ -203,9 +213,9 @@ function AIAnswerCard({ text, isTravelRelated }) {
 /* ─── ExperienceCard ────────────────────────────────────────── */
 function ExperienceCard({ exp, reason, onView }) {
   const [imgErr, setImgErr] = useState(false);
-  const remoteUri = useMemo(() => pickExperienceImageUri(exp), [exp]);
-  const fallback = useMemo(() => localFallbackFor(exp), [exp]);
-  const src = !imgErr && remoteUri ? { uri: remoteUri } : fallback;
+  const rawUri  = useMemo(() => pickExperienceImageUri(exp), [exp]);
+  const remoteUri = useMemo(() => (rawUri ? platformUrl(rawUri) : null), [rawUri]);
+  const fallback  = useMemo(() => localFallbackFor(exp), [exp]);
 
   const ratingValue = parseFloat(exp.rating || 0);
   const hasRating = ratingValue > 0;
@@ -216,13 +226,22 @@ function ExperienceCard({ exp, reason, onView }) {
       <View style={s.expClip}>
         {/* Hero image */}
         <View style={s.expImgWrap}>
+          {/* Local fallback always renders — no blank slot even if onError never fires */}
           <Image
-            source={src}
+            source={fallback}
             style={StyleSheet.absoluteFillObject}
             resizeMode="cover"
-            onError={() => setImgErr(true)}
-            accessibilityLabel={`Photo of ${exp.title || 'experience'}`}
           />
+          {/* Remote image loads on top; fallback stays visible if remote fails */}
+          {!imgErr && !!remoteUri && (
+            <Image
+              source={{ uri: remoteUri }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+              onError={() => setImgErr(true)}
+              accessibilityLabel={`Photo of ${exp.title || 'experience'}`}
+            />
+          )}
           <LinearGradient
             colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.72)']}
             style={StyleSheet.absoluteFillObject}
@@ -916,7 +935,7 @@ const s = StyleSheet.create({
     borderRadius: 22, overflow: 'hidden',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)',
   },
-  expImgWrap: { height: 200 },
+  expImgWrap: { height: 200, width: '100%' },
   priceBadge: {
     position: 'absolute', top: 12, right: 12,
     backgroundColor: 'rgba(0,0,0,0.62)',
