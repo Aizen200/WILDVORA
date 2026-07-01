@@ -121,6 +121,8 @@ export default function ListingForm() {
     // Experience Builder fields
     activities: '', stayOptions: '', meals: '', campfire: 'No', localExperiences: '',
     equipmentIncluded: '', pickupDrop: '', bestSeason: '', packingChecklist: '',
+    // Dynamic Availability overrides
+    closedDates: '', weatherCancellations: '', routeClosures: '',
   });
 
   useEffect(() => {
@@ -173,6 +175,10 @@ export default function ListingForm() {
           pickupDrop:          exp.pickupDrop                   || '',
           bestSeason:          exp.bestSeason                   || '',
           packingChecklist:    exp.packingChecklist?.join(', ') || '',
+          // Dynamic Availability overrides
+          closedDates:         exp.closedDates?.join(', ')         || '',
+          weatherCancellations:exp.weatherCancellations?.join(', ')|| '',
+          routeClosures:       exp.routeClosures?.join(', ')       || '',
         });
         if (exp.coverImage) setCoverImage({ preview: exp.coverImage, url: exp.coverImage });
         const advImgs = exp.adventureImages?.length ? exp.adventureImages : (exp.images || []);
@@ -339,6 +345,10 @@ export default function ListingForm() {
       pickupDrop:        formData.pickupDrop,
       bestSeason:        formData.bestSeason,
       packingChecklist:  formData.packingChecklist.split(',').map(s => s.trim()).filter(Boolean),
+      // Dynamic Availability overrides
+      closedDates:          formData.closedDates.split(',').map(s => s.trim()).filter(Boolean),
+      weatherCancellations: formData.weatherCancellations.split(',').map(s => s.trim()).filter(Boolean),
+      routeClosures:        formData.routeClosures.split(',').map(s => s.trim()).filter(Boolean),
     };
 
     try {
@@ -562,6 +572,38 @@ export default function ListingForm() {
                 <Label>Cancellation Policy</Label>
                 <input type="text" name="cancellationPolicy" value={formData.cancellationPolicy}
                   onChange={handleChange} disabled={isPending} className={`${inputCls} ${dis}`} />
+              </div>
+            </SectionCard>
+
+            {/* ── Dynamic Availability & Closures ── */}
+            <SectionCard>
+              <SectionHeader>Dynamic Availability & Alert Overrides</SectionHeader>
+              <p className="text-xs text-gray-400 -mt-2 mb-4">
+                Instantly set closures, flag bad weather dates, or note active route/trail blocks.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Closed Dates</Label>
+                  <p className="text-[10px] text-gray-400 mb-1">Format: YYYY-MM-DD, comma-separated</p>
+                  <input type="text" name="closedDates" value={formData.closedDates} onChange={handleChange}
+                    placeholder="e.g. 2026-07-15, 2026-07-20"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+                <div>
+                  <Label>Weather Cancellations</Label>
+                  <p className="text-[10px] text-gray-400 mb-1">Format: YYYY-MM-DD, comma-separated</p>
+                  <input type="text" name="weatherCancellations" value={formData.weatherCancellations} onChange={handleChange}
+                    placeholder="e.g. 2026-07-18"
+                    disabled={isPending} className={`${inputCls} ${dis}`} />
+                </div>
+              </div>
+
+              <div>
+                <Label>Route & Trail Closures</Label>
+                <input type="text" name="routeClosures" value={formData.routeClosures} onChange={handleChange}
+                  placeholder="e.g. Rohtang Pass closed due to heavy rain; Kunzum Pass snow block"
+                  disabled={isPending} className={`${inputCls} ${dis}`} />
               </div>
             </SectionCard>
 

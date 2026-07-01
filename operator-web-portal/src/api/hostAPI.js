@@ -34,4 +34,7 @@ export const hostAPI = {
   assignGuide:         (id, guideId) => api.patch(`/operator/bookings/${id}/assign-guide`, { guideId }),
   getReviews:          ()           => api.get('/operator/reviews'),
   respondToReview:     (id, text)   => api.patch(`/operator/reviews/${id}/reply`, { hostReply: text }),
+  getMarketplace:      ()           => api.get('/operator/marketplace'),
+  linkService:         (id)         => api.post(`/operator/marketplace/${id}/link`),
+  unlinkService:       (id)         => api.post(`/operator/marketplace/${id}/unlink`),
 };

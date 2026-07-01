@@ -123,6 +123,86 @@ mongoose
       console.error('Seeding guides failed:', e);
     }
 
+    // Seed local marketplace services if empty
+    try {
+      const LocalService = require('./models/LocalService');
+      const serviceCount = await LocalService.countDocuments();
+      if (serviceCount === 0) {
+        console.log('Seeding initial marketplace local services...');
+        await LocalService.create([
+          {
+            name: 'Amit (IMF Certified Alpine Guide)',
+            type: 'guide',
+            contact: '+91 94180 88776',
+            description: 'Specializes in high-altitude glacier routes, certified by Indian Mountaineering Foundation.',
+            location: 'Manali',
+            price: 2000,
+            priceUnit: 'day',
+            rating: 4.9,
+            reviewsCount: 18
+          },
+          {
+            name: 'Spiti Homestay Association',
+            type: 'homestay',
+            contact: '+91 94188 11223',
+            description: 'Authentic local mud-house homestay network including hot Spitian meals.',
+            location: 'Kaza',
+            price: 1200,
+            priceUnit: 'day',
+            rating: 4.8,
+            reviewsCount: 22
+          },
+          {
+            name: 'Solang Valley Jeep Transport',
+            type: 'transport',
+            contact: '+91 98160 12345',
+            description: '4x4 Gypsy & camper hire with local drivers experienced in crossing water crossings & snow passes.',
+            location: 'Manali',
+            price: 2500,
+            priceUnit: 'trip',
+            rating: 4.7,
+            reviewsCount: 14
+          },
+          {
+            name: 'Himalayan Adventure Gear Rentals',
+            type: 'rental',
+            contact: '+91 98161 54321',
+            description: 'High quality double-layered Quechua tents, sleeping bags (-10C rated), hiking poles, and snow boots.',
+            location: 'Manali',
+            price: 300,
+            priceUnit: 'day',
+            rating: 4.6,
+            reviewsCount: 31
+          },
+          {
+            name: 'Rohan - Outdoor Photographer & Reel Creator',
+            type: 'photographer',
+            contact: '+91 98055 99887',
+            description: 'Professional trek photographer and video maker. Shoots on Sony Alpha & DJI Mavic Mini.',
+            location: 'Manali',
+            price: 1500,
+            priceUnit: 'day',
+            rating: 4.9,
+            reviewsCount: 9
+          },
+          {
+            name: 'Chandra Homestay & Cafe',
+            type: 'cafe',
+            contact: '+91 98166 22334',
+            description: 'Authentic wooden structure cafe serving locally sourced sea buckthorn tea and Himachali Siddu.',
+            location: 'Keylong',
+            price: 500,
+            priceUnit: 'day',
+            rating: 4.5,
+            reviewsCount: 11
+          }
+        ]);
+        console.log('Local marketplace services seeded successfully!');
+      }
+    } catch (e) {
+      console.error('Seeding local services failed:', e);
+    }
+
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })

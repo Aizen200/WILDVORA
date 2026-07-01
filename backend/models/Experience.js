@@ -76,6 +76,9 @@ const experienceSchema = new mongoose.Schema(
     isTrending:   { type: Boolean, default: false },
     isActive:     { type: Boolean, default: true },
     availableDates:     [{ type: String }],
+    closedDates:        [{ type: String }],
+    weatherCancellations: [{ type: String }],
+    routeClosures:      [{ type: String }],
     exclusions:         [{ type: String }],
     cancellationPolicy: {
       type: String,

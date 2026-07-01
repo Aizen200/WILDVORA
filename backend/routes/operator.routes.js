@@ -20,6 +20,9 @@ const {
   getMessageThreads,
   getGuides,
   assignGuide,
+  getLocalServices,
+  linkLocalService,
+  unlinkLocalService,
 } = require('../controllers/OperatorController');
 
 // All operator routes are protected and restricted to operators/hosts
@@ -43,5 +46,8 @@ router.get('/inquiries', getInquiries);
 router.get('/message-threads', getMessageThreads);
 router.get('/guides', getGuides);
 router.patch('/bookings/:id/assign-guide', assignGuide);
+router.get('/marketplace', getLocalServices);
+router.post('/marketplace/:id/link', linkLocalService);
+router.post('/marketplace/:id/unlink', unlinkLocalService);
 
 module.exports = router;

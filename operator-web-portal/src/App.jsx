@@ -14,6 +14,7 @@ import Notifications  from './pages/Notifications';
 import Messages       from './pages/Messages';
 import Settings       from './pages/Settings';
 import Support        from './pages/Support';
+import Marketplace   from './pages/Marketplace';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -49,6 +50,7 @@ function AppRoutes() {
       <Route path="/messages"          element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       <Route path="/settings"          element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/support"           element={<ProtectedRoute><Support /></ProtectedRoute>} />
+      <Route path="/marketplace"       element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
