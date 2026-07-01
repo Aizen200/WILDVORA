@@ -353,15 +353,52 @@ export default function MyTripsScreen({ navigation }) {
           <Text style={s.appBarLogo}>Wildvora</Text>
         </View>
         <View style={s.guestWrap}>
-          <MaterialCommunityIcons name="hiking" size={64} color="#D1D5DB" />
-          <Text style={s.guestTitle}>Your trips live here</Text>
-          <Text style={s.guestSub}>Sign in to view and manage your bookings, track upcoming adventures, and relive past trips.</Text>
-          <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
-            <Text style={s.guestPrimaryBtnText}>Create Account</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
-            <Text style={s.guestSecondaryBtnText}>Sign In</Text>
-          </TouchableOpacity>
+
+          {/* Fanned stack of trip card previews */}
+          <View style={s.guestCardStack}>
+            <View style={[s.guestStackCard, s.guestStackCardBack]}>
+              <View style={s.guestStackInner}>
+                <Image source={{ uri: TRIP_IMAGES[2] }} style={s.guestStackImg} resizeMode="cover" />
+                <View style={[StyleSheet.absoluteFill, s.guestStackDim]} />
+              </View>
+            </View>
+            <View style={[s.guestStackCard, s.guestStackCardMid]}>
+              <View style={s.guestStackInner}>
+                <Image source={{ uri: TRIP_IMAGES[1] }} style={s.guestStackImg} resizeMode="cover" />
+                <View style={[StyleSheet.absoluteFill, s.guestStackDim]} />
+              </View>
+            </View>
+            <View style={[s.guestStackCard, s.guestStackCardFront]}>
+              <View style={s.guestStackInner}>
+                <Image source={{ uri: TRIP_IMAGES[0] }} style={s.guestStackImg} resizeMode="cover" />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.30)' }]} />
+                <View style={s.guestLockCenter}>
+                  <View style={s.guestLockCircle}>
+                    <MaterialCommunityIcons name="lock-outline" size={24} color={C.white} />
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Headline copy */}
+          <View style={s.guestCopy}>
+            <Text style={s.guestHeadline}>Where to next?</Text>
+            <Text style={s.guestTagline}>
+              Sign in to book adventures, track upcoming trips, and revisit every journey you've taken.
+            </Text>
+          </View>
+
+          {/* CTAs */}
+          <View style={s.guestCtaBlock}>
+            <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
+              <Text style={s.guestPrimaryBtnText}>Create Account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
+              <Text style={s.guestSecondaryBtnText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
       </SafeAreaView>
     );
@@ -652,11 +689,24 @@ const s = StyleSheet.create({
   cancelModalBtn:    { alignItems: 'center', paddingVertical: 10 },
   cancelModalText:   { fontSize: 14, color: C.outline, fontWeight: '600' },
 
-  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  guestTitle:           { fontSize: 22, fontWeight: '800', color: C.onSurface, marginTop: 20, marginBottom: 10, textAlign: 'center', letterSpacing: -0.3 },
-  guestSub:             { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 21, marginBottom: 36 },
-  guestPrimaryBtn:      { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
-  guestPrimaryBtnText:  { fontSize: 15, fontWeight: '800', color: C.white },
-  guestSecondaryBtn:    { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 14, alignSelf: 'stretch', alignItems: 'center' },
-  guestSecondaryBtnText:{ fontSize: 15, fontWeight: '700', color: C.primary },
+  /* Guest / unauthenticated — trips screen */
+  guestWrap:             { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 32 },
+  guestCardStack:        { width: '100%', height: 220, alignItems: 'center', justifyContent: 'center' },
+  guestStackCard:        { position: 'absolute', width: 242, height: 180, borderRadius: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.16, shadowRadius: 14, elevation: 8 },
+  guestStackInner:       { width: '100%', height: '100%', borderRadius: 22, overflow: 'hidden' },
+  guestStackImg:         { width: '100%', height: '100%' },
+  guestStackDim:         { backgroundColor: 'rgba(0,0,0,0.50)' },
+  guestStackCardBack:    { transform: [{ rotate: '-9deg' }], zIndex: 1, opacity: 0.72 },
+  guestStackCardMid:     { transform: [{ rotate: '-3deg' }, { translateX: 8 }], zIndex: 2, opacity: 0.88 },
+  guestStackCardFront:   { transform: [{ rotate: '4deg' }], zIndex: 3 },
+  guestLockCenter:       { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  guestLockCircle:       { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.50)', justifyContent: 'center', alignItems: 'center' },
+  guestCopy:             { alignItems: 'center', gap: 10 },
+  guestHeadline:         { fontSize: 28, fontWeight: '800', color: C.onSurface, letterSpacing: -0.5, textAlign: 'center' },
+  guestTagline:          { fontSize: 15, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 22 },
+  guestCtaBlock:         { alignSelf: 'stretch', gap: 12 },
+  guestPrimaryBtn:       { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.28, shadowRadius: 8, elevation: 4 },
+  guestPrimaryBtnText:   { fontSize: 15, fontWeight: '800', color: C.white },
+  guestSecondaryBtn:     { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  guestSecondaryBtnText: { fontSize: 15, fontWeight: '700', color: C.primary },
 });

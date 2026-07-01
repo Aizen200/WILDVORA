@@ -1,21 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView,
-  Platform, ActivityIndicator, Image
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator,
+  ImageBackground, Animated, StatusBar,
 } from 'react-native';
 import Alert from '../utils/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+
+const BG = require('../../assets/guest-bg.jpg');
+const GREEN = '#1A5F45';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email,        setEmail]        = useState('');
+  const [password,     setPassword]     = useState('');
+  const [loading,      setLoading]      = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe,   setRememberMe]   = useState(false);
+
+  const logoOpacity   = useRef(new Animated.Value(0)).current;
+  const cardOpacity   = useRef(new Animated.Value(0)).current;
+  const cardTranslate = useRef(new Animated.Value(52)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(logoOpacity, {
+        toValue: 1, duration: 450, useNativeDriver: true,
+      }),
+      Animated.parallel([
+        Animated.timing(cardOpacity, {
+          toValue: 1, duration: 480, useNativeDriver: true,
+        }),
+        Animated.spring(cardTranslate, {
+          toValue: 0, tension: 60, friction: 11, useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -34,176 +57,189 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={styles.container}>
-          
-          <View style={styles.content}>
-            {/* Custom SVG-like Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoMark}>
-                {/* Tan Peak */}
-                <View style={[styles.triangle, styles.peakTriangle]} />
-                {/* Main Dark Green Triangle */}
-                <View style={[styles.triangle, styles.mainTriangle]}>
-                  {/* Inner Light Blue Triangle */}
-                  <View style={[styles.triangle, styles.innerTriangle]} />
-                </View>
+    <View style={s.root}>
+      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+      <ImageBackground source={BG} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <View style={[StyleSheet.absoluteFill, s.overlay]} />
+
+      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+
+        {/* Back button */}
+        <Animated.View style={[s.backWrap, { opacity: logoOpacity }]}>
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Feather name="arrow-left" size={20} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.kav}
+        >
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Spacer pushes card to bottom */}
+            <View style={{ flex: 1 }} />
+
+            {/* ── Form Card ── */}
+            <Animated.View style={[s.card, { opacity: cardOpacity, transform: [{ translateY: cardTranslate }] }]}>
+
+              {/* Logo */}
+              <View style={s.logoRow}>
+                <MaterialCommunityIcons name="compass-rose" size={26} color={GREEN} />
+                <Text style={s.logoText}>WILDVORA</Text>
               </View>
-              <Text style={styles.logoText}>WILDVORA</Text>
-            </View>
 
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your adventure</Text>
+              <Text style={s.title}>Welcome Back</Text>
+              <Text style={s.subtitle}>Continue your adventure.</Text>
 
-            {/* Email Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="mail" size={20} color="#111" style={styles.inputIcon} />
+              {/* Email */}
+              <View style={s.field}>
+                <Feather name="mail" size={17} color="#9CA3AF" style={s.fieldIcon} />
                 <TextInput
-                  style={styles.input}
-                  placeholder="explorer@wildvora.com"
-                  placeholderTextColor="#888"
+                  style={s.input}
+                  placeholder="Email address"
+                  placeholderTextColor="#9CA3AF"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  returnKeyType="next"
                 />
               </View>
-            </View>
 
-            {/* Password Field */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="lock" size={20} color="#111" style={styles.inputIcon} />
+              {/* Password */}
+              <View style={s.field}>
+                <Feather name="lock" size={17} color="#9CA3AF" style={s.fieldIcon} />
                 <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#888"
+                  style={s.input}
+                  placeholder="Password"
+                  placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   textContentType="oneTimeCode"
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Feather name={showPassword ? "eye-off" : "eye"} size={20} color="#111" />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(v => !v)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Feather name={showPassword ? 'eye-off' : 'eye'} size={17} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Remember Me & Forgot Password */}
-            <View style={styles.optionsRow}>
-              <TouchableOpacity 
-                style={styles.checkboxRow} 
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.8}
+              {/* Forgot Password */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                activeOpacity={0.7}
+                style={s.forgotWrap}
               >
-                <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                  {rememberMe && <Feather name="check" size={12} color="#fff" />}
-                </View>
-                <Text style={styles.checkboxLabel}>Remember Me</Text>
+                <Text style={s.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-                <Text style={styles.forgotLink}>Forgot Password?</Text>
+              {/* Continue */}
+              <TouchableOpacity
+                style={[s.primaryBtn, loading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={loading}
+                activeOpacity={0.88}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.primaryBtnText}>Continue</Text>
+                }
               </TouchableOpacity>
-            </View>
 
-            {/* Login Button */}
-            <TouchableOpacity style={styles.btnPrimary} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <View style={styles.btnContent}>
-                  <Text style={styles.btnPrimaryText}>Login</Text>
-                  <Feather name="arrow-right" size={20} color="#fff" />
-                </View>
-              )}
-            </TouchableOpacity>
+              {/* Footer */}
+              <View style={s.footerRow}>
+                <Text style={s.footerMuted}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Register')} activeOpacity={0.7}>
+                  <Text style={s.footerLink}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
 
-          </View>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.mutedText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.link}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAF7' },
-  container: { flex: 1, padding: 24, justifyContent: 'space-between' },
-  content: { flex: 1, justifyContent: 'center' },
-  logoContainer: { alignItems: 'center', marginBottom: 32 },
-  logoMark: { alignItems: 'center', marginBottom: 12 },
-  triangle: {
-    width: 0, height: 0, backgroundColor: 'transparent',
-    borderStyle: 'solid', borderLeftColor: 'transparent', borderRightColor: 'transparent',
-  },
-  peakTriangle: {
-    borderLeftWidth: 6, borderRightWidth: 6, borderBottomWidth: 12,
-    borderBottomColor: '#C4A482', marginBottom: 0, zIndex: 2
-  },
-  mainTriangle: {
-    borderLeftWidth: 40, borderRightWidth: 40, borderBottomWidth: 70,
-    borderBottomColor: '#397858', alignItems: 'center', justifyContent: 'flex-end', zIndex: 1
-  },
-  innerTriangle: {
-    borderLeftWidth: 20, borderRightWidth: 20, borderBottomWidth: 35,
-    borderBottomColor: '#67A8B6', position: 'absolute', bottom: -70
-  },
-  logoText: { fontSize: 24, fontWeight: '800', color: '#448E6E', letterSpacing: 1.5, marginTop: 4 },
-  title: { fontSize: 28, fontWeight: '700', color: '#1A1A1A', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40 },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, color: '#333', fontWeight: '500', marginBottom: 8 },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E6DF',
-    borderRadius: 12,
-    backgroundColor: '#F3F6F2',
-    height: 56,
-  },
-  inputIcon: { paddingHorizontal: 16 },
-  input: { flex: 1, fontSize: 16, color: '#111', height: '100%' },
-  eyeIcon: { paddingHorizontal: 16, height: '100%', justifyContent: 'center' },
-  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 6, borderWidth: 1, 
-    borderColor: '#D1D9CD', backgroundColor: '#fff', 
-    justifyContent: 'center', alignItems: 'center', marginRight: 10
-  },
-  checkboxActive: { backgroundColor: '#1A5F45', borderColor: '#1A5F45' },
-  checkboxLabel: { fontSize: 14, color: '#333', fontWeight: '500' },
-  forgotLink: {
-    color: '#1A5F45', fontSize: 14, fontWeight: '500',
-    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
-  },
-  btnPrimary: {
-    backgroundColor: '#1A5F45', borderRadius: 12, height: 56,
+const s = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: '#0a1a12' },
+  overlay: { backgroundColor: 'rgba(4,14,8,0.55)' },
+  safe:    { flex: 1 },
+  kav:     { flex: 1 },
+  scroll:  { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 24 },
+
+  /* Back button */
+  backWrap: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 },
+  backBtn:  {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#1A5F45', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
-    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
   },
-  btnContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 18 },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingBottom: 16 },
-  mutedText: { color: '#666', fontSize: 15 },
-  link: {
-    color: '#1A5F45', fontSize: 15, fontWeight: '700',
-    ...Platform.OS === 'web' ? { cursor: 'pointer' } : {}
+
+  /* Card */
+  card: {
+    backgroundColor: '#e7f1ecf5',
+    borderRadius: 28,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 18,
   },
+
+  /* Logo */
+  logoRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 26 },
+  logoText: { fontSize: 19, fontWeight: '900', color: GREEN, letterSpacing: 4 },
+
+  /* Headline */
+  title:    { fontSize: 26, fontWeight: '800', color: '#111827', marginBottom: 6, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, color: '#6B7280', marginBottom: 28, lineHeight: 21 },
+
+  /* Input fields */
+  field: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.2, borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 16, height: 54,
+    marginBottom: 14,
+  },
+  fieldIcon: { marginRight: 10 },
+  input:     { flex: 1, fontSize: 15, color: '#111827' },
+
+  /* Forgot */
+  forgotWrap: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 26 },
+  forgotText: { fontSize: 14, fontWeight: '600', color: GREEN },
+
+  /* Primary button */
+  primaryBtn: {
+    backgroundColor: GREEN,
+    borderRadius: 14,
+    height: 54,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 22,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+
+  /* Footer */
+  footerRow:   { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  footerMuted: { fontSize: 14.5, color: '#6B7280' },
+  footerLink:  { fontSize: 14.5, fontWeight: '700', color: GREEN },
 });

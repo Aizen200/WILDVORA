@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, ActivityIndicator, Modal, Platform, Image,
+  TextInput, ActivityIndicator, Modal, Platform, Image, ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,13 +29,15 @@ const C = {
   outlineVariant:      '#E0E0E0',
   tertiary:            '#2D7A5A',
   error:               '#1A5F45',
-  danger:              '#DC2626',
+  danger:              '#1A5F45',
   blue:                '#0a6687',
   purple:              '#6d28d9',
-  amber:               '#b45309',
-  rose:                '#dc2626',
+  amber:               '#2D7A5A',
+  rose:                '#b3e3c5',
   teal:                '#0f766e',
 };
+
+const GUEST_BG = require('../../assets/guest-bg.jpg');
 
 const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
@@ -256,30 +258,50 @@ export default function ProfileScreen({ navigation }) {
 
   if (!user) {
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
+      <ImageBackground source={GUEST_BG} style={s.guestBg} resizeMode="cover">
         <LinearGradient
-          colors={[C.primaryDark, C.primary, C.primaryContainer]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.guestHero}
-        >
-          <MaterialCommunityIcons name="compass-outline" size={210} color="rgba(255,255,255,0.07)" style={s.guestDecor} />
-        </LinearGradient>
-        <View style={s.guestWrap}>
-          <View style={s.guestAvatarRing}>
-            <MaterialCommunityIcons name="account-outline" size={44} color={C.primary} />
+          colors={['rgba(0,0,0,0.18)', 'rgba(8,20,12,0.65)', 'rgba(8,20,12,0.93)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <SafeAreaView style={s.guestSafe} edges={['top', 'bottom']}>
+          {/* Logo row */}
+          <View style={s.guestLogoRow}>
+            <MaterialCommunityIcons name="compass-rose" size={30} color="#FFFFFF" />
+            <Text style={s.guestLogoText}>WILDVORA</Text>
           </View>
-          <Text style={s.guestTitle}>Join Wildvora</Text>
-          <Text style={s.guestSub}>
-            Create a free account to manage your bookings, save adventures, and connect with operators.
-          </Text>
-          <TouchableOpacity style={s.guestPrimaryBtn} onPress={() => navigation.navigate('Register')} activeOpacity={0.87}>
-            <Text style={s.guestPrimaryBtnText}>Create Account</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.guestSecondaryBtn} onPress={() => navigation.navigate('Login')} activeOpacity={0.87}>
-            <Text style={s.guestSecondaryBtnText}>Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+
+          <View style={{ flex: 1 }} />
+
+          {/* Headline copy */}
+          <View style={s.guestCopyBlock}>
+            <Text style={s.guestHeadline}>{'EXPLORE.\nBOOK.\nEXPERIENCE.'}</Text>
+            <Text style={s.guestTagline}>Adventure starts with one step.</Text>
+          </View>
+
+          {/* CTAs */}
+          <View style={s.guestBtnBlock}>
+            <TouchableOpacity
+              style={s.guestPrimaryBtn}
+              onPress={() => navigation.navigate('Register')}
+              activeOpacity={0.87}
+            >
+              <Text style={s.guestPrimaryBtnText}>Create an account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.guestSecondaryBtn}
+              onPress={() => navigation.navigate('Login')}
+              activeOpacity={0.7}
+            >
+              <Text style={s.guestSecondaryBtnText}>
+                Already have an account?{'  '}
+                <Text style={s.guestSignInText}>Sign In</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
@@ -1615,14 +1637,18 @@ const s = StyleSheet.create({
 
   dialogCancelText: { color: C.onSurfaceVariant, fontWeight: '600', fontSize: 14 },
 
-  guestHero:            { height: 200, overflow: 'hidden', position: 'relative' },
-  guestDecor:           { position: 'absolute', top: -24, right: -34 },
-  guestWrap:            { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, marginTop: -52 },
-  guestAvatarRing:      { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, ...SHADOW, shadowOpacity: 0.16, shadowRadius: 12, elevation: 7 },
-  guestTitle:           { fontSize: 24, fontWeight: '800', color: C.onSurface, marginBottom: 10, textAlign: 'center', letterSpacing: -0.4 },
-  guestSub:             { fontSize: 14, color: C.onSurfaceVariant, textAlign: 'center', lineHeight: 21, marginBottom: 36 },
-  guestPrimaryBtn:      { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 16, alignSelf: 'stretch', alignItems: 'center', marginBottom: 12 },
-  guestPrimaryBtnText:  { fontSize: 15, fontWeight: '800', color: C.white },
-  guestSecondaryBtn:    { borderWidth: 1.5, borderColor: C.primary, borderRadius: 14, paddingVertical: 15, alignSelf: 'stretch', alignItems: 'center' },
-  guestSecondaryBtnText:{ fontSize: 15, fontWeight: '700', color: C.primary },
+  /* Guest / unauthenticated screen */
+  guestBg:              { flex: 1 },
+  guestSafe:            { flex: 1, paddingHorizontal: 28, paddingBottom: 16 },
+  guestLogoRow:         { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 28 },
+  guestLogoText:        { fontSize: 21, fontWeight: '900', color: '#FFFFFF', letterSpacing: 5 },
+  guestCopyBlock:       { paddingBottom: 44 },
+  guestHeadline:        { fontSize: 46, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1, lineHeight: 54 },
+  guestTagline:         { fontSize: 17, color: 'rgba(255,255,255,0.70)', fontWeight: '500', marginTop: 16, letterSpacing: 0.2 },
+  guestBtnBlock:        { paddingBottom: 8 },
+  guestPrimaryBtn:      { backgroundColor: C.primaryContainer, borderRadius: 18, paddingVertical: 17, alignItems: 'center', marginBottom: 16 },
+  guestPrimaryBtnText:  { fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.4 },
+  guestSecondaryBtn:    { alignItems: 'center', paddingVertical: 10 },
+  guestSecondaryBtnText:{ fontSize: 14.5, color: 'rgba(255,255,255,0.65)', fontWeight: '500' },
+  guestSignInText:      { color: '#FFFFFF', fontWeight: '700' },
 });
